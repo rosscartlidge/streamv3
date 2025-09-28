@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖥️ Process Analysis - CPU &amp; Memory Usage</title>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #dee2e6;
+            --panel-bg: #f8f9fa;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .control-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .stats-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .field-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .export-buttons {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        .btn-outline-primary {
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h1 class="text-center">🖥️ Process Analysis - CPU &amp; Memory Usage</h1>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="control-panel">
+                    <div class="row g-3">
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Chart Type</label>
+                            <select id="chartType" class="form-select">
+                                <option value="line">Line</option>
+                                <option value="bar">Bar</option>
+                                <option value="scatter">Scatter</option>
+                                <option value="pie">Pie</option>
+                                <option value="doughnut">Doughnut</option>
+                                <option value="radar">Radar</option>
+                            </select>
+                        </div>
+
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">X-Axis Field</label>
+                            <select id="xField" class="form-select">
+                            </select>
+                        </div>
+
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Y-Axis Fields</label>
+                            <div id="yFields" class="field-selector">
+                            </div>
+                        </div>
+
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showTrendLine">
+                                <label class="form-check-label" for="showTrendLine">Trend Line</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showMovingAvg">
+                                <label class="form-check-label" for="showMovingAvg">Moving Average</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="stackedMode">
+                                <label class="form-check-label" for="stackedMode">Stacked</label>
+                            </div>
+                        </div>
+
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Actions</label>
+                            <div class="btn-group d-block" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateChart()">
+                                    <i class="bi bi-arrow-clockwise"></i> Update
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="resetZoom()">
+                                    <i class="bi bi-zoom-out"></i> Reset Zoom
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportChart()">
+                                    <i class="bi bi-download"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="stats-panel">
+                    <h5>Data Summary</h5>
+                    <div id="dataSummary" class="row">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        let chartData = {"records":[{"CMD":"/usr/bin/memcached","CPU":14.966759497576195,"MEM":342.45165705057275,"PID":1000,"STAT":"R","SZ":350670,"TIME":1675,"USER":"postgres"},{"CMD":"/usr/bin/postgres","CPU":14.453903091389314,"MEM":647.889804309842,"PID":1001,"STAT":"S","SZ":663439,"TIME":1129,"USER":"postgres"},{"CMD":"/usr/bin/node","CPU":4.539028154209946,"MEM":17.827860469900568,"PID":1002,"STAT":"S","SZ":18255,"TIME":785,"USER":"monitoring"},{"CMD":"/usr/bin/postgres","CPU":8.842579053720035,"MEM":53.60185523185119,"PID":1003,"STAT":"S","SZ":54888,"TIME":1144,"USER":"app"},{"CMD":"/usr/bin/postgres","CPU":3.793116650695594,"MEM":32.07352022236758,"PID":1004,"STAT":"S","SZ":32843,"TIME":2275,"USER":"app"},{"CMD":"/usr/bin/postgres","CPU":18.14315643550824,"MEM":369.3459208645676,"PID":1005,"STAT":"R","SZ":378210,"TIME":1784,"USER":"postgres"},{"CMD":"/usr/sbin/sshd","CPU":5.228633484013552,"MEM":566.9936668551443,"PID":1006,"STAT":"S","SZ":580601,"TIME":2467,"USER":"postgres"},{"CMD":"/usr/sbin/sshd","CPU":9.927163653210396,"MEM":91.28057364509554,"PID":1007,"STAT":"S","SZ":93471,"TIME":3498,"USER":"monitoring"},{"CMD":"/bin/systemd","CPU":3.1281079605349746,"MEM":17.746966174892727,"PID":1008,"STAT":"S","SZ":18172,"TIME":1810,"USER":"nginx"},{"CMD":"/usr/bin/memcached","CPU":9.824280397405245,"MEM":93.70668290787162,"PID":1009,"STAT":"T","SZ":95955,"TIME":1683,"USER":"root"},{"CMD":"/usr/sbin/nginx","CPU":1.8650464813797791,"MEM":53.39203943125584,"PID":1010,"STAT":"T","SZ":54673,"TIME":3309,"USER":"nginx"},{"CMD":"/usr/bin/python3","CPU":7.134056061514259,"MEM":330.17666739774063,"PID":1011,"STAT":"S","SZ":338100,"TIME":2778,"USER":"postgres"},{"CMD":"/usr/bin/redis-server","CPU":7.4811087159854175,"MEM":47.0449909659616,"PID":1012,"STAT":"T","SZ":48174,"TIME":1178,"USER":"monitoring"},{"CMD":"/usr/bin/redis-server","CPU":2.6086480946399773,"MEM":23.601035044310123,"PID":1013,"STAT":"R","SZ":24167,"TIME":250,"USER":"root"},{"CMD":"/usr/bin/memcached","CPU":0.292389630099487,"MEM":63.242113420292355,"PID":1014,"STAT":"R","SZ":64759,"TIME":704,"USER":"monitoring"},{"CMD":"/bin/systemd","CPU":4.170611073882959,"MEM":28.917017046298604,"PID":1015,"STAT":"D","SZ":29611,"TIME":85,"USER":"nginx"},{"CMD":"/usr/bin/redis-server","CPU":19.263894850425647,"MEM":472.9657440096121,"PID":1016,"STAT":"R","SZ":484316,"TIME":149,"USER":"postgres"},{"CMD":"/usr/bin/redis-server","CPU":5.430868538007049,"MEM":64.34838747551524,"PID":1017,"STAT":"D","SZ":65892,"TIME":1249,"USER":"app"},{"CMD":"/usr/bin/memcached","CPU":2.355568335572804,"MEM":18.848194692562043,"PID":1018,"STAT":"T","SZ":19300,"TIME":2038,"USER":"nginx"},{"CMD":"/usr/bin/postgres","CPU":9.117484541016411,"MEM":46.110106907939645,"PID":1019,"STAT":"S","SZ":47216,"TIME":1977,"USER":"monitoring"},{"CMD":"/bin/systemd","CPU":2.1130236017618276,"MEM":31.360173070325988,"PID":1020,"STAT":"T","SZ":32112,"TIME":2921,"USER":"monitoring"},{"CMD":"/usr/bin/postgres","CPU":6.1781901709598905,"MEM":42.930421271800355,"PID":1021,"STAT":"T","SZ":43960,"TIME":328,"USER":"app"},{"CMD":"/usr/bin/postgres","CPU":5.584341974509378,"MEM":910.9057058980534,"PID":1022,"STAT":"T","SZ":932767,"TIME":131,"USER":"postgres"},{"CMD":"/usr/sbin/sshd","CPU":3.55339723174502,"MEM":22.069470931533267,"PID":1023,"STAT":"S","SZ":22599,"TIME":3281,"USER":"nginx"},{"CMD":"/usr/bin/memcached","CPU":6.995729165405617,"MEM":94.53869425166947,"PID":1024,"STAT":"R","SZ":96807,"TIME":2914,"USER":"app"},{"CMD":"/bin/systemd","CPU":13.919183026145557,"MEM":892.2900225686883,"PID":1025,"STAT":"S","SZ":913704,"TIME":3373,"USER":"postgres"},{"CMD":"/usr/bin/postgres","CPU":4.495180533380487,"MEM":10.873553458049754,"PID":1026,"STAT":"R","SZ":11134,"TIME":1667,"USER":"nginx"},{"CMD":"/usr/bin/node","CPU":3.4541315794437377,"MEM":11.640507573699193,"PID":1027,"STAT":"T","SZ":11919,"TIME":923,"USER":"nginx"},{"CMD":"/usr/bin/postgres","CPU":8.669770396632229,"MEM":7.3731473948476545,"PID":1028,"STAT":"D","SZ":7550,"TIME":2362,"USER":"root"},{"CMD":"/usr/sbin/nginx","CPU":8.420949630978832,"MEM":58.314165993279374,"PID":1029,"STAT":"R","SZ":59713,"TIME":117,"USER":"app"},{"CMD":"/usr/bin/postgres","CPU":1.472107340257674,"MEM":59.122596978020105,"PID":1030,"STAT":"R","SZ":60541,"TIME":297,"USER":"nginx"},{"CMD":"/bin/systemd","CPU":3.3899140601633295,"MEM":67.14427338852019,"PID":1031,"STAT":"T","SZ":68755,"TIME":1612,"USER":"monitoring"},{"CMD":"/usr/bin/python3","CPU":9.918651514912444,"MEM":356.3479591218673,"PID":1032,"STAT":"T","SZ":364900,"TIME":2703,"USER":"postgres"},{"CMD":"/usr/bin/redis-server","CPU":9.670633632920131,"MEM":76.80636783931843,"PID":1033,"STAT":"D","SZ":78649,"TIME":1550,"USER":"monitoring"},{"CMD":"/usr/sbin/sshd","CPU":6.348376435389225,"MEM":89.76035286543227,"PID":1034,"STAT":"D","SZ":91914,"TIME":111,"USER":"app"},{"CMD":"/bin/systemd","CPU":12.350246826284277,"MEM":674.1160706705532,"PID":1035,"STAT":"T","SZ":690294,"TIME":568,"USER":"postgres"},{"CMD":"/usr/sbin/sshd","CPU":9.200799189272058,"MEM":41.04259566350186,"PID":1036,"STAT":"D","SZ":42027,"TIME":3162,"USER":"app"},{"CMD":"/usr/sbin/sshd","CPU":7.624506625825229,"MEM":22.49171610369188,"PID":1037,"STAT":"R","SZ":23031,"TIME":2766,"USER":"root"},{"CMD":"/bin/systemd","CPU":12.342412713982267,"MEM":674.1079152280233,"PID":1038,"STAT":"D","SZ":690286,"TIME":2776,"USER":"postgres"},{"CMD":"/usr/bin/redis-server","CPU":1.1866059817693644,"MEM":39.314706133461144,"PID":1039,"STAT":"S","SZ":40258,"TIME":2180,"USER":"monitoring"},{"CMD":"/bin/systemd","CPU":2.3436768669934023,"MEM":19.64133896287456,"PID":1040,"STAT":"S","SZ":20112,"TIME":1776,"USER":"nginx"},{"CMD":"/usr/bin/python3","CPU":12.303158933144754,"MEM":678.3293440804454,"PID":1041,"STAT":"D","SZ":694609,"TIME":2481,"USER":"postgres"},{"CMD":"/bin/systemd","CPU":13.678728249566129,"MEM":344.954393083624,"PID":1042,"STAT":"T","SZ":353233,"TIME":2160,"USER":"postgres"},{"CMD":"/usr/sbin/sshd","CPU":1.6191763532070425,"MEM":45.23245871570263,"PID":1043,"STAT":"S","SZ":46318,"TIME":1038,"USER":"nginx"},{"CMD":"/bin/systemd","CPU":6.354462414325691,"MEM":69.39018794905517,"PID":1044,"STAT":"D","SZ":71055,"TIME":103,"USER":"app"},{"CMD":"/usr/sbin/sshd","CPU":2.534335339588126,"MEM":73.47255385511666,"PID":1045,"STAT":"T","SZ":75235,"TIME":2560,"USER":"root"},{"CMD":"/usr/bin/postgres","CPU":1.5372889806176864,"MEM":96.77419658621835,"PID":1046,"STAT":"D","SZ":99096,"TIME":2374,"USER":"app"},{"CMD":"/usr/sbin/sshd","CPU":5.0311441952366796,"MEM":35.92084287115952,"PID":1047,"STAT":"T","SZ":36782,"TIME":1767,"USER":"root"},{"CMD":"/usr/sbin/sshd","CPU":5.019901190739267,"MEM":86.579484239215,"PID":1048,"STAT":"T","SZ":88657,"TIME":872,"USER":"root"},{"CMD":"/usr/bin/node","CPU":6.837533213691812,"MEM":52.72790870319834,"PID":1049,"STAT":"S","SZ":53993,"TIME":2555,"USER":"monitoring"}],"fields":["CMD","CPU","MEM","PID","STAT","SZ","TIME","USER"],"numericFields":["CPU","MEM","PID","SZ","TIME"],"dateFields":[],"categories":{"CMD":["/usr/bin/memcached","/usr/bin/postgres","/usr/bin/node","/usr/sbin/sshd","/bin/systemd","/usr/sbin/nginx","/usr/bin/python3","/usr/bin/redis-server"],"STAT":["R","S","T","D"],"USER":["postgres","monitoring","app","nginx","root"]},"summary":{"recordCount":50,"fieldTypes":{"CMD":"string","CPU":"numeric","MEM":"numeric","PID":"numeric","STAT":"string","SZ":"numeric","TIME":"numeric","USER":"string"},"numericStats":{"CPU":{"min":0.292389630099487,"max":19.263894850425647,"mean":6.934279241392728,"stdDev":4.522015613160384,"count":50},"MEM":{"min":7.3731473948476545,"max":910.9057058980534,"mean":181.3427585914908,"stdDev":246.50508311313703,"count":50},"PID":{"min":1000,"max":1049,"mean":1024.5,"stdDev":14.430869689661812,"count":50},"SZ":{"min":7550,"max":932767,"mean":185694.44,"stdDev":252421.20060392393,"count":50},"TIME":{"min":85,"max":3498,"mean":1707.9,"stdDev":1022.0313547049326,"count":50}}}};
+        let chartConfig = {"title":"🖥️ Process Analysis - CPU \u0026 Memory Usage","width":1300,"height":600,"chartType":"scatter","timeFormat":"","xAxisType":"category","yAxisType":"linear","showLegend":true,"showTooltips":true,"enableZoom":true,"enablePan":true,"enableAnimations":true,"showDataLabels":false,"enableInteractive":true,"enableCalculations":true,"colorScheme":"pastel","theme":"light","exportFormats":["png","csv"],"customCSS":"","fields":{}};
+        let mainChart = null;
+
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeControls();
+            createChart();
+            updateDataSummary();
+        });
+
+        
+        function initializeControls() {
+            
+            const xFieldSelect = document.getElementById('xField');
+            const yFieldsDiv = document.getElementById('yFields');
+
+            chartData.fields.forEach(field => {
+                
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                xFieldSelect.appendChild(option);
+
+                
+                const checkDiv = document.createElement('div');
+                checkDiv.className = 'form-check';
+                checkDiv.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="y_${field}" value="${field}">
+                    <label class="form-check-label" for="y_${field}">${field}</label>
+                `;
+                yFieldsDiv.appendChild(checkDiv);
+            });
+
+            
+            if (chartData.fields.length > 0) {
+                xFieldSelect.value = chartData.fields[0];
+            }
+
+            
+            chartData.numericFields.forEach(field => {
+                const checkbox = document.getElementById(`y_${field}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+
+            
+            document.getElementById('chartType').value = chartConfig.chartType;
+        }
+
+        
+        function createChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+
+            if (mainChart) {
+                mainChart.destroy();
+            }
+
+            const chartType = document.getElementById('chartType').value;
+            const xField = document.getElementById('xField').value;
+            const selectedYFields = getSelectedYFields();
+            const showTrendLine = document.getElementById('showTrendLine').checked;
+            const showMovingAvg = document.getElementById('showMovingAvg').checked;
+            const stackedMode = document.getElementById('stackedMode').checked;
+
+            
+            const labels = chartData.records.map(record => record[xField]);
+            const datasets = [];
+
+            
+            const colors = generateColors(selectedYFields.length);
+
+            selectedYFields.forEach((field, index) => {
+                const data = chartData.records.map(record => {
+                    const value = record[field];
+                    return typeof value === 'number' ? value : parseFloat(value) || 0;
+                });
+
+                datasets.push({
+                    label: field,
+                    data: data,
+                    backgroundColor: colors[index] + '80', 
+                    borderColor: colors[index],
+                    borderWidth: 2,
+                    fill: chartType === 'area',
+                    tension: 0.4
+                });
+
+                
+                if (showMovingAvg && data.length > 5) {
+                    const movingAvgData = calculateMovingAverage(data, 5);
+                    datasets.push({
+                        label: `${field} (5-period MA)`,
+                        data: movingAvgData,
+                        backgroundColor: 'transparent',
+                        borderColor: colors[index],
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0
+                    });
+                }
+            });
+
+            
+            const config = {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: chartData.dateFields.includes(xField) ? 'time' : 'category',
+                            title: {
+                                display: true,
+                                text: xField
+                            }
+                        },
+                        y: {
+                            stacked: stackedMode,
+                            title: {
+                                display: true,
+                                text: 'Values'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: chartConfig.showLegend
+                        },
+                        tooltip: {
+                            enabled: chartConfig.showTooltips,
+                            mode: 'index',
+                            intersect: false
+                        },
+                        zoom: {
+                            zoom: {
+                                wheel: {
+                                    enabled: chartConfig.enableZoom
+                                },
+                                pinch: {
+                                    enabled: chartConfig.enableZoom
+                                },
+                                mode: 'x'
+                            },
+                            pan: {
+                                enabled: chartConfig.enablePan,
+                                mode: 'x'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: chartConfig.enableAnimations ? 1000 : 0
+                    }
+                }
+            };
+
+            mainChart = new Chart(ctx, config);
+        }
+
+        
+        function getSelectedYFields() {
+            const checkboxes = document.querySelectorAll('#yFields input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function generateColors(count) {
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#36A2EB'
+            ];
+
+            const result = [];
+            for (let i = 0; i < count; i++) {
+                result.push(colors[i % colors.length]);
+            }
+            return result;
+        }
+
+        function calculateMovingAverage(data, period) {
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    result.push(null);
+                } else {
+                    const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+                    result.push(sum / period);
+                }
+            }
+            return result;
+        }
+
+        function updateChart() {
+            createChart();
+        }
+
+        function resetZoom() {
+            if (mainChart) {
+                mainChart.resetZoom();
+            }
+        }
+
+        function exportChart() {
+            if (mainChart) {
+                const url = mainChart.toBase64Image();
+                const link = document.createElement('a');
+                link.download = 'chart.png';
+                link.href = url;
+                link.click();
+            }
+        }
+
+        function updateDataSummary() {
+            const summaryDiv = document.getElementById('dataSummary');
+            let html = `
+                <div class="col-md-3">
+                    <strong>Records:</strong> ${chartData.summary.recordCount}
+                </div>
+                <div class="col-md-3">
+                    <strong>Fields:</strong> ${chartData.fields.length}
+                </div>
+                <div class="col-md-3">
+                    <strong>Numeric Fields:</strong> ${chartData.numericFields.length}
+                </div>
+                <div class="col-md-3">
+                    <strong>Date Fields:</strong> ${chartData.dateFields.length}
+                </div>
+            `;
+
+            
+            for (const [field, stats] of Object.entries(chartData.summary.numericStats)) {
+                html += `
+                    <div class="col-md-12 mt-2">
+                        <small><strong>${field}:</strong>
+                        Min: ${stats.min.toFixed(2)},
+                        Max: ${stats.max.toFixed(2)},
+                        Mean: ${stats.mean.toFixed(2)},
+                        StdDev: ${stats.stdDev.toFixed(2)}
+                        </small>
+                    </div>
+                `;
+            }
+
+            summaryDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

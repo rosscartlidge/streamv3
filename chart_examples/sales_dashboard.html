@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Sales Performance Dashboard - Interactive Analytics</title>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #dee2e6;
+            --panel-bg: #f8f9fa;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .control-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .stats-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .field-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .export-buttons {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        .btn-outline-primary {
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h1 class="text-center">📊 Sales Performance Dashboard - Interactive Analytics</h1>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="control-panel">
+                    <div class="row g-3">
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Chart Type</label>
+                            <select id="chartType" class="form-select">
+                                <option value="line">Line</option>
+                                <option value="bar">Bar</option>
+                                <option value="scatter">Scatter</option>
+                                <option value="pie">Pie</option>
+                                <option value="doughnut">Doughnut</option>
+                                <option value="radar">Radar</option>
+                            </select>
+                        </div>
+
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">X-Axis Field</label>
+                            <select id="xField" class="form-select">
+                            </select>
+                        </div>
+
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Y-Axis Fields</label>
+                            <div id="yFields" class="field-selector">
+                            </div>
+                        </div>
+
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showTrendLine">
+                                <label class="form-check-label" for="showTrendLine">Trend Line</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showMovingAvg">
+                                <label class="form-check-label" for="showMovingAvg">Moving Average</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="stackedMode">
+                                <label class="form-check-label" for="stackedMode">Stacked</label>
+                            </div>
+                        </div>
+
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Actions</label>
+                            <div class="btn-group d-block" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateChart()">
+                                    <i class="bi bi-arrow-clockwise"></i> Update
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="resetZoom()">
+                                    <i class="bi bi-zoom-out"></i> Reset Zoom
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportChart()">
+                                    <i class="bi bi-download"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="stats-panel">
+                    <h5>Data Summary</h5>
+                    <div id="dataSummary" class="row">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        let chartData = {"records":[{"date":"2024-01-01","deals_closed":16,"product":"Software Licenses","profit":21307.708297569843,"profit_margin":26.631204810142208,"region":"North America","sales":80010.3053897698},{"date":"2024-01-01","deals_closed":11,"product":"Consulting","profit":34145.001867174804,"profit_margin":24.30963427438546,"region":"North America","sales":140458.72299754282},{"date":"2024-01-01","deals_closed":24,"product":"Support","profit":24747.301125388796,"profit_margin":24.988383623760303,"region":"North America","sales":99035.22171741324},{"date":"2024-01-01","deals_closed":15,"product":"Training","profit":22336.676126162372,"profit_margin":19.040841517948547,"region":"North America","sales":117309.29069026209},{"date":"2024-01-01","deals_closed":8,"product":"Software Licenses","profit":24731.84387559948,"profit_margin":23.1192277441854,"region":"Europe","sales":106975.2162540103},{"date":"2024-01-01","deals_closed":15,"product":"Consulting","profit":27739.04464625335,"profit_margin":23.231557737775354,"region":"Europe","sales":119402.43077694553},{"date":"2024-01-01","deals_closed":15,"product":"Support","profit":26550.94021319594,"profit_margin":20.7477223363089,"region":"Europe","sales":127970.38529251619},{"date":"2024-01-01","deals_closed":15,"product":"Training","profit":36128.759250133706,"profit_margin":25.98692907217831,"region":"Europe","sales":139026.65893991018},{"date":"2024-01-01","deals_closed":24,"product":"Software Licenses","profit":11138.54487722755,"profit_margin":17.708351037875396,"region":"Asia Pacific","sales":62899.9552437375},{"date":"2024-01-01","deals_closed":10,"product":"Consulting","profit":15829.40520219828,"profit_margin":16.699648403279205,"region":"Asia Pacific","sales":94788.85315387814},{"date":"2024-01-01","deals_closed":6,"product":"Support","profit":7080.485576507499,"profit_margin":15.221572806553068,"region":"Asia Pacific","sales":46516.12331059025},{"date":"2024-01-01","deals_closed":10,"product":"Training","profit":13704.362732494152,"profit_margin":27.519969114323896,"region":"Asia Pacific","sales":49797.88558469404},{"date":"2024-01-01","deals_closed":16,"product":"Software Licenses","profit":18970.850906452037,"profit_margin":26.624930425662356,"region":"Latin America","sales":71252.20837447538},{"date":"2024-01-01","deals_closed":22,"product":"Consulting","profit":20776.06888688627,"profit_margin":22.600471951669117,"region":"Latin America","sales":91927.58864202343},{"date":"2024-01-01","deals_closed":18,"product":"Support","profit":15224.121452044346,"profit_margin":21.16789671408977,"region":"Latin America","sales":71920.80374197438},{"date":"2024-01-01","deals_closed":11,"product":"Training","profit":15403.095892422725,"profit_margin":15.319935814596125,"region":"Latin America","sales":100542.82262558417},{"date":"2024-02-01","deals_closed":8,"product":"Software Licenses","profit":14406.503685607331,"profit_margin":17.71794192444093,"region":"North America","sales":81310.25458286637},{"date":"2024-02-01","deals_closed":24,"product":"Consulting","profit":11808.804208814352,"profit_margin":20.167635243042234,"region":"North America","sales":58553.24169891633},{"date":"2024-02-01","deals_closed":22,"product":"Support","profit":12544.82376079172,"profit_margin":21.018269044350895,"region":"North America","sales":59685.33248061837},{"date":"2024-02-01","deals_closed":6,"product":"Training","profit":52790.81068419968,"profit_margin":29.13750700778216,"region":"North America","sales":181178.19987173268},{"date":"2024-02-01","deals_closed":22,"product":"Software Licenses","profit":20382.810549592657,"profit_margin":15.003405297184383,"region":"Europe","sales":135854.56198678978},{"date":"2024-02-01","deals_closed":15,"product":"Consulting","profit":23248.265101368495,"profit_margin":27.592380681813022,"region":"Europe","sales":84256.1045002258},{"date":"2024-02-01","deals_closed":14,"product":"Support","profit":19279.70071945411,"profit_margin":25.550966682561473,"region":"Europe","sales":75455.85636340133},{"date":"2024-02-01","deals_closed":23,"product":"Training","profit":30474.25781703154,"profit_margin":28.45488575354711,"region":"Europe","sales":107096.74985510248},{"date":"2024-02-01","deals_closed":19,"product":"Software Licenses","profit":27801.602359995257,"profit_margin":19.21218872735401,"region":"Asia Pacific","sales":144708.1472836657},{"date":"2024-02-01","deals_closed":12,"product":"Consulting","profit":23989.08176023826,"profit_margin":23.558546626129733,"region":"Asia Pacific","sales":101827.5114375307},{"date":"2024-02-01","deals_closed":16,"product":"Support","profit":41912.06587937842,"profit_margin":21.107854956036313,"region":"Asia Pacific","sales":198561.46428272015},{"date":"2024-02-01","deals_closed":15,"product":"Training","profit":23640.87749851405,"profit_margin":20.703202723041077,"region":"Asia Pacific","sales":114189.4701741174},{"date":"2024-02-01","deals_closed":8,"product":"Software Licenses","profit":37659.90055374237,"profit_margin":21.16461635155834,"region":"Latin America","sales":177938.02603452103},{"date":"2024-02-01","deals_closed":14,"product":"Consulting","profit":24099.47212792093,"profit_margin":16.980609337485916,"region":"Latin America","sales":141923.48253792996},{"date":"2024-02-01","deals_closed":15,"product":"Support","profit":16216.777627588312,"profit_margin":23.440470357324337,"region":"Latin America","sales":69182.81664310175},{"date":"2024-02-01","deals_closed":22,"product":"Training","profit":33921.388541376466,"profit_margin":25.08587235829969,"region":"Latin America","sales":135221.08403040463},{"date":"2024-03-01","deals_closed":12,"product":"Software Licenses","profit":19070.679657793626,"profit_margin":18.75381322555657,"region":"North America","sales":101689.61068570976},{"date":"2024-03-01","deals_closed":13,"product":"Consulting","profit":20275.30798670209,"profit_margin":15.642136253513577,"region":"North America","sales":129619.81444285014},{"date":"2024-03-01","deals_closed":22,"product":"Support","profit":38338.02918427876,"profit_margin":19.89739314690752,"region":"North America","sales":192678.65343575078},{"date":"2024-03-01","deals_closed":7,"product":"Training","profit":45685.66323927448,"profit_margin":26.018769792087888,"region":"North America","sales":175587.3302402143},{"date":"2024-03-01","deals_closed":12,"product":"Software Licenses","profit":16004.819550457247,"profit_margin":16.318486059965704,"region":"Europe","sales":98077.84552834238},{"date":"2024-03-01","deals_closed":9,"product":"Consulting","profit":57071.03325652263,"profit_margin":28.107073714089246,"region":"Europe","sales":203048.64831202474},{"date":"2024-03-01","deals_closed":16,"product":"Support","profit":16530.26986051347,"profit_margin":21.833061950239507,"region":"Europe","sales":75712.10074971702},{"date":"2024-03-01","deals_closed":16,"product":"Training","profit":20041.42687468155,"profit_margin":18.837231956814815,"region":"Europe","sales":106392.63199936914},{"date":"2024-03-01","deals_closed":10,"product":"Software Licenses","profit":31339.744897332883,"profit_margin":26.7667854110625,"region":"Asia Pacific","sales":117084.45529054981},{"date":"2024-03-01","deals_closed":6,"product":"Consulting","profit":54380.41033666509,"profit_margin":27.14084406525825,"region":"Asia Pacific","sales":200363.740368248},{"date":"2024-03-01","deals_closed":12,"product":"Support","profit":13413.547850996367,"profit_margin":18.82619230798331,"region":"Asia Pacific","sales":71249.39356594328},{"date":"2024-03-01","deals_closed":11,"product":"Training","profit":25378.824408483768,"profit_margin":17.13369007084453,"region":"Asia Pacific","sales":148122.35019746},{"date":"2024-03-01","deals_closed":7,"product":"Software Licenses","profit":38960.78863061547,"profit_margin":29.640964132338166,"region":"Latin America","sales":131442.37973052103},{"date":"2024-03-01","deals_closed":16,"product":"Consulting","profit":32412.398262002695,"profit_margin":18.94502687108726,"region":"Latin America","sales":171086.57845964056},{"date":"2024-03-01","deals_closed":15,"product":"Support","profit":55294.879036092105,"profit_margin":25.154124809728184,"region":"Latin America","sales":219824.3010017474},{"date":"2024-03-01","deals_closed":16,"product":"Training","profit":46702.083337011114,"profit_margin":29.48130220886468,"region":"Latin America","sales":158412.55249223133},{"date":"2024-04-01","deals_closed":20,"product":"Software Licenses","profit":32681.65639822796,"profit_margin":19.99750195077977,"region":"North America","sales":163428.6946372999},{"date":"2024-04-01","deals_closed":17,"product":"Consulting","profit":29945.386516167793,"profit_margin":27.12550108074414,"region":"North America","sales":110395.69896618585},{"date":"2024-04-01","deals_closed":11,"product":"Support","profit":27939.53629703099,"profit_margin":22.187700447070597,"region":"North America","sales":125923.53301182142},{"date":"2024-04-01","deals_closed":15,"product":"Training","profit":11810.159049017006,"profit_margin":19.18344869348083,"region":"North America","sales":61564.316394426445},{"date":"2024-04-01","deals_closed":23,"product":"Software Licenses","profit":21250.5585199278,"profit_margin":27.18434441781833,"region":"Europe","sales":78172.04709192415},{"date":"2024-04-01","deals_closed":15,"product":"Consulting","profit":41913.81762832112,"profit_margin":28.345922134563352,"region":"Europe","sales":147865.42286170283},{"date":"2024-04-01","deals_closed":21,"product":"Support","profit":44000.78107311317,"profit_margin":20.541913533153135,"region":"Europe","sales":214200.01112408127},{"date":"2024-04-01","deals_closed":13,"product":"Training","profit":31797.487215467103,"profit_margin":22.607531974521205,"region":"Europe","sales":140649.9712188974},{"date":"2024-04-01","deals_closed":17,"product":"Software Licenses","profit":42262.40120333899,"profit_margin":26.490528772338784,"region":"Asia Pacific","sales":159537.7788285943},{"date":"2024-04-01","deals_closed":8,"product":"Consulting","profit":24020.93574467383,"profit_margin":19.843731433311742,"region":"Asia Pacific","sales":121050.49811523753},{"date":"2024-04-01","deals_closed":8,"product":"Support","profit":48810.50421132142,"profit_margin":27.20665280199509,"region":"Asia Pacific","sales":179406.50239687736},{"date":"2024-04-01","deals_closed":20,"product":"Training","profit":24424.49976302296,"profit_margin":18.379757197370044,"region":"Asia Pacific","sales":132888.04362724582},{"date":"2024-04-01","deals_closed":19,"product":"Software Licenses","profit":22038.9469492866,"profit_margin":17.839494365312508,"region":"Latin America","sales":123540.19961540836},{"date":"2024-04-01","deals_closed":10,"product":"Consulting","profit":31163.117879871916,"profit_margin":20.898723113991043,"region":"Latin America","sales":149114.93735714973},{"date":"2024-04-01","deals_closed":11,"product":"Support","profit":20559.409194715525,"profit_margin":15.56127132114039,"region":"Latin America","sales":132119.0844271511},{"date":"2024-04-01","deals_closed":16,"product":"Training","profit":55234.51313850751,"profit_margin":26.14301418153408,"region":"Latin America","sales":211278.2893164706},{"date":"2024-05-01","deals_closed":19,"product":"Software Licenses","profit":22009.98404339561,"profit_margin":24.76275022164019,"region":"North America","sales":88883.43922381071},{"date":"2024-05-01","deals_closed":15,"product":"Consulting","profit":11452.485112108086,"profit_margin":17.764290557562944,"region":"North America","sales":64469.13866330745},{"date":"2024-05-01","deals_closed":14,"product":"Support","profit":22222.02983532522,"profit_margin":17.757711970538793,"region":"North America","sales":125140.16373389219},{"date":"2024-05-01","deals_closed":20,"product":"Training","profit":19310.06784491784,"profit_margin":18.998264476078795,"region":"North America","sales":101641.22027689236},{"date":"2024-05-01","deals_closed":19,"product":"Software Licenses","profit":61069.57680086402,"profit_margin":27.96978600633358,"region":"Europe","sales":218341.23717298088},{"date":"2024-05-01","deals_closed":11,"product":"Consulting","profit":19954.904404602094,"profit_margin":25.577654767093204,"region":"Europe","sales":78016.94325108716},{"date":"2024-05-01","deals_closed":24,"product":"Support","profit":32793.136174435014,"profit_margin":21.339461132981892,"region":"Europe","sales":153673.6844950153},{"date":"2024-05-01","deals_closed":21,"product":"Training","profit":35283.397080559305,"profit_margin":28.382059853683227,"region":"Europe","sales":124315.84339704107},{"date":"2024-05-01","deals_closed":11,"product":"Software Licenses","profit":25570.945008397834,"profit_margin":19.74648604519526,"region":"Asia Pacific","sales":129496.17947148519},{"date":"2024-05-01","deals_closed":7,"product":"Consulting","profit":34011.89791342691,"profit_margin":21.32528531112635,"region":"Asia Pacific","sales":159490.93959217225},{"date":"2024-05-01","deals_closed":13,"product":"Support","profit":44870.86942367999,"profit_margin":24.441789290144253,"region":"Asia Pacific","sales":183582.58837364835},{"date":"2024-05-01","deals_closed":15,"product":"Training","profit":35133.1230068602,"profit_margin":20.93251936911324,"region":"Asia Pacific","sales":167839.9163872291},{"date":"2024-05-01","deals_closed":5,"product":"Software Licenses","profit":41762.442066319796,"profit_margin":24.468853774348677,"region":"Latin America","sales":170675.92316114303},{"date":"2024-05-01","deals_closed":24,"product":"Consulting","profit":35952.688714106815,"profit_margin":25.96419646473044,"region":"Latin America","sales":138470.2536931758},{"date":"2024-05-01","deals_closed":22,"product":"Support","profit":19509.22535041603,"profit_margin":27.653614273544292,"region":"Latin America","sales":70548.55527177925},{"date":"2024-05-01","deals_closed":5,"product":"Training","profit":23942.8856078652,"profit_margin":21.24421091700768,"region":"Latin America","sales":112703.10627869457},{"date":"2024-06-01","deals_closed":17,"product":"Software Licenses","profit":16585.382897365485,"profit_margin":19.461401707572108,"region":"North America","sales":85221.9338903651},{"date":"2024-06-01","deals_closed":22,"product":"Consulting","profit":32017.043714786898,"profit_margin":25.329363489062818,"region":"North America","sales":126402.87517928278},{"date":"2024-06-01","deals_closed":15,"product":"Support","profit":37504.21571045235,"profit_margin":21.909210217056643,"region":"North America","sales":171180.13538094022},{"date":"2024-06-01","deals_closed":8,"product":"Training","profit":18688.18479028679,"profit_margin":25.80536892200393,"region":"North America","sales":72419.75438045994},{"date":"2024-06-01","deals_closed":11,"product":"Software Licenses","profit":30616.341603882982,"profit_margin":22.649617548289676,"region":"Europe","sales":135173.76855749555},{"date":"2024-06-01","deals_closed":23,"product":"Consulting","profit":18367.869951007222,"profit_margin":19.72503536602966,"region":"Europe","sales":93119.57930701743},{"date":"2024-06-01","deals_closed":9,"product":"Support","profit":22375.229972269357,"profit_margin":15.957774805364904,"region":"Europe","sales":140215.22577663488},{"date":"2024-06-01","deals_closed":11,"product":"Training","profit":26568.096683570668,"profit_margin":22.697184470045897,"region":"Europe","sales":117054.59202939166},{"date":"2024-06-01","deals_closed":10,"product":"Software Licenses","profit":29787.422617322234,"profit_margin":24.44257039884992,"region":"Asia Pacific","sales":121866.98097317868},{"date":"2024-06-01","deals_closed":10,"product":"Consulting","profit":15093.987923628207,"profit_margin":24.9726995610488,"region":"Asia Pacific","sales":60441.95537102073},{"date":"2024-06-01","deals_closed":14,"product":"Support","profit":16164.161534861907,"profit_margin":21.327777277409705,"region":"Asia Pacific","sales":75789.24575503197},{"date":"2024-06-01","deals_closed":10,"product":"Training","profit":57774.53213461809,"profit_margin":27.76516714382218,"region":"Asia Pacific","sales":208082.78169315137},{"date":"2024-06-01","deals_closed":13,"product":"Software Licenses","profit":41980.24262857556,"profit_margin":27.97817891144858,"region":"Latin America","sales":150046.37278732026},{"date":"2024-06-01","deals_closed":22,"product":"Consulting","profit":19882.62999748985,"profit_margin":29.101559455652126,"region":"Latin America","sales":68321.52767548074},{"date":"2024-06-01","deals_closed":17,"product":"Support","profit":45916.82261231035,"profit_margin":22.88535936945876,"region":"Latin America","sales":200638.4163387349},{"date":"2024-06-01","deals_closed":23,"product":"Training","profit":38637.72617296598,"profit_margin":22.472754116415462,"region":"Latin America","sales":171931.424038243},{"date":"2024-07-01","deals_closed":16,"product":"Software Licenses","profit":21708.403190457764,"profit_margin":18.182878617161624,"region":"North America","sales":119389.2542953492},{"date":"2024-07-01","deals_closed":10,"product":"Consulting","profit":32098.857375885862,"profit_margin":23.745187184148026,"region":"North America","sales":135180.47731927183},{"date":"2024-07-01","deals_closed":19,"product":"Support","profit":19586.896940637685,"profit_margin":21.443230261931703,"region":"North America","sales":91343.03321552454},{"date":"2024-07-01","deals_closed":16,"product":"Training","profit":29539.937161043537,"profit_margin":22.79294988863788,"region":"North America","sales":129601.20258838887},{"date":"2024-07-01","deals_closed":14,"product":"Software Licenses","profit":34694.31965452585,"profit_margin":27.610108365648177,"region":"Europe","sales":125658.03507563075},{"date":"2024-07-01","deals_closed":23,"product":"Consulting","profit":16000.281430114346,"profit_margin":25.975299315575935,"region":"Europe","sales":61598.06374404268},{"date":"2024-07-01","deals_closed":8,"product":"Support","profit":32970.13038570335,"profit_margin":23.904146046825925,"region":"Europe","sales":137926.40959069625},{"date":"2024-07-01","deals_closed":22,"product":"Training","profit":17391.31156569518,"profit_margin":27.791557544300037,"region":"Europe","sales":62577.67862766686},{"date":"2024-07-01","deals_closed":6,"product":"Software Licenses","profit":15821.054693648875,"profit_margin":20.601410418129987,"region":"Asia Pacific","sales":76795.97839440049},{"date":"2024-07-01","deals_closed":16,"product":"Consulting","profit":46877.92932840099,"profit_margin":26.716268922910043,"region":"Asia Pacific","sales":175465.85364770636},{"date":"2024-07-01","deals_closed":23,"product":"Support","profit":21734.841546807354,"profit_margin":17.944623466211553,"region":"Asia Pacific","sales":121121.74762391929},{"date":"2024-07-01","deals_closed":15,"product":"Training","profit":34870.235985317864,"profit_margin":26.131322978821487,"region":"Asia Pacific","sales":133442.29074654565},{"date":"2024-07-01","deals_closed":8,"product":"Software Licenses","profit":16667.476911383423,"profit_margin":19.206600838169503,"region":"Latin America","sales":86779.94118699},{"date":"2024-07-01","deals_closed":5,"product":"Consulting","profit":15077.985943289814,"profit_margin":18.283411619708023,"region":"Latin America","sales":82468.12059428218},{"date":"2024-07-01","deals_closed":13,"product":"Support","profit":30089.54436343599,"profit_margin":19.346823573065702,"region":"Latin America","sales":155527.0520238067},{"date":"2024-07-01","deals_closed":13,"product":"Training","profit":28316.57545723511,"profit_margin":28.465683078879028,"region":"Latin America","sales":99476.18463526508},{"date":"2024-08-01","deals_closed":5,"product":"Software Licenses","profit":17928.941082723522,"profit_margin":25.423508984332237,"region":"North America","sales":70521.11136103439},{"date":"2024-08-01","deals_closed":12,"product":"Consulting","profit":27178.928249738994,"profit_margin":23.888599337165147,"region":"North America","sales":113773.63681366974},{"date":"2024-08-01","deals_closed":19,"product":"Support","profit":34820.77357496393,"profit_margin":26.550108591078743,"region":"North America","sales":131151.1531318718},{"date":"2024-08-01","deals_closed":9,"product":"Training","profit":29080.99528924665,"profit_margin":27.52252922605599,"region":"North America","sales":105662.51033976644},{"date":"2024-08-01","deals_closed":19,"product":"Software Licenses","profit":28734.07788708649,"profit_margin":25.776031872859406,"region":"Europe","sales":111475.95575927933},{"date":"2024-08-01","deals_closed":10,"product":"Consulting","profit":21284.261840760744,"profit_margin":16.055619812693777,"region":"Europe","sales":132565.80617294597},{"date":"2024-08-01","deals_closed":15,"product":"Support","profit":30400.885146224697,"profit_margin":25.706792728923634,"region":"Europe","sales":118260.1247335673},{"date":"2024-08-01","deals_closed":24,"product":"Training","profit":19368.31116928025,"profit_margin":18.64528940995069,"region":"Europe","sales":103877.77171720218},{"date":"2024-08-01","deals_closed":22,"product":"Software Licenses","profit":25076.58289027172,"profit_margin":17.604587729028186,"region":"Asia Pacific","sales":142443.4543782185},{"date":"2024-08-01","deals_closed":14,"product":"Consulting","profit":12566.484803071846,"profit_margin":29.918261757268976,"region":"Asia Pacific","sales":42002.723637574556},{"date":"2024-08-01","deals_closed":20,"product":"Support","profit":19981.233542583646,"profit_margin":23.626391281453973,"region":"Asia Pacific","sales":84571.66947145386},{"date":"2024-08-01","deals_closed":12,"product":"Training","profit":13623.760856430463,"profit_margin":25.685100754182677,"region":"Asia Pacific","sales":53041.49275806095},{"date":"2024-08-01","deals_closed":10,"product":"Software Licenses","profit":18483.673457853296,"profit_margin":29.2139743368964,"region":"Latin America","sales":63269.9722560821},{"date":"2024-08-01","deals_closed":13,"product":"Consulting","profit":14631.11825777504,"profit_margin":26.279821811414422,"region":"Latin America","sales":55674.34346689571},{"date":"2024-08-01","deals_closed":8,"product":"Support","profit":12036.558639763714,"profit_margin":21.08246181166507,"region":"Latin America","sales":57092.756753406306},{"date":"2024-08-01","deals_closed":7,"product":"Training","profit":20196.977028285593,"profit_margin":19.470607979532893,"region":"Latin America","sales":103730.59253987469},{"date":"2024-09-01","deals_closed":20,"product":"Software Licenses","profit":13354.13805427452,"profit_margin":25.249303137731417,"region":"North America","sales":52889.1351235698},{"date":"2024-09-01","deals_closed":18,"product":"Consulting","profit":12793.480189363912,"profit_margin":22.011776213730467,"region":"North America","sales":58121.07148983106},{"date":"2024-09-01","deals_closed":23,"product":"Support","profit":29402.526955272275,"profit_margin":25.771804208787714,"region":"North America","sales":114087.96495996408},{"date":"2024-09-01","deals_closed":10,"product":"Training","profit":14433.007411382603,"profit_margin":27.48754446784507,"region":"North America","sales":52507.44542957024},{"date":"2024-09-01","deals_closed":17,"product":"Software Licenses","profit":13111.27244140761,"profit_margin":21.383050824423094,"region":"Europe","sales":61316.19173084646},{"date":"2024-09-01","deals_closed":15,"product":"Consulting","profit":11646.557661827537,"profit_margin":24.135938429557825,"region":"Europe","sales":48254.008004779724},{"date":"2024-09-01","deals_closed":19,"product":"Support","profit":14581.721547277932,"profit_margin":17.035033550847746,"region":"Europe","sales":85598.43163063376},{"date":"2024-09-01","deals_closed":12,"product":"Training","profit":15702.991159028785,"profit_margin":19.757243791694407,"region":"Europe","sales":79479.6648995648},{"date":"2024-09-01","deals_closed":20,"product":"Software Licenses","profit":15469.756977910434,"profit_margin":26.606149417153503,"region":"Asia Pacific","sales":58143.53943279286},{"date":"2024-09-01","deals_closed":22,"product":"Consulting","profit":22143.95972284465,"profit_margin":18.362746060425234,"region":"Asia Pacific","sales":120591.76579568652},{"date":"2024-09-01","deals_closed":11,"product":"Support","profit":17036.72409902547,"profit_margin":24.14383303233329,"region":"Asia Pacific","sales":70563.46055827168},{"date":"2024-09-01","deals_closed":7,"product":"Training","profit":24971.195076436958,"profit_margin":17.836724841899184,"region":"Asia Pacific","sales":139998.76825917402},{"date":"2024-09-01","deals_closed":24,"product":"Software Licenses","profit":9959.127830094962,"profit_margin":18.575626995723876,"region":"Latin America","sales":53613.95247862999},{"date":"2024-09-01","deals_closed":22,"product":"Consulting","profit":44604.839337796155,"profit_margin":29.88429541468446,"region":"Latin America","sales":149258.46073613086},{"date":"2024-09-01","deals_closed":5,"product":"Support","profit":27177.184884241167,"profit_margin":21.90803221330192,"region":"Latin America","sales":124051.2366406873},{"date":"2024-09-01","deals_closed":9,"product":"Training","profit":25560.507979417514,"profit_margin":27.844858619221746,"region":"Latin America","sales":91796.14926028998},{"date":"2024-10-01","deals_closed":11,"product":"Software Licenses","profit":28804.57423888909,"profit_margin":28.29979794266912,"region":"North America","sales":101783.67455924091},{"date":"2024-10-01","deals_closed":10,"product":"Consulting","profit":10901.11940772927,"profit_margin":27.893499435544417,"region":"North America","sales":39081.21830650649},{"date":"2024-10-01","deals_closed":21,"product":"Support","profit":23879.654204479208,"profit_margin":19.807648393193308,"region":"North America","sales":120557.74481884079},{"date":"2024-10-01","deals_closed":23,"product":"Training","profit":19507.7814017084,"profit_margin":28.694649191742084,"region":"North America","sales":67984.03866642309},{"date":"2024-10-01","deals_closed":11,"product":"Software Licenses","profit":11772.339332423568,"profit_margin":25.09118444244138,"region":"Europe","sales":46918.22882825261},{"date":"2024-10-01","deals_closed":17,"product":"Consulting","profit":31103.664690969355,"profit_margin":26.374844903483407,"region":"Europe","sales":117929.27998170484},{"date":"2024-10-01","deals_closed":16,"product":"Support","profit":31962.52366246607,"profit_margin":26.45872032391384,"region":"Europe","sales":120801.47214670014},{"date":"2024-10-01","deals_closed":15,"product":"Training","profit":25193.53389530152,"profit_margin":22.51038239078189,"region":"Europe","sales":111919.61761439644},{"date":"2024-10-01","deals_closed":14,"product":"Software Licenses","profit":17699.62314200626,"profit_margin":22.915413312630527,"region":"Asia Pacific","sales":77238.94350293292},{"date":"2024-10-01","deals_closed":15,"product":"Consulting","profit":8939.47951479066,"profit_margin":17.11300577430929,"region":"Asia Pacific","sales":52237.92729744155},{"date":"2024-10-01","deals_closed":15,"product":"Support","profit":12061.294313273129,"profit_margin":25.76839390495963,"region":"Asia Pacific","sales":46806.54276614305},{"date":"2024-10-01","deals_closed":5,"product":"Training","profit":30634.922289379294,"profit_margin":28.38317387139223,"region":"Asia Pacific","sales":107933.3919039147},{"date":"2024-10-01","deals_closed":11,"product":"Software Licenses","profit":13827.988826371875,"profit_margin":25.605290599189313,"region":"Latin America","sales":54004.42058177493},{"date":"2024-10-01","deals_closed":11,"product":"Consulting","profit":9692.868070858052,"profit_margin":18.112340240752857,"region":"Latin America","sales":53515.27158842263},{"date":"2024-10-01","deals_closed":10,"product":"Support","profit":25131.52680319326,"profit_margin":27.11241639079127,"region":"Latin America","sales":92693.79180724437},{"date":"2024-10-01","deals_closed":16,"product":"Training","profit":22701.129217406255,"profit_margin":28.49299845663063,"region":"Latin America","sales":79672.65801091374},{"date":"2024-11-01","deals_closed":22,"product":"Software Licenses","profit":28989.31527464287,"profit_margin":21.307835021123672,"region":"North America","sales":136050.02688402697},{"date":"2024-11-01","deals_closed":10,"product":"Consulting","profit":26157.678835119594,"profit_margin":26.01400823592733,"region":"North America","sales":100552.2816702804},{"date":"2024-11-01","deals_closed":9,"product":"Support","profit":29432.0681574774,"profit_margin":19.842944178274998,"region":"North America","sales":148325.10686443915},{"date":"2024-11-01","deals_closed":18,"product":"Training","profit":29724.14155870726,"profit_margin":24.285094621614377,"region":"North America","sales":122396.64708677719},{"date":"2024-11-01","deals_closed":8,"product":"Software Licenses","profit":11418.07923946962,"profit_margin":17.11846331718394,"region":"Europe","sales":66700.37507401653},{"date":"2024-11-01","deals_closed":21,"product":"Consulting","profit":16190.336324974838,"profit_margin":19.430014018396623,"region":"Europe","sales":83326.42637131187},{"date":"2024-11-01","deals_closed":20,"product":"Support","profit":12572.124477775422,"profit_margin":18.680739160539193,"region":"Europe","sales":67299.93053129567},{"date":"2024-11-01","deals_closed":19,"product":"Training","profit":14871.068314224907,"profit_margin":27.320981400020262,"region":"Europe","sales":54430.944834997325},{"date":"2024-11-01","deals_closed":20,"product":"Software Licenses","profit":30920.367181128848,"profit_margin":27.939592965410164,"region":"Asia Pacific","sales":110668.63865700888},{"date":"2024-11-01","deals_closed":23,"product":"Consulting","profit":22956.046644415343,"profit_margin":28.013965966715492,"region":"Asia Pacific","sales":81945.00797098967},{"date":"2024-11-01","deals_closed":7,"product":"Support","profit":25732.113667535625,"profit_margin":22.715381578410906,"region":"Asia Pacific","sales":113280.56972633854},{"date":"2024-11-01","deals_closed":14,"product":"Training","profit":12566.060143562969,"profit_margin":21.433980278918856,"region":"Asia Pacific","sales":58626.81583187875},{"date":"2024-11-01","deals_closed":21,"product":"Software Licenses","profit":10263.807983719726,"profit_margin":21.326688946794224,"region":"Latin America","sales":48126.589220323185},{"date":"2024-11-01","deals_closed":23,"product":"Consulting","profit":13732.929283498448,"profit_margin":27.41688264069333,"region":"Latin America","sales":50089.31709513698},{"date":"2024-11-01","deals_closed":21,"product":"Support","profit":22737.6085113339,"profit_margin":19.527714259481776,"region":"Latin America","sales":116437.63427301044},{"date":"2024-11-01","deals_closed":15,"product":"Training","profit":13211.859330078714,"profit_margin":24.201291095581926,"region":"Latin America","sales":54591.547524878166},{"date":"2024-12-01","deals_closed":16,"product":"Software Licenses","profit":23152.35025781346,"profit_margin":27.221480007493852,"region":"North America","sales":85051.76886576264},{"date":"2024-12-01","deals_closed":11,"product":"Consulting","profit":20790.765391451503,"profit_margin":27.513690547056846,"region":"North America","sales":75565.16402586167},{"date":"2024-12-01","deals_closed":13,"product":"Support","profit":13588.893512549317,"profit_margin":22.34292981614976,"region":"North America","sales":60819.65805006955},{"date":"2024-12-01","deals_closed":14,"product":"Training","profit":47068.39836551529,"profit_margin":26.42803814651241,"region":"North America","sales":178100.23621343492},{"date":"2024-12-01","deals_closed":23,"product":"Software Licenses","profit":12235.19000284963,"profit_margin":23.298227895680697,"region":"Europe","sales":52515.53919737361},{"date":"2024-12-01","deals_closed":9,"product":"Consulting","profit":34258.77138365708,"profit_margin":26.159184031430605,"region":"Europe","sales":130962.69112406072},{"date":"2024-12-01","deals_closed":7,"product":"Support","profit":16787.925914531796,"profit_margin":25.725360714755396,"region":"Europe","sales":65258.272180038584},{"date":"2024-12-01","deals_closed":8,"product":"Training","profit":26120.47981392156,"profit_margin":27.937263230686938,"region":"Europe","sales":93496.91699661626},{"date":"2024-12-01","deals_closed":5,"product":"Software Licenses","profit":20811.728432808028,"profit_margin":15.021875540805116,"region":"Asia Pacific","sales":138542.80962637105},{"date":"2024-12-01","deals_closed":16,"product":"Consulting","profit":17205.783646052656,"profit_margin":21.278695805957714,"region":"Asia Pacific","sales":80859.20210032466},{"date":"2024-12-01","deals_closed":24,"product":"Support","profit":44767.95814031138,"profit_margin":28.735042847456445,"region":"Asia Pacific","sales":155795.68952782726},{"date":"2024-12-01","deals_closed":22,"product":"Training","profit":24765.823683491948,"profit_margin":25.29082002453178,"region":"Asia Pacific","sales":97924.16244103358},{"date":"2024-12-01","deals_closed":11,"product":"Software Licenses","profit":22078.398461230827,"profit_margin":25.794965194268464,"region":"Latin America","sales":85591.89087852134},{"date":"2024-12-01","deals_closed":21,"product":"Consulting","profit":30202.641675122126,"profit_margin":26.860224361618414,"region":"Latin America","sales":112443.74309203395},{"date":"2024-12-01","deals_closed":13,"product":"Support","profit":37804.171543321136,"profit_margin":29.234891327608146,"region":"Latin America","sales":129311.82510543673},{"date":"2024-12-01","deals_closed":21,"product":"Training","profit":13752.091813891888,"profit_margin":15.038584785902797,"region":"Latin America","sales":91445.38538482111}],"fields":["date","deals_closed","product","profit","profit_margin","region","sales"],"numericFields":["deals_closed","profit","profit_margin","sales"],"dateFields":["date"],"categories":{"product":["Software Licenses","Consulting","Support","Training"],"region":["North America","Europe","Asia Pacific","Latin America"]},"summary":{"recordCount":192,"fieldTypes":{"date":"date","deals_closed":"numeric","product":"string","profit":"numeric","profit_margin":"numeric","region":"string","sales":"numeric"},"numericStats":{"deals_closed":{"min":5,"max":24,"mean":14.796875,"stdDev":5.4338244881214495,"count":192},"profit":{"min":7080.485576507499,"max":61069.57680086402,"mean":25338.66592313601,"stdDev":11204.47623875571,"count":192},"profit_margin":{"min":15.003405297184383,"max":29.918261757268976,"mean":23.15278272575114,"stdDev":3.9823921800844415,"count":192},"sales":{"min":39081.21830650649,"max":219824.3010017474,"mean":109400.25299690019,"stdDev":42459.95604600144,"count":192}}}};
+        let chartConfig = {"title":"📊 Sales Performance Dashboard - Interactive Analytics","width":1400,"height":700,"chartType":"line","timeFormat":"","xAxisType":"category","yAxisType":"linear","showLegend":true,"showTooltips":true,"enableZoom":true,"enablePan":true,"enableAnimations":true,"showDataLabels":false,"enableInteractive":true,"enableCalculations":true,"colorScheme":"vibrant","theme":"light","exportFormats":["png","csv"],"customCSS":"","fields":{}};
+        let mainChart = null;
+
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeControls();
+            createChart();
+            updateDataSummary();
+        });
+
+        
+        function initializeControls() {
+            
+            const xFieldSelect = document.getElementById('xField');
+            const yFieldsDiv = document.getElementById('yFields');
+
+            chartData.fields.forEach(field => {
+                
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                xFieldSelect.appendChild(option);
+
+                
+                const checkDiv = document.createElement('div');
+                checkDiv.className = 'form-check';
+                checkDiv.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="y_${field}" value="${field}">
+                    <label class="form-check-label" for="y_${field}">${field}</label>
+                `;
+                yFieldsDiv.appendChild(checkDiv);
+            });
+
+            
+            if (chartData.fields.length > 0) {
+                xFieldSelect.value = chartData.fields[0];
+            }
+
+            
+            chartData.numericFields.forEach(field => {
+                const checkbox = document.getElementById(`y_${field}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+
+            
+            document.getElementById('chartType').value = chartConfig.chartType;
+        }
+
+        
+        function createChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+
+            if (mainChart) {
+                mainChart.destroy();
+            }
+
+            const chartType = document.getElementById('chartType').value;
+            const xField = document.getElementById('xField').value;
+            const selectedYFields = getSelectedYFields();
+            const showTrendLine = document.getElementById('showTrendLine').checked;
+            const showMovingAvg = document.getElementById('showMovingAvg').checked;
+            const stackedMode = document.getElementById('stackedMode').checked;
+
+            
+            const labels = chartData.records.map(record => record[xField]);
+            const datasets = [];
+
+            
+            const colors = generateColors(selectedYFields.length);
+
+            selectedYFields.forEach((field, index) => {
+                const data = chartData.records.map(record => {
+                    const value = record[field];
+                    return typeof value === 'number' ? value : parseFloat(value) || 0;
+                });
+
+                datasets.push({
+                    label: field,
+                    data: data,
+                    backgroundColor: colors[index] + '80', 
+                    borderColor: colors[index],
+                    borderWidth: 2,
+                    fill: chartType === 'area',
+                    tension: 0.4
+                });
+
+                
+                if (showMovingAvg && data.length > 5) {
+                    const movingAvgData = calculateMovingAverage(data, 5);
+                    datasets.push({
+                        label: `${field} (5-period MA)`,
+                        data: movingAvgData,
+                        backgroundColor: 'transparent',
+                        borderColor: colors[index],
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0
+                    });
+                }
+            });
+
+            
+            const config = {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: chartData.dateFields.includes(xField) ? 'time' : 'category',
+                            title: {
+                                display: true,
+                                text: xField
+                            }
+                        },
+                        y: {
+                            stacked: stackedMode,
+                            title: {
+                                display: true,
+                                text: 'Values'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: chartConfig.showLegend
+                        },
+                        tooltip: {
+                            enabled: chartConfig.showTooltips,
+                            mode: 'index',
+                            intersect: false
+                        },
+                        zoom: {
+                            zoom: {
+                                wheel: {
+                                    enabled: chartConfig.enableZoom
+                                },
+                                pinch: {
+                                    enabled: chartConfig.enableZoom
+                                },
+                                mode: 'x'
+                            },
+                            pan: {
+                                enabled: chartConfig.enablePan,
+                                mode: 'x'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: chartConfig.enableAnimations ? 1000 : 0
+                    }
+                }
+            };
+
+            mainChart = new Chart(ctx, config);
+        }
+
+        
+        function getSelectedYFields() {
+            const checkboxes = document.querySelectorAll('#yFields input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function generateColors(count) {
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#36A2EB'
+            ];
+
+            const result = [];
+            for (let i = 0; i < count; i++) {
+                result.push(colors[i % colors.length]);
+            }
+            return result;
+        }
+
+        function calculateMovingAverage(data, period) {
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    result.push(null);
+                } else {
+                    const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+                    result.push(sum / period);
+                }
+            }
+            return result;
+        }
+
+        function updateChart() {
+            createChart();
+        }
+
+        function resetZoom() {
+            if (mainChart) {
+                mainChart.resetZoom();
+            }
+        }
+
+        function exportChart() {
+            if (mainChart) {
+                const url = mainChart.toBase64Image();
+                const link = document.createElement('a');
+                link.download = 'chart.png';
+                link.href = url;
+                link.click();
+            }
+        }
+
+        function updateDataSummary() {
+            const summaryDiv = document.getElementById('dataSummary');
+            let html = `
+                <div class="col-md-3">
+                    <strong>Records:</strong> ${chartData.summary.recordCount}
+                </div>
+                <div class="col-md-3">
+                    <strong>Fields:</strong> ${chartData.fields.length}
+                </div>
+                <div class="col-md-3">
+                    <strong>Numeric Fields:</strong> ${chartData.numericFields.length}
+                </div>
+                <div class="col-md-3">
+                    <strong>Date Fields:</strong> ${chartData.dateFields.length}
+                </div>
+            `;
+
+            
+            for (const [field, stats] of Object.entries(chartData.summary.numericStats)) {
+                html += `
+                    <div class="col-md-12 mt-2">
+                        <small><strong>${field}:</strong>
+                        Min: ${stats.min.toFixed(2)},
+                        Max: ${stats.max.toFixed(2)},
+                        Mean: ${stats.mean.toFixed(2)},
+                        StdDev: ${stats.stdDev.toFixed(2)}
+                        </small>
+                    </div>
+                `;
+            }
+
+            summaryDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

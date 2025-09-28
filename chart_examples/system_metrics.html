@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖥️ System Metrics - Real-time Monitoring Dashboard</title>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --border-color: #444444;
+            --panel-bg: #2d2d2d;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .control-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .stats-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .field-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .export-buttons {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        .btn-outline-primary {
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h1 class="text-center">🖥️ System Metrics - Real-time Monitoring Dashboard</h1>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="control-panel">
+                    <div class="row g-3">
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Chart Type</label>
+                            <select id="chartType" class="form-select">
+                                <option value="line">Line</option>
+                                <option value="bar">Bar</option>
+                                <option value="scatter">Scatter</option>
+                                <option value="pie">Pie</option>
+                                <option value="doughnut">Doughnut</option>
+                                <option value="radar">Radar</option>
+                            </select>
+                        </div>
+
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">X-Axis Field</label>
+                            <select id="xField" class="form-select">
+                            </select>
+                        </div>
+
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Y-Axis Fields</label>
+                            <div id="yFields" class="field-selector">
+                            </div>
+                        </div>
+
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showTrendLine">
+                                <label class="form-check-label" for="showTrendLine">Trend Line</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showMovingAvg">
+                                <label class="form-check-label" for="showMovingAvg">Moving Average</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="stackedMode">
+                                <label class="form-check-label" for="stackedMode">Stacked</label>
+                            </div>
+                        </div>
+
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Actions</label>
+                            <div class="btn-group d-block" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateChart()">
+                                    <i class="bi bi-arrow-clockwise"></i> Update
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="resetZoom()">
+                                    <i class="bi bi-zoom-out"></i> Reset Zoom
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportChart()">
+                                    <i class="bi bi-download"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="stats-panel">
+                    <h5>Data Summary</h5>
+                    <div id="dataSummary" class="row">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        let chartData = {"records":[{"active_connections":482,"cpu_usage":26.74419773586923,"disk_io":84.60813827931577,"load_average":1.3372098867934614,"memory_usage":56.37977963050547,"network_rx_mbps":175.44349291430845,"network_tx_mbps":58.64424103408777,"timestamp":"2025-09-28 13:31:46"},{"active_connections":301,"cpu_usage":35.645938340208374,"disk_io":79.79082227642164,"load_average":1.7822969170104188,"memory_usage":63.41695969784503,"network_rx_mbps":113.46663746198851,"network_tx_mbps":178.23984528750515,"timestamp":"2025-09-28 13:36:46"},{"active_connections":292,"cpu_usage":41.28840383861147,"disk_io":30.185096616104467,"load_average":2.064420191930574,"memory_usage":69.5013302496909,"network_rx_mbps":551.0964499402012,"network_tx_mbps":240.43373896073265,"timestamp":"2025-09-28 13:41:46"},{"active_connections":251,"cpu_usage":36.362387805544145,"disk_io":49.22742461570476,"load_average":1.8181193902772073,"memory_usage":69.59634356894375,"network_rx_mbps":196.79157465991253,"network_tx_mbps":246.69451209256655,"timestamp":"2025-09-28 13:46:46"},{"active_connections":378,"cpu_usage":46.5265955261335,"disk_io":43.86773915769783,"load_average":2.326329776306675,"memory_usage":79.25831363109647,"network_rx_mbps":555.7647882799042,"network_tx_mbps":148.95221966975404,"timestamp":"2025-09-28 13:51:46"},{"active_connections":273,"cpu_usage":54.73157757835938,"disk_io":86.53374868988776,"load_average":2.736578878917969,"memory_usage":71.6660511792554,"network_rx_mbps":336.1992730397682,"network_tx_mbps":224.33809868709636,"timestamp":"2025-09-28 13:56:46"},{"active_connections":336,"cpu_usage":47.35408426137781,"disk_io":32.632930966144045,"load_average":2.3677042130688903,"memory_usage":70.1325284688873,"network_rx_mbps":496.9081479052488,"network_tx_mbps":74.02827707078217,"timestamp":"2025-09-28 14:01:46"},{"active_connections":361,"cpu_usage":47.238324066947996,"disk_io":45.642492331898296,"load_average":2.3619162033473997,"memory_usage":65.69671080156094,"network_rx_mbps":122.62738119397181,"network_tx_mbps":56.40860762947167,"timestamp":"2025-09-28 14:06:46"},{"active_connections":220,"cpu_usage":78.70856737821043,"disk_io":80.67633248461578,"load_average":3.9354283689105216,"memory_usage":81.27363658980262,"network_rx_mbps":205.32155602836434,"network_tx_mbps":69.55026925552748,"timestamp":"2025-09-28 14:11:46"},{"active_connections":222,"cpu_usage":42.464990065762365,"disk_io":78.91099583733886,"load_average":2.1232495032881182,"memory_usage":50.019409679743475,"network_rx_mbps":111.92020165254871,"network_tx_mbps":149.91403423038898,"timestamp":"2025-09-28 14:16:46"},{"active_connections":263,"cpu_usage":39.17244100281284,"disk_io":57.8882618621957,"load_average":1.958622050140642,"memory_usage":51.8981744418842,"network_rx_mbps":586.2953535594279,"network_tx_mbps":247.54063357718076,"timestamp":"2025-09-28 14:21:46"},{"active_connections":273,"cpu_usage":43.037936909958596,"disk_io":81.35136652241842,"load_average":2.1518968454979297,"memory_usage":45.609218212148264,"network_rx_mbps":263.84242634167674,"network_tx_mbps":240.40218752207318,"timestamp":"2025-09-28 14:26:46"},{"active_connections":429,"cpu_usage":39.97942565952245,"disk_io":37.71225685598438,"load_average":1.9989712829761224,"memory_usage":45.539362427490296,"network_rx_mbps":484.66179836925136,"network_tx_mbps":98.55066562370584,"timestamp":"2025-09-28 14:31:46"},{"active_connections":484,"cpu_usage":15.646466365928674,"disk_io":48.54133046972851,"load_average":0.7823233182964338,"memory_usage":46.53989024360759,"network_rx_mbps":489.65819332440736,"network_tx_mbps":234.8694989648052,"timestamp":"2025-09-28 14:36:46"},{"active_connections":463,"cpu_usage":29.526576383297808,"disk_io":30.940209378333417,"load_average":1.4763288191648904,"memory_usage":49.38050281392977,"network_rx_mbps":143.3484908639588,"network_tx_mbps":178.92194934034072,"timestamp":"2025-09-28 14:41:46"},{"active_connections":469,"cpu_usage":53.733366785299616,"disk_io":24.642672193865643,"load_average":2.6866683392649806,"memory_usage":72.68250730561041,"network_rx_mbps":107.35213443387528,"network_tx_mbps":160.69806672507008,"timestamp":"2025-09-28 14:46:46"},{"active_connections":138,"cpu_usage":7.957336761759748,"disk_io":47.10403210581096,"load_average":0.3978668380879874,"memory_usage":55.18322422128284,"network_rx_mbps":200.38317349806854,"network_tx_mbps":205.37511758073032,"timestamp":"2025-09-28 14:51:46"},{"active_connections":493,"cpu_usage":11.716795489990567,"disk_io":33.35302026636495,"load_average":0.5858397744995283,"memory_usage":65.30803328100082,"network_rx_mbps":342.66162422539605,"network_tx_mbps":213.62747114285233,"timestamp":"2025-09-28 14:56:46"},{"active_connections":464,"cpu_usage":5.568349875770547,"disk_io":25.457201484206834,"load_average":0.27841749378852737,"memory_usage":71.59478966326715,"network_rx_mbps":116.66988689061982,"network_tx_mbps":160.01571187378096,"timestamp":"2025-09-28 15:01:46"},{"active_connections":276,"cpu_usage":2.310842149280054,"disk_io":40.70745763805997,"load_average":0.1155421074640027,"memory_usage":72.25780881232279,"network_rx_mbps":184.11039381843216,"network_tx_mbps":248.4823855492518,"timestamp":"2025-09-28 15:06:46"},{"active_connections":295,"cpu_usage":11.120280060231543,"disk_io":76.46649592973034,"load_average":0.5560140030115772,"memory_usage":77.0654439771605,"network_rx_mbps":417.3485076760965,"network_tx_mbps":150.12831249605568,"timestamp":"2025-09-28 15:11:46"},{"active_connections":341,"cpu_usage":15.212414683712197,"disk_io":29.318500308973665,"load_average":0.7606207341856098,"memory_usage":76.37454153625545,"network_rx_mbps":218.13385051804767,"network_tx_mbps":196.2789194781279,"timestamp":"2025-09-28 15:16:46"},{"active_connections":102,"cpu_usage":23.19399582874378,"disk_io":62.73352474325592,"load_average":1.159699791437189,"memory_usage":69.18902513674931,"network_rx_mbps":213.68966120443883,"network_tx_mbps":87.35645799760285,"timestamp":"2025-09-28 15:21:46"},{"active_connections":408,"cpu_usage":34.17331347811144,"disk_io":22.621256056161997,"load_average":1.708665673905572,"memory_usage":70.16267193416313,"network_rx_mbps":154.92231895252297,"network_tx_mbps":180.08474573191535,"timestamp":"2025-09-28 15:26:46"}],"fields":["active_connections","cpu_usage","disk_io","load_average","memory_usage","network_rx_mbps","network_tx_mbps","timestamp"],"numericFields":["active_connections","cpu_usage","disk_io","load_average","memory_usage","network_rx_mbps","network_tx_mbps"],"dateFields":["timestamp"],"categories":{},"summary":{"recordCount":24,"fieldTypes":{"active_connections":"numeric","cpu_usage":"numeric","disk_io":"numeric","load_average":"numeric","memory_usage":"numeric","network_rx_mbps":"numeric","network_tx_mbps":"numeric","timestamp":"date"},"numericStats":{"active_connections":{"min":102,"max":493,"mean":333.9166666666667,"stdDev":108.69679413651332,"count":24},"cpu_usage":{"min":2.310842149280054,"max":78.70856737821043,"mean":32.892275334643514,"stdDev":18.219104073438174,"count":24},"disk_io":{"min":22.621256056161997,"max":86.53374868988776,"mean":51.28805446125917,"stdDev":21.53204673460654,"count":24},"load_average":{"min":0.1155421074640027,"max":3.9354283689105216,"mean":1.6446137667321759,"stdDev":0.9109552036719086,"count":24},"memory_usage":{"min":45.539362427490296,"max":81.27363658980262,"mean":64.40526072934183,"stdDev":11.097026496907645,"count":24},"network_rx_mbps":{"min":107.35213443387528,"max":586.2953535594279,"mean":282.85905486468477,"stdDev":160.85784920659066,"count":24},"network_tx_mbps":{"min":56.40860762947167,"max":248.4823855492518,"mean":168.7306653133919,"stdDev":63.62466513320946,"count":24}}}};
+        let chartConfig = {"title":"🖥️ System Metrics - Real-time Monitoring Dashboard","width":1400,"height":700,"chartType":"line","timeFormat":"YYYY-MM-DD HH:mm:ss","xAxisType":"time","yAxisType":"linear","showLegend":true,"showTooltips":true,"enableZoom":true,"enablePan":true,"enableAnimations":true,"showDataLabels":false,"enableInteractive":true,"enableCalculations":true,"colorScheme":"vibrant","theme":"dark","exportFormats":["png","csv"],"customCSS":"","fields":{}};
+        let mainChart = null;
+
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeControls();
+            createChart();
+            updateDataSummary();
+        });
+
+        
+        function initializeControls() {
+            
+            const xFieldSelect = document.getElementById('xField');
+            const yFieldsDiv = document.getElementById('yFields');
+
+            chartData.fields.forEach(field => {
+                
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                xFieldSelect.appendChild(option);
+
+                
+                const checkDiv = document.createElement('div');
+                checkDiv.className = 'form-check';
+                checkDiv.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="y_${field}" value="${field}">
+                    <label class="form-check-label" for="y_${field}">${field}</label>
+                `;
+                yFieldsDiv.appendChild(checkDiv);
+            });
+
+            
+            if (chartData.fields.length > 0) {
+                xFieldSelect.value = chartData.fields[0];
+            }
+
+            
+            chartData.numericFields.forEach(field => {
+                const checkbox = document.getElementById(`y_${field}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+
+            
+            document.getElementById('chartType').value = chartConfig.chartType;
+        }
+
+        
+        function createChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+
+            if (mainChart) {
+                mainChart.destroy();
+            }
+
+            const chartType = document.getElementById('chartType').value;
+            const xField = document.getElementById('xField').value;
+            const selectedYFields = getSelectedYFields();
+            const showTrendLine = document.getElementById('showTrendLine').checked;
+            const showMovingAvg = document.getElementById('showMovingAvg').checked;
+            const stackedMode = document.getElementById('stackedMode').checked;
+
+            
+            const labels = chartData.records.map(record => record[xField]);
+            const datasets = [];
+
+            
+            const colors = generateColors(selectedYFields.length);
+
+            selectedYFields.forEach((field, index) => {
+                const data = chartData.records.map(record => {
+                    const value = record[field];
+                    return typeof value === 'number' ? value : parseFloat(value) || 0;
+                });
+
+                datasets.push({
+                    label: field,
+                    data: data,
+                    backgroundColor: colors[index] + '80', 
+                    borderColor: colors[index],
+                    borderWidth: 2,
+                    fill: chartType === 'area',
+                    tension: 0.4
+                });
+
+                
+                if (showMovingAvg && data.length > 5) {
+                    const movingAvgData = calculateMovingAverage(data, 5);
+                    datasets.push({
+                        label: `${field} (5-period MA)`,
+                        data: movingAvgData,
+                        backgroundColor: 'transparent',
+                        borderColor: colors[index],
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0
+                    });
+                }
+            });
+
+            
+            const config = {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: chartData.dateFields.includes(xField) ? 'time' : 'category',
+                            title: {
+                                display: true,
+                                text: xField
+                            }
+                        },
+                        y: {
+                            stacked: stackedMode,
+                            title: {
+                                display: true,
+                                text: 'Values'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: chartConfig.showLegend
+                        },
+                        tooltip: {
+                            enabled: chartConfig.showTooltips,
+                            mode: 'index',
+                            intersect: false
+                        },
+                        zoom: {
+                            zoom: {
+                                wheel: {
+                                    enabled: chartConfig.enableZoom
+                                },
+                                pinch: {
+                                    enabled: chartConfig.enableZoom
+                                },
+                                mode: 'x'
+                            },
+                            pan: {
+                                enabled: chartConfig.enablePan,
+                                mode: 'x'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: chartConfig.enableAnimations ? 1000 : 0
+                    }
+                }
+            };
+
+            mainChart = new Chart(ctx, config);
+        }
+
+        
+        function getSelectedYFields() {
+            const checkboxes = document.querySelectorAll('#yFields input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function generateColors(count) {
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#36A2EB'
+            ];
+
+            const result = [];
+            for (let i = 0; i < count; i++) {
+                result.push(colors[i % colors.length]);
+            }
+            return result;
+        }
+
+        function calculateMovingAverage(data, period) {
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) {
+                    result.push(null);
+                } else {
+                    const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+                    result.push(sum / period);
+                }
+            }
+            return result;
+        }
+
+        function updateChart() {
+            createChart();
+        }
+
+        function resetZoom() {
+            if (mainChart) {
+                mainChart.resetZoom();
+            }
+        }
+
+        function exportChart() {
+            if (mainChart) {
+                const url = mainChart.toBase64Image();
+                const link = document.createElement('a');
+                link.download = 'chart.png';
+                link.href = url;
+                link.click();
+            }
+        }
+
+        function updateDataSummary() {
+            const summaryDiv = document.getElementById('dataSummary');
+            let html = `
+                <div class="col-md-3">
+                    <strong>Records:</strong> ${chartData.summary.recordCount}
+                </div>
+                <div class="col-md-3">
+                    <strong>Fields:</strong> ${chartData.fields.length}
+                </div>
+                <div class="col-md-3">
+                    <strong>Numeric Fields:</strong> ${chartData.numericFields.length}
+                </div>
+                <div class="col-md-3">
+                    <strong>Date Fields:</strong> ${chartData.dateFields.length}
+                </div>
+            `;
+
+            
+            for (const [field, stats] of Object.entries(chartData.summary.numericStats)) {
+                html += `
+                    <div class="col-md-12 mt-2">
+                        <small><strong>${field}:</strong>
+                        Min: ${stats.min.toFixed(2)},
+                        Max: ${stats.max.toFixed(2)},
+                        Mean: ${stats.mean.toFixed(2)},
+                        StdDev: ${stats.stdDev.toFixed(2)}
+                        </small>
+                    </div>
+                `;
+            }
+
+            summaryDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
