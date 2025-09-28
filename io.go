@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 	"os"
 	"os/exec"
 	"strconv"
@@ -36,78 +37,76 @@ func DefaultCSVConfig() CSVConfig {
 	}
 }
 
-// ReadCSV reads CSV from a file and returns a StreamBuilder
-func ReadCSV(filename string, config ...CSVConfig) *StreamBuilder[Record] {
+// ReadCSV reads CSV from a file and returns an iterator
+func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record] {
 	cfg := DefaultCSVConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return &StreamBuilder[Record]{
-		seq: func(yield func(Record) bool) {
-			file, err := os.Open(filename)
+	return func(yield func(Record) bool) {
+		file, err := os.Open(filename)
+		if err != nil {
+			// For simple API, we skip errors - use ReadCSVSafe for error handling
+			return
+		}
+		defer file.Close()
+
+		reader := csv.NewReader(file)
+		reader.Comma = cfg.Delimiter
+		reader.Comment = cfg.Comment
+
+		var headers []string
+		if cfg.HasHeaders {
+			headerRow, err := reader.Read()
 			if err != nil {
-				// For simple API, we skip errors - use ReadCSVSafe for error handling
 				return
 			}
-			defer file.Close()
+			headers = headerRow
+		}
 
-			reader := csv.NewReader(file)
-			reader.Comma = cfg.Delimiter
-			reader.Comment = cfg.Comment
-
-			var headers []string
-			if cfg.HasHeaders {
-				headerRow, err := reader.Read()
-				if err != nil {
-					return
-				}
-				headers = headerRow
+		rowNum := 0
+		for {
+			row, err := reader.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				continue // Skip invalid rows in simple API
 			}
 
-			rowNum := 0
-			for {
-				row, err := reader.Read()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					continue // Skip invalid rows in simple API
-				}
-
-				record := make(Record)
-				if cfg.HasHeaders && len(headers) > 0 {
-					for i, value := range row {
-						if i < len(headers) {
-							record[headers[i]] = parseValue(value)
-						}
-					}
-				} else {
-					for i, value := range row {
-						record[fmt.Sprintf("col_%d", i)] = parseValue(value)
+			record := make(Record)
+			if cfg.HasHeaders && len(headers) > 0 {
+				for i, value := range row {
+					if i < len(headers) {
+						record[headers[i]] = parseValue(value)
 					}
 				}
-
-				// Add row metadata
-				record["_row_number"] = int64(rowNum)
-				rowNum++
-
-				if !yield(record) {
-					return
+			} else {
+				for i, value := range row {
+					record[fmt.Sprintf("col_%d", i)] = parseValue(value)
 				}
 			}
-		},
+
+			// Add row metadata
+			record["_row_number"] = int64(rowNum)
+			rowNum++
+
+			if !yield(record) {
+				return
+			}
+		}
 	}
 }
 
 // ReadCSVSafe reads CSV with error handling
-func ReadCSVSafe(filename string, config ...CSVConfig) *StreamBuilderWithErrors[Record] {
+func ReadCSVSafe(filename string, config ...CSVConfig) *StreamWithErrors[Record] {
 	cfg := DefaultCSVConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return &StreamBuilderWithErrors[Record]{
+	return &StreamWithErrors[Record]{
 		seq: func(yield func(Record, error) bool) {
 			file, err := os.Open(filename)
 			if err != nil {
@@ -173,7 +172,7 @@ func ReadCSVSafe(filename string, config ...CSVConfig) *StreamBuilderWithErrors[
 }
 
 // WriteCSV writes records to a CSV file
-func WriteCSV(sb *StreamBuilder[Record], filename string, fields []string, config ...CSVConfig) error {
+func WriteCSV(sb *Stream[Record], filename string, fields []string, config ...CSVConfig) error {
 	cfg := DefaultCSVConfig()
 	if len(config) > 0 {
 		cfg = config[0]
@@ -217,8 +216,8 @@ func WriteCSV(sb *StreamBuilder[Record], filename string, fields []string, confi
 // ============================================================================
 
 // ReadJSON reads JSON records from a file (one JSON object per line)
-func ReadJSON(filename string) *StreamBuilder[Record] {
-	return &StreamBuilder[Record]{
+func ReadJSON(filename string) *Stream[Record] {
+	return &Stream[Record]{
 		seq: func(yield func(Record) bool) {
 			file, err := os.Open(filename)
 			if err != nil {
@@ -252,8 +251,8 @@ func ReadJSON(filename string) *StreamBuilder[Record] {
 }
 
 // ReadJSONSafe reads JSON with error handling
-func ReadJSONSafe(filename string) *StreamBuilderWithErrors[Record] {
-	return &StreamBuilderWithErrors[Record]{
+func ReadJSONSafe(filename string) *StreamWithErrors[Record] {
+	return &StreamWithErrors[Record]{
 		seq: func(yield func(Record, error) bool) {
 			file, err := os.Open(filename)
 			if err != nil {
@@ -297,7 +296,7 @@ func ReadJSONSafe(filename string) *StreamBuilderWithErrors[Record] {
 }
 
 // WriteJSON writes records as JSON (one object per line)
-func WriteJSON(sb *StreamBuilder[Record], filename string) error {
+func WriteJSON(sb *Stream[Record], filename string) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filename, err)
@@ -319,8 +318,8 @@ func WriteJSON(sb *StreamBuilder[Record], filename string) error {
 // ============================================================================
 
 // ReadLines reads text lines from a file
-func ReadLines(filename string) *StreamBuilder[Record] {
-	return &StreamBuilder[Record]{
+func ReadLines(filename string) *Stream[Record] {
+	return &Stream[Record]{
 		seq: func(yield func(Record) bool) {
 			file, err := os.Open(filename)
 			if err != nil {
@@ -346,8 +345,8 @@ func ReadLines(filename string) *StreamBuilder[Record] {
 }
 
 // ReadLinesSafe reads text lines with error handling
-func ReadLinesSafe(filename string) *StreamBuilderWithErrors[Record] {
-	return &StreamBuilderWithErrors[Record]{
+func ReadLinesSafe(filename string) *StreamWithErrors[Record] {
+	return &StreamWithErrors[Record]{
 		seq: func(yield func(Record, error) bool) {
 			file, err := os.Open(filename)
 			if err != nil {
@@ -380,7 +379,7 @@ func ReadLinesSafe(filename string) *StreamBuilderWithErrors[Record] {
 }
 
 // WriteLines writes records as text lines (using "line" field)
-func WriteLines(sb *StreamBuilder[Record], filename string) error {
+func WriteLines(sb *Stream[Record], filename string) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filename, err)
@@ -474,13 +473,13 @@ func DefaultCommandConfig() CommandConfig {
 }
 
 // ReadCommandOutput reads command output with column-aligned data
-func ReadCommandOutput(filename string, config ...CommandConfig) *StreamBuilder[Record] {
+func ReadCommandOutput(filename string, config ...CommandConfig) *Stream[Record] {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return &StreamBuilder[Record]{
+	return &Stream[Record]{
 		seq: func(yield func(Record) bool) {
 			file, err := os.Open(filename)
 			if err != nil {
@@ -526,13 +525,13 @@ func ReadCommandOutput(filename string, config ...CommandConfig) *StreamBuilder[
 }
 
 // ReadCommandOutputSafe reads command output with error handling
-func ReadCommandOutputSafe(filename string, config ...CommandConfig) *StreamBuilderWithErrors[Record] {
+func ReadCommandOutputSafe(filename string, config ...CommandConfig) *StreamWithErrors[Record] {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return &StreamBuilderWithErrors[Record]{
+	return &StreamWithErrors[Record]{
 		seq: func(yield func(Record, error) bool) {
 			file, err := os.Open(filename)
 			if err != nil {
@@ -598,13 +597,13 @@ func ReadCommandOutputSafe(filename string, config ...CommandConfig) *StreamBuil
 }
 
 // ExecCommand executes a command and returns its output as a stream
-func ExecCommand(command string, args []string, config ...CommandConfig) *StreamBuilder[Record] {
+func ExecCommand(command string, args []string, config ...CommandConfig) *Stream[Record] {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return &StreamBuilder[Record]{
+	return &Stream[Record]{
 		seq: func(yield func(Record) bool) {
 			cmd := exec.Command(command, args...)
 			stdout, err := cmd.StdoutPipe()
@@ -656,13 +655,13 @@ func ExecCommand(command string, args []string, config ...CommandConfig) *Stream
 }
 
 // ExecCommandSafe executes a command with error handling
-func ExecCommandSafe(command string, args []string, config ...CommandConfig) *StreamBuilderWithErrors[Record] {
+func ExecCommandSafe(command string, args []string, config ...CommandConfig) *StreamWithErrors[Record] {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return &StreamBuilderWithErrors[Record]{
+	return &StreamWithErrors[Record]{
 		seq: func(yield func(Record, error) bool) {
 			cmd := exec.Command(command, args...)
 			stdout, err := cmd.StdoutPipe()
@@ -883,8 +882,8 @@ func parseCommandValue(s string) any {
 // CHANNEL OPERATIONS
 // ============================================================================
 
-// ToChannel converts a StreamBuilder to a channel
-func ToChannel[T any](sb *StreamBuilder[T]) <-chan T {
+// ToChannel converts a Stream to a channel
+func ToChannel[T any](sb *Stream[T]) <-chan T {
 	ch := make(chan T)
 	go func() {
 		defer close(ch)
@@ -895,8 +894,8 @@ func ToChannel[T any](sb *StreamBuilder[T]) <-chan T {
 	return ch
 }
 
-// ToChannelWithErrors converts a StreamBuilderWithErrors to channels
-func ToChannelWithErrors[T any](sb *StreamBuilderWithErrors[T]) (<-chan T, <-chan error) {
+// ToChannelWithErrors converts a StreamWithErrors to channels
+func ToChannelWithErrors[T any](sb *StreamWithErrors[T]) (<-chan T, <-chan error) {
 	itemCh := make(chan T)
 	errCh := make(chan error, 1)
 
@@ -916,9 +915,9 @@ func ToChannelWithErrors[T any](sb *StreamBuilderWithErrors[T]) (<-chan T, <-cha
 	return itemCh, errCh
 }
 
-// FromChannelSafe creates an error-aware StreamBuilder from channels
-func FromChannelSafe[T any](itemCh <-chan T, errCh <-chan error) *StreamBuilderWithErrors[T] {
-	return &StreamBuilderWithErrors[T]{
+// FromChannelSafe creates an error-aware Stream from channels
+func FromChannelSafe[T any](itemCh <-chan T, errCh <-chan error) *StreamWithErrors[T] {
+	return &StreamWithErrors[T]{
 		seq: func(yield func(T, error) bool) {
 			for {
 				select {
