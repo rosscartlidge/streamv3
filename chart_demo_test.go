@@ -15,7 +15,7 @@ func TestChartDemo(t *testing.T) {
 	fmt.Println("=====================================")
 
 	// Create output directory
-	if err := os.MkdirAll("chart_examples", 0755); err != nil {
+	if err := os.MkdirAll("doc/chart_examples", 0755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -41,11 +41,11 @@ func TestChartDemo(t *testing.T) {
 
 	fmt.Println("\n✅ All charts created successfully!")
 	fmt.Println("\n🎯 Open these HTML files in your browser:")
-	fmt.Println("   📈 chart_examples/sales_dashboard.html")
-	fmt.Println("   📊 chart_examples/system_metrics.html")
-	fmt.Println("   🖥️  chart_examples/process_analysis.html")
-	fmt.Println("   🌐 chart_examples/network_analysis.html")
-	fmt.Println("   ⚡ chart_examples/quick_example.html")
+	fmt.Println("   📈 doc/chart_examples/sales_dashboard.html")
+	fmt.Println("   📊 doc/chart_examples/system_metrics.html")
+	fmt.Println("   🖥️  doc/chart_examples/process_analysis.html")
+	fmt.Println("   🌐 doc/chart_examples/network_analysis.html")
+	fmt.Println("   ⚡ doc/chart_examples/quick_example.html")
 	fmt.Println("\n🎪 Features to try:")
 	fmt.Println("   • Click different chart types (line/bar/scatter/pie)")
 	fmt.Println("   • Select different X and Y fields")
@@ -107,7 +107,7 @@ func createSalesDashboard(t *testing.T) {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := InteractiveChart(data, "chart_examples/sales_dashboard.html", config); err != nil {
+	if err := InteractiveChart(data, "doc/chart_examples/sales_dashboard.html", config); err != nil {
 		t.Errorf("Error creating sales dashboard: %v", err)
 	}
 }
@@ -165,7 +165,7 @@ func createSystemMetrics(t *testing.T) {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, "chart_examples/system_metrics.html", config); err != nil {
+	if err := TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, "doc/chart_examples/system_metrics.html", config); err != nil {
 		t.Errorf("Error creating system metrics: %v", err)
 	}
 }
@@ -229,7 +229,7 @@ func createProcessAnalysis(t *testing.T) {
 	config.Width = 1300
 	config.Height = 600
 
-	if err := InteractiveChart(data, "chart_examples/process_analysis.html", config); err != nil {
+	if err := InteractiveChart(data, "doc/chart_examples/process_analysis.html", config); err != nil {
 		t.Errorf("Error creating process analysis: %v", err)
 	}
 }
@@ -303,7 +303,7 @@ func createNetworkAnalysis(t *testing.T) {
 	config.Width = 1400
 	config.Height = 650
 
-	if err := TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, "chart_examples/network_analysis.html", config); err != nil {
+	if err := TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, "doc/chart_examples/network_analysis.html", config); err != nil {
 		t.Errorf("Error creating network analysis: %v", err)
 	}
 }
@@ -323,7 +323,7 @@ func createQuickExample(t *testing.T) {
 	data := From(revenueData)
 
 	// Use the simple QuickChart API
-	if err := QuickChart(data, "month", "revenue", "chart_examples/quick_example.html"); err != nil {
+	if err := QuickChart(data, "month", "revenue", "doc/chart_examples/quick_example.html"); err != nil {
 		t.Errorf("Error creating quick example: %v", err)
 	}
 }
