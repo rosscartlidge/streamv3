@@ -205,30 +205,23 @@ func main() {
 }
 ```
 
-## Two Ways to Compose
+## Functional Composition
 
-StreamV3 offers two styles - pick what feels natural:
+StreamV3 uses **functional composition** exclusively - one clear, flexible way to compose operations:
 
-### Fluent Style (Method Chaining)
 ```go
-result := streamv3.From(data).
-    Where(predicate).
-    Map(transform).
-    Limit(10).
-    Collect()
-```
-
-### Functional Style (Explicit Composition)
-```go
+// Works for all operations, including complex pipelines
 pipeline := streamv3.Pipe(
     streamv3.Where(predicate),
-    streamv3.Map(transform),
-    streamv3.Limit(10),
+    streamv3.GroupByFields("region"),
+    streamv3.Aggregate(map[string]streamv3.AggregateFunc{
+        "total": streamv3.Sum("amount"),
+    }),
 )
-result := streamv3.Collect(pipeline(streamv3.From(data)))
+result := slices.Collect(pipeline(slices.Values(data)))
 ```
 
-Both compile to the same efficient code using Go 1.23 iterators.
+This approach handles all operation types seamlessly, from simple filtering to complex aggregations with type changes.
 
 ## Interactive Charts Made Easy
 

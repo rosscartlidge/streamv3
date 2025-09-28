@@ -31,14 +31,16 @@ StreamV3 is a modern Go library built on three core abstractions:
 **Key Architecture Files:**
 - `core.go` - Core types, Filter functions, Record system, composition functions
 - `operations.go` - Stream operations (Map, Where, Reduce, etc.)
-- `fluent.go` - StreamBuilder fluent API for ergonomic method chaining
+- `types.go` - Simple stream types for I/O compatibility (no fluent methods)
 - `chart.go` - Interactive Chart.js visualization with Bootstrap 5 UI
 - `io.go` - CSV/JSON I/O, command parsing, file operations
 - `sql.go` - GROUP BY aggregations and SQL-style operations
 
-**Dual API Design:**
-1. **Functional API** - Explicit Filter composition: `Pipe(Map(...), Where(...))`
-2. **Fluent API** - Method chaining: `From(data).Map(...).Where(...).Collect()`
+**API Design - Functional Composition:**
+- **Functional API** - Explicit Filter composition: `Pipe(Where(...), GroupByFields(...), Aggregate(...))`
+  - Handles all operations including type-changing operations (GroupBy, Aggregate)
+  - Flexible and composable for complex pipelines
+  - One clear way to compose operations
 
 **Error Handling:**
 - Simple iterators: `iter.Seq[T]`
@@ -52,9 +54,9 @@ StreamV3 is a modern Go library built on three core abstractions:
 - Export formats: PNG, CSV
 
 **Entry Points:**
-- `From(slice)` - Create stream from slice
-- `ReadCSV(filename)` - Parse CSV files
-- `ExecCommand(cmd, args...)` - Parse command output
+- `slices.Values(slice)` - Create iterator from slice
+- `ReadCSV(filename)` - Parse CSV files returning iterator
+- `ExecCommand(cmd, args...)` - Parse command output returning stream
 - `QuickChart(data, x, y, filename)` - Generate interactive charts
 
 This library emphasizes functional composition with Go 1.23+ iterators while providing comprehensive data visualization capabilities.
