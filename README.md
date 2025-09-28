@@ -71,7 +71,7 @@ streamv3.QuickChart(data, "month", "revenue", "revenue_chart.html")
 Run the comprehensive chart demo:
 
 ```bash
-go run examples/chart_demo.go
+go run doc/examples/chart_demo.go
 ```
 
 This creates 5 interactive HTML charts showcasing:
@@ -165,7 +165,7 @@ The library emphasizes functional composition while providing modern Go idioms a
 
 ## 📚 Examples
 
-Check out the `examples/` directory for comprehensive usage demonstrations, including the interactive chart showcase.
+Check out the `doc/examples/` directory for comprehensive usage demonstrations, including the interactive chart showcase.
 
 ## 🤝 Contributing
 
