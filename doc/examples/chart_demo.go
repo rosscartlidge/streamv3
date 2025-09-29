@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"slices"
 	"time"
 
 	streamv3 "github.com/rosscartlidge/streamv3"
@@ -96,7 +97,7 @@ func createSalesDashboard() {
 	}
 
 	// Create interactive dashboard
-	data := streamv3.From(salesData)
+	data := &streamv3.Stream[streamv3.Record]{seq: slices.Values(salesData)}
 
 	config := streamv3.DefaultChartConfig()
 	config.Title = "📊 Sales Performance Dashboard - Interactive Analytics"
@@ -154,7 +155,7 @@ func createSystemMetrics() {
 		metricsData = append(metricsData, record)
 	}
 
-	data := streamv3.From(metricsData)
+	data := &streamv3.Stream[streamv3.Record]{seq: slices.Values(metricsData)}
 
 	config := streamv3.DefaultChartConfig()
 	config.Title = "🖥️ System Metrics - Real-time Monitoring Dashboard"
@@ -220,7 +221,7 @@ func createProcessAnalysis() {
 		processData = append(processData, record)
 	}
 
-	data := streamv3.From(processData)
+	data := &streamv3.Stream[streamv3.Record]{seq: slices.Values(processData)}
 
 	config := streamv3.DefaultChartConfig()
 	config.Title = "🖥️ Process Analysis - CPU & Memory Usage"
@@ -291,7 +292,7 @@ func createNetworkAnalysis() {
 		}
 	}
 
-	data := streamv3.From(networkData)
+	data := &streamv3.Stream[streamv3.Record]{seq: slices.Values(networkData)}
 
 	config := streamv3.DefaultChartConfig()
 	config.Title = "🌐 Network Traffic Analysis - Bytes & Connections"
@@ -321,7 +322,7 @@ func createQuickExample() {
 		streamv3.NewRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Build(),
 	}
 
-	data := streamv3.From(revenueData)
+	data := &streamv3.Stream[streamv3.Record]{seq: slices.Values(revenueData)}
 
 	// Use the simple QuickChart API
 	if err := streamv3.QuickChart(data, "month", "revenue", "doc/chart_examples/quick_example.html"); err != nil {
