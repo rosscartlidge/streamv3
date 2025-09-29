@@ -99,7 +99,10 @@ func InteractiveChart(sb *Stream[Record], filename string, config ...ChartConfig
 	}
 
 	// Collect all records
-	records := sb.Collect()
+	var records []Record
+	for record := range sb.Iter() {
+		records = append(records, record)
+	}
 	if len(records) == 0 {
 		return fmt.Errorf("no data to chart")
 	}
@@ -116,7 +119,10 @@ func QuickChart(sb *Stream[Record], xField, yField, filename string) error {
 	cfg := DefaultChartConfig()
 	cfg.Title = fmt.Sprintf("%s vs %s", yField, xField)
 
-	records := sb.Collect()
+	var records []Record
+	for record := range sb.Iter() {
+		records = append(records, record)
+	}
 	if len(records) == 0 {
 		return fmt.Errorf("no data to chart")
 	}
@@ -139,7 +145,10 @@ func TimeSeriesChart(sb *Stream[Record], timeField string, valueFields []string,
 	cfg.XAxisType = "time"
 	cfg.TimeFormat = "YYYY-MM-DD HH:mm:ss"
 
-	records := sb.Collect()
+	var records []Record
+	for record := range sb.Iter() {
+		records = append(records, record)
+	}
 	if len(records) == 0 {
 		return fmt.Errorf("no data to chart")
 	}

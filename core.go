@@ -1,7 +1,10 @@
 package streamv3
 
 import (
+	"fmt"
 	"iter"
+	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -121,50 +124,343 @@ func NewRecord() *TypedRecord {
 }
 
 // Set adds a field with compile-time type safety
-func (tr *TypedRecord) Set(key string, value any) *TypedRecord {
+func Set[V Value](tr *TypedRecord, key string, value V) *TypedRecord {
 	tr.data[key] = value
 	return tr
 }
 
 // String adds a string field
 func (tr *TypedRecord) String(key, value string) *TypedRecord {
-	tr.data[key] = value
-	return tr
+	return Set(tr, key, value)
 }
 
 // Int adds an integer field
 func (tr *TypedRecord) Int(key string, value int64) *TypedRecord {
-	tr.data[key] = value
-	return tr
+	return Set(tr, key, value)
 }
 
 // Float adds a float field
 func (tr *TypedRecord) Float(key string, value float64) *TypedRecord {
-	tr.data[key] = value
-	return tr
+	return Set(tr, key, value)
 }
 
 // Bool adds a boolean field
 func (tr *TypedRecord) Bool(key string, value bool) *TypedRecord {
-	tr.data[key] = value
-	return tr
+	return Set(tr, key, value)
 }
 
 // Time adds a time field
 func (tr *TypedRecord) Time(key string, value time.Time) *TypedRecord {
-	tr.data[key] = value
-	return tr
+	return Set(tr, key, value)
 }
 
 // Nested adds a nested record field
 func (tr *TypedRecord) Nested(key string, value Record) *TypedRecord {
-	tr.data[key] = value
-	return tr
+	return Set(tr, key, value)
 }
 
 // Build finalizes the record construction
 func (tr *TypedRecord) Build() Record {
 	return Record(tr.data)
+}
+
+// ============================================================================
+// TYPE-SAFE RECORD ACCESS WITH AUTOMATIC CONVERSION - FROM STREAMV2
+// ============================================================================
+
+// Get retrieves a typed value from a record with automatic conversion
+func Get[T any](r Record, field string) (T, bool) {
+	val, exists := r[field]
+	if !exists {
+		var zero T
+		return zero, false
+	}
+
+	// Direct type assertion first (fast path)
+	if typed, ok := val.(T); ok {
+		return typed, true
+	}
+
+	// Smart type conversion (slower path)
+	if converted, ok := convertTo[T](val); ok {
+		return converted, true
+	}
+
+	var zero T
+	return zero, false
+}
+
+// GetOr retrieves a typed value with a default fallback
+func GetOr[T any](r Record, field string, defaultVal T) T {
+	if val, ok := Get[T](r, field); ok {
+		return val
+	}
+	return defaultVal
+}
+
+// SetField assigns a value to a record field with compile-time type safety
+func SetField[V Value](r Record, field string, value V) Record {
+	result := make(Record, len(r)+1)
+	for k, v := range r {
+		result[k] = v
+	}
+	result[field] = value
+	return result
+}
+
+// Has checks if a field exists
+func (r Record) Has(field string) bool {
+	_, exists := r[field]
+	return exists
+}
+
+// Keys returns all field names
+func (r Record) Keys() []string {
+	keys := make([]string, 0, len(r))
+	for k := range r {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// Set creates a new Record with an additional field - immutable update
+func (r Record) Set(field string, value any) Record {
+	result := make(Record, len(r)+1)
+	for k, v := range r {
+		result[k] = v
+	}
+	result[field] = value
+	return result
+}
+
+// ============================================================================
+// SMART TYPE CONVERSION SYSTEM - FROM STREAMV2
+// ============================================================================
+
+func convertTo[T any](val any) (T, bool) {
+	var zero T
+	targetType := reflect.TypeOf(zero)
+
+	// Handle nil
+	if val == nil {
+		return zero, false
+	}
+
+	sourceVal := reflect.ValueOf(val)
+
+	// Try direct conversion for basic types
+	if sourceVal.Type().ConvertibleTo(targetType) {
+		converted := sourceVal.Convert(targetType)
+		return converted.Interface().(T), true
+	}
+
+	// Custom conversions for common cases
+	switch target := any(zero).(type) {
+	case int64:
+		if converted, ok := convertToInt64(val); ok {
+			return any(converted).(T), true
+		}
+		return zero, false
+	case float64:
+		if converted, ok := convertToFloat64(val); ok {
+			return any(converted).(T), true
+		}
+		return zero, false
+	case string:
+		if converted, ok := convertToString(val); ok {
+			return any(converted).(T), true
+		}
+		return zero, false
+	case bool:
+		if converted, ok := convertToBool(val); ok {
+			return any(converted).(T), true
+		}
+		return zero, false
+	case time.Time:
+		if converted, ok := convertToTime(val); ok {
+			return any(converted).(T), true
+		}
+		return zero, false
+	default:
+		_ = target
+		return zero, false
+	}
+}
+
+func convertToInt64(val any) (int64, bool) {
+	switch v := val.(type) {
+	case int64:
+		return v, true
+	case int:
+		return int64(v), true
+	case int32:
+		return int64(v), true
+	case int16:
+		return int64(v), true
+	case int8:
+		return int64(v), true
+	case uint64:
+		return int64(v), true
+	case uint32:
+		return int64(v), true
+	case uint16:
+		return int64(v), true
+	case uint8:
+		return int64(v), true
+	case float64:
+		return int64(v), true
+	case float32:
+		return int64(v), true
+	case string:
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return parsed, true
+		}
+		return 0, false
+	default:
+		return 0, false
+	}
+}
+
+func convertToFloat64(val any) (float64, bool) {
+	switch v := val.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int16:
+		return float64(v), true
+	case int8:
+		return float64(v), true
+	case uint64:
+		return float64(v), true
+	case uint32:
+		return float64(v), true
+	case uint16:
+		return float64(v), true
+	case uint8:
+		return float64(v), true
+	case string:
+		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+			return parsed, true
+		}
+		return 0, false
+	default:
+		return 0, false
+	}
+}
+
+func convertToString(val any) (string, bool) {
+	switch v := val.(type) {
+	case string:
+		return v, true
+	case []byte:
+		return string(v), true
+	default:
+		return fmt.Sprintf("%v", val), true
+	}
+}
+
+func convertToBool(val any) (bool, bool) {
+	switch v := val.(type) {
+	case bool:
+		return v, true
+	case int64:
+		return v != 0, true
+	case int:
+		return v != 0, true
+	case float64:
+		return v != 0, true
+	case string:
+		return v != "", true
+	default:
+		return false, false
+	}
+}
+
+func convertToTime(val any) (time.Time, bool) {
+	switch v := val.(type) {
+	case time.Time:
+		return v, true
+	case string:
+		// Try RFC3339 first (most common for APIs)
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			return t, true
+		}
+		// Try standard SQL datetime format
+		if t, err := time.Parse("2006-01-02 15:04:05", v); err == nil {
+			return t, true
+		}
+		// Try RFC3339 without timezone (assume UTC)
+		if t, err := time.Parse("2006-01-02T15:04:05", v); err == nil {
+			return t.UTC(), true
+		}
+		return time.Time{}, false
+	case int64:
+		// Unix timestamp - always UTC
+		return time.Unix(v, 0).UTC(), true
+	default:
+		return time.Time{}, false
+	}
+}
+
+// ============================================================================
+// RUNTIME VALIDATION HELPERS - FROM STREAMV2
+// ============================================================================
+
+// validateRecord checks if a Record has only Value-compatible field types
+func ValidateRecord(r Record) error {
+	for field, value := range r {
+		if !isValueType(value) {
+			return fmt.Errorf("field '%s' has invalid type %T", field, value)
+		}
+	}
+	return nil
+}
+
+// IsValueType checks if a value conforms to the Value interface using type assertions
+func isValueType(value any) bool {
+	switch value.(type) {
+	// Integer types
+	case int, int8, int16, int32, int64:
+		return true
+	case uint, uint8, uint16, uint32, uint64:
+		return true
+	// Float types
+	case float32, float64:
+		return true
+	// Other basic types
+	case bool, string:
+		return true
+	case time.Time:
+		return true
+	// Record type
+	case Record:
+		return true
+	// Iterator types for streams
+	case iter.Seq[int], iter.Seq[int8], iter.Seq[int16], iter.Seq[int32], iter.Seq[int64]:
+		return true
+	case iter.Seq[uint], iter.Seq[uint8], iter.Seq[uint16], iter.Seq[uint32], iter.Seq[uint64]:
+		return true
+	case iter.Seq[float32], iter.Seq[float64]:
+		return true
+	case iter.Seq[bool], iter.Seq[string]:
+		return true
+	case iter.Seq[time.Time], iter.Seq[Record]:
+		return true
+	default:
+		return false
+	}
+}
+
+// Field creates a single-field Record with compile-time type safety
+func Field[V Value](key string, value V) Record {
+	return Record{key: value}
 }
 
 // ============================================================================

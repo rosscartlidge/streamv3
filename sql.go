@@ -228,10 +228,11 @@ func OnCondition(condition func(left, right Record) bool) JoinPredicate {
 // GROUPBY OPERATIONS
 // ============================================================================
 
-// GroupedRecord represents a group of records with a key
+// GroupedRecord represents a group of records with a key and grouping fields
 type GroupedRecord struct {
-	Key     any
-	Records []Record
+	Key           any
+	GroupingFields Record  // The original field values that defined this group
+	Records       []Record
 }
 
 // GroupBy groups records by a key extraction function
@@ -253,8 +254,9 @@ func GroupBy[K comparable](keyFn func(Record) K) Filter[Record, GroupedRecord] {
 			// Yield groups in order of first appearance
 			for _, key := range keys {
 				if !yield(GroupedRecord{
-					Key:     key,
-					Records: groups[key],
+					Key:            key,
+					GroupingFields: Record{}, // Empty for generic GroupBy
+					Records:        groups[key],
 				}) {
 					return
 				}
@@ -265,17 +267,47 @@ func GroupBy[K comparable](keyFn func(Record) K) Filter[Record, GroupedRecord] {
 
 // GroupByFields groups records by specified field values
 func GroupByFields(fields ...string) Filter[Record, GroupedRecord] {
-	return GroupBy(func(r Record) string {
-		var keyParts []string
-		for _, field := range fields {
-			if val, exists := r[field]; exists {
-				keyParts = append(keyParts, fmt.Sprintf("%v", val))
-			} else {
-				keyParts = append(keyParts, "<nil>")
+	return func(input iter.Seq[Record]) iter.Seq[GroupedRecord] {
+		return func(yield func(GroupedRecord) bool) {
+			groups := make(map[string][]Record)
+			groupFields := make(map[string]Record)
+			var keys []string
+
+			// Collect all records into groups
+			for record := range input {
+				var keyParts []string
+				groupingFields := make(Record)
+
+				for _, field := range fields {
+					if val, exists := record[field]; exists {
+						keyParts = append(keyParts, fmt.Sprintf("%v", val))
+						groupingFields[field] = val
+					} else {
+						keyParts = append(keyParts, "<nil>")
+						groupingFields[field] = nil
+					}
+				}
+
+				key := fmt.Sprintf("[%s]", strings.Join(keyParts, ","))
+				if _, exists := groups[key]; !exists {
+					keys = append(keys, key)
+					groupFields[key] = groupingFields
+				}
+				groups[key] = append(groups[key], record)
+			}
+
+			// Yield groups in order of first appearance
+			for _, key := range keys {
+				if !yield(GroupedRecord{
+					Key:            key,
+					GroupingFields: groupFields[key],
+					Records:        groups[key],
+				}) {
+					return
+				}
 			}
 		}
-		return fmt.Sprintf("[%s]", strings.Join(keyParts, ","))
-	})
+	}
 }
 
 // ============================================================================
@@ -292,8 +324,10 @@ func Aggregate(aggregations map[string]AggregateFunc) Filter[GroupedRecord, Reco
 			for group := range input {
 				result := make(Record)
 
-				// Add the group key
-				result["group_key"] = group.Key
+				// Copy the original grouping fields
+				for field, value := range group.GroupingFields {
+					result[field] = value
+				}
 
 				// Apply all aggregation functions
 				for name, aggFn := range aggregations {
@@ -324,19 +358,9 @@ func Sum(field string) AggregateFunc {
 	return func(records []Record) any {
 		var sum float64
 		for _, record := range records {
-			if val, exists := record[field]; exists {
-				switch v := val.(type) {
-				case int:
-					sum += float64(v)
-				case int32:
-					sum += float64(v)
-				case int64:
-					sum += float64(v)
-				case float32:
-					sum += float64(v)
-				case float64:
-					sum += v
-				}
+			// Use type-safe Get with automatic conversion to float64
+			if value, ok := Get[float64](record, field); ok {
+				sum += value
 			}
 		}
 		return sum
@@ -349,24 +373,10 @@ func Avg(field string) AggregateFunc {
 		var sum float64
 		var count int64
 		for _, record := range records {
-			if val, exists := record[field]; exists {
-				switch v := val.(type) {
-				case int:
-					sum += float64(v)
-					count++
-				case int32:
-					sum += float64(v)
-					count++
-				case int64:
-					sum += float64(v)
-					count++
-				case float32:
-					sum += float64(v)
-					count++
-				case float64:
-					sum += v
-					count++
-				}
+			// Use type-safe Get with automatic conversion to float64
+			if value, ok := Get[float64](record, field); ok {
+				sum += value
+				count++
 			}
 		}
 		if count == 0 {
@@ -387,12 +397,11 @@ func Min[T cmp.Ordered](field string) AggregateFunc {
 		var min T
 		found := false
 		for _, record := range records {
-			if val, exists := record[field]; exists {
-				if v, ok := val.(T); ok {
-					if !found || v < min {
-						min = v
-						found = true
-					}
+			// Use type-safe Get with automatic conversion
+			if value, ok := Get[T](record, field); ok {
+				if !found || value < min {
+					min = value
+					found = true
 				}
 			}
 		}
@@ -411,12 +420,11 @@ func Max[T cmp.Ordered](field string) AggregateFunc {
 		var max T
 		found := false
 		for _, record := range records {
-			if val, exists := record[field]; exists {
-				if v, ok := val.(T); ok {
-					if !found || v > max {
-						max = v
-						found = true
-					}
+			// Use type-safe Get with automatic conversion
+			if value, ok := Get[T](record, field); ok {
+				if !found || value > max {
+					max = value
+					found = true
 				}
 			}
 		}

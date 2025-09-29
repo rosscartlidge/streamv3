@@ -25,9 +25,10 @@ func main() {
 	// Example 1: Filter high-value sales and group by region - FUNCTIONAL PIPELINE!
 	fmt.Println("1. High-value sales (>= $1000) by region:")
 
-	// Step 1: Filter high-value sales
+	// Step 1: Filter high-value sales - using type-safe Get[T]
 	filtered1 := streamv3.Where(func(r streamv3.Record) bool {
-		return r["amount"].(float64) >= 1000
+		amount := streamv3.GetOr(r, "amount", 0.0)
+		return amount >= 1000
 	})(slices.Values(sales))
 
 	// Step 2: Group by region
@@ -41,7 +42,7 @@ func main() {
 
 	for result := range regionTotals {
 		fmt.Printf("   %s: $%.0f (%d sales)\n",
-			result["group_key"],
+			result["region"],
 			result["total_sales"],
 			result["count"])
 	}
@@ -58,7 +59,7 @@ func main() {
 
 	for result := range productTotals {
 		fmt.Printf("   %s: $%.0f total, $%.0f avg (%d sales)\n",
-			result["group_key"],
+			result["product"],
 			result["total_revenue"],
 			result["avg_price"],
 			result["sales_count"])
@@ -69,10 +70,12 @@ func main() {
 	// Example 3: Complex pipeline with multiple filters and aggregation - FULL FUNCTIONAL PIPELINE!
 	filtered3 := streamv3.Chain(
 		streamv3.Where(func(r streamv3.Record) bool {
-			return r["region"].(string) == "North"
+			region := streamv3.GetOr(r, "region", "")
+			return region == "North"
 		}),
 		streamv3.Where(func(r streamv3.Record) bool {
-			return r["product"].(string) == "Laptop"
+			product := streamv3.GetOr(r, "product", "")
+			return product == "Laptop"
 		}),
 	)(slices.Values(sales))
 

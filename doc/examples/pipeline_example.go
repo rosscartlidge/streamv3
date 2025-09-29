@@ -21,7 +21,8 @@ func main() {
 
 	// Try StreamV2-style functional composition
 	filterStep := streamv3.Where(func(r streamv3.Record) bool {
-		return r["amount"].(float64) >= 1000
+		amount := streamv3.GetOr(r, "amount", 0.0)
+		return amount >= 1000
 	})
 	groupStep := streamv3.GroupByFields("region")
 
@@ -40,7 +41,7 @@ func main() {
 	fmt.Println("High-value sales (>= $1000) by region:")
 	for result := range totals {
 		fmt.Printf("  %s: $%.0f (%d sales)\n",
-			result["group_key"],
+			result["region"],
 			result["total_sales"],
 			result["count"])
 	}

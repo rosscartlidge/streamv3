@@ -25,10 +25,12 @@ func main() {
 	// Step 1: Apply preprocessing filters
 	filtered := streamv3.Chain(
 		streamv3.Where(func(r streamv3.Record) bool {
-			return r["amount"].(float64) >= 600 // Filter >= $600
+			amount := streamv3.GetOr(r, "amount", 0.0)
+			return amount >= 600 // Filter >= $600
 		}),
 		streamv3.Where(func(r streamv3.Record) bool {
-			return r["product"].(string) != "Tablet" // Exclude tablets
+			product := streamv3.GetOr(r, "product", "")
+			return product != "Tablet" // Exclude tablets
 		}),
 		streamv3.Limit[streamv3.Record](10), // Add some limit for demo
 	)(slices.Values(sales))
@@ -46,7 +48,7 @@ func main() {
 	fmt.Println("High-value non-tablet sales by region:")
 	for result := range results {
 		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n",
-			result["group_key"],
+			result["region"],
 			result["total_revenue"],
 			result["avg_deal"],
 			result["count"])
@@ -66,7 +68,9 @@ func main() {
 
 	// Step by step functional composition
 	filtered2 := streamv3.Where(func(r streamv3.Record) bool {
-		return r["amount"].(float64) >= 600 && r["product"].(string) != "Tablet"
+		amount := streamv3.GetOr(r, "amount", 0.0)
+		product := streamv3.GetOr(r, "product", "")
+		return amount >= 600 && product != "Tablet"
 	})(slices.Values(sales))
 
 	grouped2 := streamv3.GroupByFields("region")(filtered2)
@@ -78,7 +82,7 @@ func main() {
 	})(grouped2)
 	for result := range functionalResults {
 		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n",
-			result["group_key"],
+			result["region"],
 			result["total_revenue"],
 			result["avg_deal"],
 			result["count"])

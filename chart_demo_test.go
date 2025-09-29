@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"slices"
 	"testing"
 	"time"
 )
@@ -95,7 +96,7 @@ func createSalesDashboard(t *testing.T) {
 	}
 
 	// Create interactive dashboard
-	data := From(salesData)
+	data := &Stream[Record]{seq: slices.Values(salesData)}
 
 	config := DefaultChartConfig()
 	config.Title = "📊 Sales Performance Dashboard - Interactive Analytics"
@@ -153,7 +154,7 @@ func createSystemMetrics(t *testing.T) {
 		metricsData = append(metricsData, record)
 	}
 
-	data := From(metricsData)
+	data := &Stream[Record]{seq: slices.Values(metricsData)}
 
 	config := DefaultChartConfig()
 	config.Title = "🖥️ System Metrics - Real-time Monitoring Dashboard"
@@ -219,7 +220,7 @@ func createProcessAnalysis(t *testing.T) {
 		processData = append(processData, record)
 	}
 
-	data := From(processData)
+	data := &Stream[Record]{seq: slices.Values(processData)}
 
 	config := DefaultChartConfig()
 	config.Title = "🖥️ Process Analysis - CPU & Memory Usage"
@@ -290,7 +291,7 @@ func createNetworkAnalysis(t *testing.T) {
 		}
 	}
 
-	data := From(networkData)
+	data := &Stream[Record]{seq: slices.Values(networkData)}
 
 	config := DefaultChartConfig()
 	config.Title = "🌐 Network Traffic Analysis - Bytes & Connections"
@@ -320,7 +321,7 @@ func createQuickExample(t *testing.T) {
 		NewRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Build(),
 	}
 
-	data := From(revenueData)
+	data := &Stream[Record]{seq: slices.Values(revenueData)}
 
 	// Use the simple QuickChart API
 	if err := QuickChart(data, "month", "revenue", "doc/chart_examples/quick_example.html"); err != nil {
