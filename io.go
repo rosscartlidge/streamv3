@@ -305,7 +305,29 @@ func WriteJSON(sb *Stream[Record], filename string) error {
 
 	encoder := json.NewEncoder(file)
 	for record := range sb.Iter() {
-		if err := encoder.Encode(record); err != nil {
+		// Convert complex fields for JSON compatibility
+		jsonRecord := make(Record)
+		for key, value := range record {
+			switch v := value.(type) {
+			case JSONString:
+				// Parse JSONString back to structured data to avoid double-encoding
+				if parsed, err := v.Parse(); err == nil {
+					jsonRecord[key] = parsed
+				} else {
+					// Fallback to string if parsing fails
+					jsonRecord[key] = string(v)
+				}
+			default:
+				if isIterSeq(value) {
+					// Convert iter.Seq to array for JSON
+					jsonRecord[key] = materializeSequence(value)
+				} else {
+					jsonRecord[key] = value
+				}
+			}
+		}
+
+		if err := encoder.Encode(jsonRecord); err != nil {
 			return fmt.Errorf("failed to write JSON record: %w", err)
 		}
 	}
@@ -434,6 +456,8 @@ func formatValue(value any) string {
 	switch v := value.(type) {
 	case string:
 		return v
+	case JSONString:
+		return string(v) // For CSV, output the raw JSON string
 	case int:
 		return strconv.Itoa(v)
 	case int32:
@@ -447,8 +471,26 @@ func formatValue(value any) string {
 	case bool:
 		return strconv.FormatBool(v)
 	default:
+		// Check if it's an iter.Seq type and materialize it
+		if isIterSeq(value) {
+			return formatIterSeq(value)
+		}
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// formatIterSeq materializes an iter.Seq and formats it as a comma-separated string
+func formatIterSeq(value any) string {
+	// Materialize the sequence using the existing function
+	values := materializeSequence(value)
+
+	// Convert to strings and join
+	var stringValues []string
+	for _, val := range values {
+		stringValues = append(stringValues, fmt.Sprintf("%v", val))
+	}
+
+	return strings.Join(stringValues, ",")
 }
 
 // ============================================================================
