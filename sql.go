@@ -236,9 +236,9 @@ type GroupedRecord struct {
 }
 
 // GroupBy groups records by a key extraction function
-func GroupBy[K comparable](keyFn func(Record) K) Filter[Record, GroupedRecord] {
-	return func(input iter.Seq[Record]) iter.Seq[GroupedRecord] {
-		return func(yield func(GroupedRecord) bool) {
+func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) FilterSameType[Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
 			groups := make(map[K][]Record)
 			var keys []K
 
@@ -251,13 +251,26 @@ func GroupBy[K comparable](keyFn func(Record) K) Filter[Record, GroupedRecord] {
 				groups[key] = append(groups[key], record)
 			}
 
-			// Yield groups in order of first appearance
+			// Yield records with key field + sequence field
 			for _, key := range keys {
-				if !yield(GroupedRecord{
-					Key:            key,
-					GroupingFields: Record{}, // Empty for generic GroupBy
-					Records:        groups[key],
-				}) {
+				result := make(Record)
+
+				// Set the key field
+				result[keyField] = key
+
+				// Add the sequence of group members as an iter.Seq[Record]
+				groupRecords := groups[key]
+				result[sequenceField] = func() iter.Seq[Record] {
+					return func(yield func(Record) bool) {
+						for _, record := range groupRecords {
+							if !yield(record) {
+								return
+							}
+						}
+					}
+				}()
+
+				if !yield(result) {
 					return
 				}
 			}
@@ -266,9 +279,10 @@ func GroupBy[K comparable](keyFn func(Record) K) Filter[Record, GroupedRecord] {
 }
 
 // GroupByFields groups records by specified field values
-func GroupByFields(fields ...string) Filter[Record, GroupedRecord] {
-	return func(input iter.Seq[Record]) iter.Seq[GroupedRecord] {
-		return func(yield func(GroupedRecord) bool) {
+// Returns Records with grouping fields + a sequence field containing group members
+func GroupByFields(sequenceField string, fields ...string) FilterSameType[Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
 			groups := make(map[string][]Record)
 			groupFields := make(map[string]Record)
 			var keys []string
@@ -296,13 +310,28 @@ func GroupByFields(fields ...string) Filter[Record, GroupedRecord] {
 				groups[key] = append(groups[key], record)
 			}
 
-			// Yield groups in order of first appearance
+			// Yield records with grouping fields + sequence field
 			for _, key := range keys {
-				if !yield(GroupedRecord{
-					Key:            key,
-					GroupingFields: groupFields[key],
-					Records:        groups[key],
-				}) {
+				result := make(Record)
+
+				// Copy the grouping field values
+				for field, value := range groupFields[key] {
+					result[field] = value
+				}
+
+				// Add the sequence of group members as an iter.Seq[Record]
+				groupRecords := groups[key]
+				result[sequenceField] = func() iter.Seq[Record] {
+					return func(yield func(Record) bool) {
+						for _, record := range groupRecords {
+							if !yield(record) {
+								return
+							}
+						}
+					}
+				}()
+
+				if !yield(result) {
 					return
 				}
 			}
@@ -317,21 +346,34 @@ func GroupByFields(fields ...string) Filter[Record, GroupedRecord] {
 // AggregateFunc defines an aggregation function over a group of records
 type AggregateFunc func([]Record) any
 
-// Aggregate applies aggregation functions to grouped records
-func Aggregate(aggregations map[string]AggregateFunc) Filter[GroupedRecord, Record] {
-	return func(input iter.Seq[GroupedRecord]) iter.Seq[Record] {
+// Aggregate applies aggregation functions to records containing sequence fields
+func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) FilterSameType[Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
-			for group := range input {
+			for record := range input {
 				result := make(Record)
 
-				// Copy the original grouping fields
-				for field, value := range group.GroupingFields {
-					result[field] = value
+				// Copy all fields except the sequence field
+				for field, value := range record {
+					if field != sequenceField {
+						result[field] = value
+					}
 				}
 
-				// Apply all aggregation functions
-				for name, aggFn := range aggregations {
-					result[name] = aggFn(group.Records)
+				// Extract the sequence from the specified field
+				if seqValue, exists := record[sequenceField]; exists {
+					if seq, ok := seqValue.(iter.Seq[Record]); ok {
+						// Materialize the sequence for aggregation functions
+						var records []Record
+						for r := range seq {
+							records = append(records, r)
+						}
+
+						// Apply all aggregation functions
+						for name, aggFn := range aggregations {
+							result[name] = aggFn(records)
+						}
+					}
 				}
 
 				if !yield(result) {
