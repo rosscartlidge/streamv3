@@ -607,3 +607,324 @@ func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
 		}
 	}
 }
+
+// ============================================================================
+// RECORD FLATTENING OPERATIONS - FROM STREAMV2
+// ============================================================================
+
+// DotFlatten flattens nested records using dot product flattening (single output per input).
+// Nested records become prefixed fields: {"user": {"name": "Alice"}} → {"user.name": "Alice"}
+// iter.Seq fields are expanded using dot product (linear, one-to-one mapping).
+// When sequences have different lengths, uses minimum length and discards excess elements.
+// Example with sequences: {"id": 1, "tags": iter.Seq["a", "b"], "scores": iter.Seq[10, 20]} →
+//   [{"id": 1, "tags": "a", "scores": 10}, {"id": 1, "tags": "b", "scores": 20}]
+// Example with different lengths: {"short": iter.Seq["a", "b"], "long": iter.Seq[1, 2, 3, 4]} →
+//   [{"short": "a", "long": 1}, {"short": "b", "long": 2}] (elements 3, 4 discarded)
+func DotFlatten(separator string, fields ...string) FilterSameType[Record] {
+	if separator == "" {
+		separator = "."
+	}
+
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			for record := range input {
+				// Expand the record (handling both nested records and sequences)
+				expandedRecords := dotFlattenRecordWithSeqs(record, "", separator, fields...)
+
+				// Yield all expanded records
+				for _, expanded := range expandedRecords {
+					if !yield(expanded) {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+// CrossFlatten expands iter.Seq fields using cross product (cartesian product) expansion.
+// Creates multiple output records from each input record containing sequence fields.
+// Example: {"id": 1, "tags": iter.Seq["a", "b"]} → [{"id": 1, "tags": "a"}, {"id": 1, "tags": "b"}]
+func CrossFlatten(separator string, fields ...string) FilterSameType[Record] {
+	if separator == "" {
+		separator = "."
+	}
+
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			for record := range input {
+				// Use field-specific flatten algorithm
+				flattened := crossFlattenRecord(record, separator, fields...)
+
+				// Yield all flattened records
+				for _, expanded := range flattened {
+					if !yield(expanded) {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+// dotFlattenRecord recursively flattens a record using dot notation
+// If fields are specified, only flattens those top-level fields
+func dotFlattenRecord(record Record, prefix, separator string, fields ...string) Record {
+	result := make(Record)
+
+	// Create a set of fields to flatten for quick lookup
+	fieldsToFlatten := make(map[string]bool)
+	if len(fields) > 0 {
+		for _, field := range fields {
+			fieldsToFlatten[field] = true
+		}
+	}
+
+	for key, value := range record {
+		newKey := key
+		if prefix != "" {
+			newKey = prefix + separator + key
+		}
+
+		// Check if this field should be flattened (only applies to top-level fields)
+		shouldFlatten := len(fields) == 0 || prefix != "" || fieldsToFlatten[key]
+
+		// If the value is a nested record, flatten it recursively
+		if nestedRecord, ok := value.(Record); ok && shouldFlatten {
+			flattened := dotFlattenRecord(nestedRecord, newKey, separator)
+			for flatKey, flatValue := range flattened {
+				result[flatKey] = flatValue
+			}
+		} else {
+			// For non-record values (including sequences), or fields not to be flattened, keep as-is
+			result[newKey] = value
+		}
+	}
+
+	return result
+}
+
+// dotFlattenRecordWithSeqs flattens a record using dot product expansion for sequences
+// Returns multiple records when sequences are present (dot product expansion)
+// Uses minimum length when sequences have different lengths, discarding excess elements
+func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ...string) []Record {
+	// Create a set of fields to flatten for quick lookup
+	fieldsToFlatten := make(map[string]bool)
+	if len(fields) > 0 {
+		for _, field := range fields {
+			fieldsToFlatten[field] = true
+		}
+	}
+
+	// Collect all sequence fields that should be expanded
+	var seqFields []string
+	var seqValues [][]any
+	var nonSeqRecord Record = make(Record)
+
+	for key, value := range record {
+		newKey := key
+		if prefix != "" {
+			newKey = prefix + separator + key
+		}
+
+		// Check if this field should be flattened (only applies to top-level fields)
+		shouldFlatten := len(fields) == 0 || prefix != "" || fieldsToFlatten[key]
+
+		// If the value is a nested record, flatten it recursively
+		if nestedRecord, ok := value.(Record); ok && shouldFlatten {
+			flattened := dotFlattenRecord(nestedRecord, newKey, separator)
+			for flatKey, flatValue := range flattened {
+				nonSeqRecord[flatKey] = flatValue
+			}
+		} else if shouldFlatten && isIterSeq(value) {
+			// This is an iter.Seq field - collect its values for dot product expansion
+			values := materializeSequence(value)
+			if len(values) > 0 {
+				seqFields = append(seqFields, newKey)
+				seqValues = append(seqValues, values)
+			}
+		} else {
+			// For non-record, non-sequence values, or fields not to be flattened, keep as-is
+			nonSeqRecord[newKey] = value
+		}
+	}
+
+	// If no sequence fields, return single record
+	if len(seqFields) == 0 {
+		return []Record{nonSeqRecord}
+	}
+
+	// Determine the length for dot product (use minimum length of all sequences)
+	minLen := len(seqValues[0])
+	for _, values := range seqValues[1:] {
+		if len(values) < minLen {
+			minLen = len(values)
+		}
+	}
+
+	// Create dot product expansion - pair corresponding elements from each sequence
+	var results []Record
+	for i := 0; i < minLen; i++ {
+		result := make(Record)
+
+		// Copy non-sequence fields
+		for key, value := range nonSeqRecord {
+			result[key] = value
+		}
+
+		// Add corresponding element from each sequence
+		for j, fieldName := range seqFields {
+			result[fieldName] = seqValues[j][i]
+		}
+
+		results = append(results, result)
+	}
+
+	return results
+}
+
+// crossFlattenRecord expands specified sequence fields using cartesian product
+// If no fields specified, expands all sequence fields
+func crossFlattenRecord(r Record, sep string, fields ...string) []Record {
+	var columns [][]Record
+	var nonSeqFields []string
+
+	// Create a set of fields to expand for quick lookup
+	fieldsToExpand := make(map[string]bool)
+	if len(fields) > 0 {
+		for _, field := range fields {
+			fieldsToExpand[field] = true
+		}
+	}
+
+	for f, value := range r {
+		if isIterSeq(value) {
+			// Check if this field should be expanded
+			shouldExpand := len(fields) == 0 || fieldsToExpand[f]
+
+			if shouldExpand {
+				values := materializeSequence(value)
+				var rs []Record
+				for _, val := range values {
+					// Create a record with this sequence value
+					newRecord := Record{f: val}
+					rs = append(rs, newRecord)
+				}
+				if len(rs) > 0 {
+					columns = append(columns, rs)
+				}
+			} else {
+				// Keep sequence field as-is (don't expand)
+				nonSeqFields = append(nonSeqFields, f)
+			}
+		} else {
+			// Non-sequence field
+			nonSeqFields = append(nonSeqFields, f)
+		}
+	}
+
+	// If no sequence fields to expand, return original record
+	if len(columns) == 0 {
+		return []Record{r}
+	}
+
+	// Create cartesian product of expanded fields
+	crs := cartesianProduct(columns)
+
+	// Add non-sequence fields to each result record
+	for _, cr := range crs {
+		for _, f := range nonSeqFields {
+			cr[f] = r[f]
+		}
+	}
+
+	return crs
+}
+
+// cartesianProduct performs cartesian product of record slices
+func cartesianProduct(columns [][]Record) []Record {
+	if len(columns) == 0 {
+		return nil
+	}
+	if len(columns) == 1 {
+		return columns[0]
+	}
+	var rs []Record
+	for _, lr := range cartesianProduct(columns[1:]) {
+		for _, rr := range columns[0] {
+			r := make(Record)
+			for f := range rr {
+				r[f] = rr[f]
+			}
+			for f := range lr {
+				r[f] = lr[f]
+			}
+			rs = append(rs, r)
+		}
+	}
+	return rs
+}
+
+// isIterSeq checks if a value is an iter.Seq type using reflection
+func isIterSeq(value any) bool {
+	if value == nil {
+		return false
+	}
+	// Check for common iter.Seq types in Value constraint
+	switch value.(type) {
+	case iter.Seq[int], iter.Seq[int8], iter.Seq[int16], iter.Seq[int32], iter.Seq[int64]:
+		return true
+	case iter.Seq[uint], iter.Seq[uint8], iter.Seq[uint16], iter.Seq[uint32], iter.Seq[uint64]:
+		return true
+	case iter.Seq[float32], iter.Seq[float64]:
+		return true
+	case iter.Seq[bool], iter.Seq[string], iter.Seq[time.Time]:
+		return true
+	case iter.Seq[Record]:
+		return true
+	default:
+		return false
+	}
+}
+
+// materializeSequence converts an iter.Seq to a slice of any
+func materializeSequence(value any) []any {
+	var result []any
+
+	switch seq := value.(type) {
+	case iter.Seq[int]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[int8]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[int16]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[int32]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[int64]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[uint]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[uint8]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[uint16]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[uint32]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[uint64]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[float32]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[float64]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[bool]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[string]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[time.Time]:
+		for v := range seq { result = append(result, v) }
+	case iter.Seq[Record]:
+		for v := range seq { result = append(result, v) }
+	}
+
+	return result
+}
