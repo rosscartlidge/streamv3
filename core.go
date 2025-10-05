@@ -5,6 +5,7 @@ import (
 	"iter"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -609,6 +610,52 @@ func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
 }
 
 // ============================================================================
+// SEQUENCE MATERIALIZATION - EFFICIENT GROUPING SUPPORT
+// ============================================================================
+
+// Materialize converts an iter.Seq field to a string representation for efficient grouping.
+// This is much more efficient than using CrossFlatten/DotFlatten when you only need
+// to group by sequence content, not expand records.
+//
+// Example: {"tags": iter.Seq["urgent", "work"]} → {"tags": iter.Seq[...], "tags_key": "urgent,work"}
+func Materialize(sourceField, targetField, separator string) FilterSameType[Record] {
+	if separator == "" {
+		separator = ","
+	}
+
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			for record := range input {
+				result := make(Record)
+
+				// Copy all existing fields
+				for key, value := range record {
+					result[key] = value
+				}
+
+				// Materialize the source field if it's an iter.Seq
+				if sourceValue, exists := record[sourceField]; exists && isIterSeq(sourceValue) {
+					values := materializeSequence(sourceValue)
+					var stringValues []string
+					for _, val := range values {
+						stringValues = append(stringValues, fmt.Sprintf("%v", val))
+					}
+					result[targetField] = strings.Join(stringValues, separator)
+				} else if exists {
+					// Source field exists but isn't a sequence - convert to string
+					result[targetField] = fmt.Sprintf("%v", sourceValue)
+				}
+				// If source field doesn't exist, don't add target field
+
+				if !yield(result) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// ============================================================================
 // RECORD FLATTENING OPERATIONS - FROM STREAMV2
 // ============================================================================
 
@@ -884,6 +931,32 @@ func isIterSeq(value any) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// isSimpleValue checks if a value is a simple type suitable for grouping
+func isSimpleValue(value any) bool {
+	if value == nil {
+		return true // nil is simple
+	}
+	switch value.(type) {
+	// Integer types
+	case int, int8, int16, int32, int64:
+		return true
+	case uint, uint8, uint16, uint32, uint64:
+		return true
+	// Float types
+	case float32, float64:
+		return true
+	// Other basic types
+	case bool, string, time.Time:
+		return true
+	// Complex types not allowed for grouping
+	case Record:
+		return false
+	default:
+		// Check if it's an iter.Seq (not allowed)
+		return !isIterSeq(value)
 	}
 }
 

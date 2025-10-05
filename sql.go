@@ -291,15 +291,27 @@ func GroupByFields(sequenceField string, fields ...string) FilterSameType[Record
 			for record := range input {
 				var keyParts []string
 				groupingFields := make(Record)
+				hasComplexField := false
 
 				for _, field := range fields {
 					if val, exists := record[field]; exists {
+						// Validate that the field value is simple (no iter.Seq or Record)
+						if !isSimpleValue(val) {
+							// Skip this entire record if any grouping field is complex
+							hasComplexField = true
+							break
+						}
 						keyParts = append(keyParts, fmt.Sprintf("%v", val))
 						groupingFields[field] = val
 					} else {
 						keyParts = append(keyParts, "<nil>")
 						groupingFields[field] = nil
 					}
+				}
+
+				// Skip records with complex grouping field values
+				if hasComplexField {
+					continue
 				}
 
 				key := fmt.Sprintf("[%s]", strings.Join(keyParts, ","))
