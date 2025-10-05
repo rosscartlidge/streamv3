@@ -159,6 +159,90 @@ func (tr *TypedRecord) Record(key string, value Record) *TypedRecord {
 	return Set(tr, key, value)
 }
 
+// ============================================================================
+// ITER.SEQ FIELD METHODS
+// ============================================================================
+
+// IntSeq adds an iter.Seq[int] field
+func (tr *TypedRecord) IntSeq(key string, value iter.Seq[int]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Int8Seq adds an iter.Seq[int8] field
+func (tr *TypedRecord) Int8Seq(key string, value iter.Seq[int8]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Int16Seq adds an iter.Seq[int16] field
+func (tr *TypedRecord) Int16Seq(key string, value iter.Seq[int16]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Int32Seq adds an iter.Seq[int32] field
+func (tr *TypedRecord) Int32Seq(key string, value iter.Seq[int32]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Int64Seq adds an iter.Seq[int64] field
+func (tr *TypedRecord) Int64Seq(key string, value iter.Seq[int64]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// UintSeq adds an iter.Seq[uint] field
+func (tr *TypedRecord) UintSeq(key string, value iter.Seq[uint]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Uint8Seq adds an iter.Seq[uint8] field
+func (tr *TypedRecord) Uint8Seq(key string, value iter.Seq[uint8]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Uint16Seq adds an iter.Seq[uint16] field
+func (tr *TypedRecord) Uint16Seq(key string, value iter.Seq[uint16]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Uint32Seq adds an iter.Seq[uint32] field
+func (tr *TypedRecord) Uint32Seq(key string, value iter.Seq[uint32]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Uint64Seq adds an iter.Seq[uint64] field
+func (tr *TypedRecord) Uint64Seq(key string, value iter.Seq[uint64]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Float32Seq adds an iter.Seq[float32] field
+func (tr *TypedRecord) Float32Seq(key string, value iter.Seq[float32]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// Float64Seq adds an iter.Seq[float64] field
+func (tr *TypedRecord) Float64Seq(key string, value iter.Seq[float64]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// BoolSeq adds an iter.Seq[bool] field
+func (tr *TypedRecord) BoolSeq(key string, value iter.Seq[bool]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// StringSeq adds an iter.Seq[string] field
+func (tr *TypedRecord) StringSeq(key string, value iter.Seq[string]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// TimeSeq adds an iter.Seq[time.Time] field
+func (tr *TypedRecord) TimeSeq(key string, value iter.Seq[time.Time]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// RecordSeq adds an iter.Seq[Record] field
+func (tr *TypedRecord) RecordSeq(key string, value iter.Seq[Record]) *TypedRecord {
+	return Set(tr, key, value)
+}
+
 // Build finalizes the record construction
 func (tr *TypedRecord) Build() Record {
 	return Record(tr.data)
