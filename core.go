@@ -154,8 +154,8 @@ func (tr *TypedRecord) Time(key string, value time.Time) *TypedRecord {
 	return Set(tr, key, value)
 }
 
-// Nested adds a nested record field
-func (tr *TypedRecord) Nested(key string, value Record) *TypedRecord {
+// Record adds a nested record field
+func (tr *TypedRecord) Record(key string, value Record) *TypedRecord {
 	return Set(tr, key, value)
 }
 
