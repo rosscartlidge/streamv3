@@ -1,6 +1,7 @@
 package streamv3
 
 import (
+	"encoding/json"
 	"fmt"
 	"iter"
 	"reflect"
@@ -87,6 +88,61 @@ func ChainWithErrors[T any](filters ...FilterWithErrorsSameType[T]) FilterWithEr
 // Record represents structured data with native Go types
 type Record map[string]any
 
+// JSONString represents a string containing valid JSON data.
+// This provides type safety and rich methods for working with JSON-structured data.
+type JSONString string
+
+// Parse parses the JSON string back to its original Go value
+func (js JSONString) Parse() (any, error) {
+	var result any
+	err := json.Unmarshal([]byte(js), &result)
+	return result, err
+}
+
+// MustParse parses the JSON string, panicking on error
+func (js JSONString) MustParse() any {
+	result, err := js.Parse()
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse JSONString: %v", err))
+	}
+	return result
+}
+
+// IsValid returns true if the string contains valid JSON
+func (js JSONString) IsValid() bool {
+	var temp any
+	return json.Unmarshal([]byte(js), &temp) == nil
+}
+
+// Pretty returns formatted JSON with indentation
+func (js JSONString) Pretty() string {
+	var temp any
+	if err := json.Unmarshal([]byte(js), &temp); err != nil {
+		return string(js) // Return original if invalid
+	}
+	pretty, err := json.MarshalIndent(temp, "", "  ")
+	if err != nil {
+		return string(js) // Return original if formatting fails
+	}
+	return string(pretty)
+}
+
+// String returns the underlying JSON string
+func (js JSONString) String() string {
+	return string(js)
+}
+
+// NewJSONString creates a JSONString by marshaling the given value
+func NewJSONString(value any) (JSONString, error) {
+	// Convert complex types to JSON-serializable form first
+	jsonValue := convertToJSONValue(value)
+	bytes, err := json.Marshal(jsonValue)
+	if err != nil {
+		return "", err
+	}
+	return JSONString(bytes), nil
+}
+
 // Value constraint for type-safe record values - matches StreamV2
 type Value interface {
 	// Integer types
@@ -97,10 +153,10 @@ type Value interface {
 		~float32 | ~float64 |
 
 		// Other basic types
-		~bool | ~string | time.Time |
+		~bool | string | time.Time |
 
-		// Record type for nested structures
-		Record |
+		// JSON and Record types for structured data
+		JSONString | Record |
 
 		// Iterator types for streams
 		iter.Seq[int] | iter.Seq[int8] | iter.Seq[int16] | iter.Seq[int32] | iter.Seq[int64] |
@@ -132,6 +188,11 @@ func Set[V Value](tr *TypedRecord, key string, value V) *TypedRecord {
 
 // String adds a string field
 func (tr *TypedRecord) String(key, value string) *TypedRecord {
+	return Set(tr, key, value)
+}
+
+// JSONString adds a JSON string field with type safety
+func (tr *TypedRecord) JSONString(key string, value JSONString) *TypedRecord {
 	return Set(tr, key, value)
 }
 
@@ -655,6 +716,41 @@ func Materialize(sourceField, targetField, separator string) FilterSameType[Reco
 	}
 }
 
+// MaterializeJSON converts complex fields (iter.Seq, Record, etc.) to JSON strings for grouping.
+// This provides better type preservation and handles any JSON-serializable data structure.
+// Unlike Materialize(), this works with Records, nested structures, and preserves type information.
+func MaterializeJSON(sourceField, targetField string) FilterSameType[Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			for record := range input {
+				result := make(Record)
+
+				// Copy all existing fields
+				for key, value := range record {
+					result[key] = value
+				}
+
+				// Materialize the source field if it exists
+				if sourceValue, exists := record[sourceField]; exists {
+					// Convert any complex field to JSON representation
+					jsonValue := convertToJSONValue(sourceValue)
+					if jsonBytes, err := json.Marshal(jsonValue); err == nil {
+						result[targetField] = JSONString(jsonBytes)
+					} else {
+						// Fallback to string representation if JSON fails
+						result[targetField] = fmt.Sprintf("%v", sourceValue)
+					}
+				}
+				// If source field doesn't exist, don't add target field
+
+				if !yield(result) {
+					return
+				}
+			}
+		}
+	}
+}
+
 // ============================================================================
 // RECORD FLATTENING OPERATIONS - FROM STREAMV2
 // ============================================================================
@@ -957,6 +1053,26 @@ func isSimpleValue(value any) bool {
 	default:
 		// Check if it's an iter.Seq (not allowed)
 		return !isIterSeq(value)
+	}
+}
+
+// convertToJSONValue converts any value to a JSON-serializable representation
+func convertToJSONValue(value any) any {
+	switch v := value.(type) {
+	case Record:
+		// Convert nested Records recursively
+		jsonRecord := make(map[string]any)
+		for key, val := range v {
+			jsonRecord[key] = convertToJSONValue(val)
+		}
+		return jsonRecord
+	default:
+		if isIterSeq(value) {
+			// Convert iter.Seq to array
+			return materializeSequence(value)
+		}
+		// Return other values as-is (primitives, already JSON-serializable)
+		return value
 	}
 }
 
