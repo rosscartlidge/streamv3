@@ -1,33 +1,54 @@
 # StreamV3 🚀
 
-A modern, type-safe Go library for functional stream processing with interactive data visualization. Built on Go 1.23+ with first-class support for iterators, generics, and functional composition.
+**Modern Go stream processing made simple** - Transform data with intuitive operations, create interactive visualizations, and even generate code from natural language descriptions.
 
-## ✨ Features
+Built on Go 1.23+ with first-class support for iterators, generics, and functional composition.
 
-### 🔄 Stream Processing
-- **Functional composition** with type-safe generic operations
-- **Go 1.23+ iterators** (`iter.Seq[T]` and `iter.Seq2[T,error]`)
-- **Fluent API** for intuitive data transformations
-- **Error-aware processing** with safe error propagation
-- **Lazy evaluation** for memory-efficient operations
+## ✨ What Makes StreamV3 Special
 
-### 📊 Interactive Visualizations
-- **Chart.js integration** with modern, responsive charts
-- **Interactive field selection** - change X/Y axes dynamically
-- **Multiple chart types** - line, bar, scatter, pie charts
-- **Time series support** with zoom and pan capabilities
-- **Statistical overlays** - trend lines, moving averages, min/max/mean
-- **Modern UI** with Bootstrap 5 responsive design
-- **Export capabilities** - PNG, CSV formats
+### 🎯 **Simple Yet Powerful**
+```go
+// Read data, filter, group, and visualize - all type-safe
+sales, _ := streamv3.ReadCSV("sales.csv")
 
-### 🗂️ Data I/O
-- **CSV/TSV/JSON** reading and writing
-- **Command output parsing** (ps, top, etc.) with auto-column detection
-- **Record-based processing** with flexible field types
-- **SQL-style operations** (GROUP BY, aggregations)
+topRegions := streamv3.Limit[streamv3.Record](5)(
+    streamv3.SortBy(func(r streamv3.Record) float64 {
+        return -streamv3.GetOr(r, "revenue", 0.0) // Descending
+    })(streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
+        "total_revenue": streamv3.Sum("amount"),
+    })(streamv3.GroupByFields("sales", "region")(sales)))
+)
+
+streamv3.QuickChart(topRegions, "top_regions.html")
+```
+
+### 🤖 **AI-Powered Code Generation**
+Describe what you want in plain English, get working StreamV3 code:
+
+> *"Read customer data, find high-value customers, group by region, create a chart"*
+
+→ **Generates clean, readable Go code automatically**
+
+[**Try the AI Assistant →**](doc/human-llm-tutorial.md)
+
+### 📊 **Interactive Visualizations**
+Create modern, responsive charts with zoom, pan, and filtering capabilities:
+
+```go
+streamv3.QuickChart(data, "chart.html")  // One line = full dashboard
+```
+
+[**See Chart Examples →**](doc/chart_examples/)
 
 ## 🚀 Quick Start
 
+### Installation
+```bash
+go get github.com/rosscartlidge/streamv3
+```
+*Requires Go 1.23+ for iterator support*
+
+### Hello StreamV3
 ```go
 package main
 
@@ -37,140 +58,156 @@ import (
 )
 
 func main() {
-    // Create a stream of data
     numbers := streamv3.From([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 
-    // Functional composition - filter evens and take first 3
-    result := numbers.
-        Where(func(x int) bool { return x%2 == 0 }).
-        Limit(3).
-        Collect()
+    evenNumbers := streamv3.Where(func(x int) bool {
+        return x%2 == 0
+    })(numbers)
 
-    fmt.Println(result) // [2, 4, 6]
+    first3 := streamv3.Limit[int](3)(evenNumbers)
+
+    fmt.Println("First 3 even numbers:")
+    for num := range first3 {
+        fmt.Println(num) // 2, 4, 6
+    }
 }
 ```
 
-## 📈 Interactive Charts
-
-Create stunning interactive visualizations with a single function call:
-
+### Your First Chart
 ```go
 // Create sample data
-data := streamv3.From([]streamv3.Record{
+monthlyRevenue := []streamv3.Record{
     streamv3.NewRecord().String("month", "Jan").Float("revenue", 120000).Build(),
     streamv3.NewRecord().String("month", "Feb").Float("revenue", 135000).Build(),
     streamv3.NewRecord().String("month", "Mar").Float("revenue", 118000).Build(),
-})
+}
+
+data := streamv3.From(monthlyRevenue)
 
 // Generate interactive chart
-streamv3.QuickChart(data, "month", "revenue", "revenue_chart.html")
+streamv3.QuickChart(data, "revenue_chart.html")
+// Opens in browser with zoom, pan, and export features
 ```
 
-### 🎨 Chart Demo
+## 🎓 Learning Path
 
-Run the comprehensive chart demo:
+**New to StreamV3?** We've got you covered with step-by-step guides:
 
-```bash
-go run doc/examples/chart_demo.go
-```
+### 1. 📚 **[Getting Started Guide](doc/codelab-intro.md)**
+*Learn the fundamentals with hands-on examples*
+- Basic operations (Select, Where, Limit)
+- Working with CSV/JSON data
+- Creating your first visualizations
+- Real-world examples
 
-This creates 5 interactive HTML charts showcasing:
-- **Sales Dashboard** - Business analytics with seasonal trends
-- **System Metrics** - Time series monitoring with dark theme
-- **Process Analysis** - Scatter plot visualization
-- **Network Traffic** - Real-time network monitoring
-- **Quick Example** - Simple revenue chart
+### 2. 📖 **[API Reference](doc/api-reference.md)**
+*Complete function documentation with examples*
+- All operations organized by category
+- Transform, Filter, Aggregate, Join operations
+- Window processing for real-time data
+- Chart and visualization options
 
-## 🛠️ Advanced Features
+### 3. 🎯 **[Advanced Tutorial](doc/advanced-tutorial.md)**
+*Master complex patterns and production techniques*
+- Stream joins and complex aggregations
+- Real-time processing with windowing
+- Infinite stream handling
+- Performance optimization
 
-### Functional Composition
+### 4. 🤖 **[AI Code Generation](doc/human-llm-tutorial.md)**
+*Generate StreamV3 code from natural language*
+- Use any AI assistant (Claude, ChatGPT, Gemini)
+- Describe what you want, get working code
+- Human-readable, verifiable results
+- Perfect for rapid prototyping
+
+## 🔧 Core Capabilities
+
+### **SQL-Style Data Processing**
 ```go
-// Traditional filter composition
-filter1 := func(s streamv3.Stream[int]) streamv3.Stream[int] {
-    return streamv3.Where(s, func(x int) bool { return x > 5 })
+// Group sales by region, calculate totals, get top 5
+topRegions := streamv3.Limit[streamv3.Record](5)(
+    streamv3.SortBy(keyFunc)(
+        streamv3.Aggregate("sales", aggregations)(
+            streamv3.GroupByFields("sales", "region")(salesData))))
+```
+
+### **Real-Time Stream Processing**
+```go
+// Process sensor data in 5-minute windows
+windowed := streamv3.TimeWindow[streamv3.Record](5*time.Minute, "timestamp")(sensorStream)
+for window := range windowed {
+    // Analyze each time window
 }
-
-filter2 := func(s streamv3.Stream[int]) streamv3.Stream[int] {
-    return streamv3.Limit(s, 3)
-}
-
-// Compose filters
-composedFilter := streamv3.Pipe(filter1, filter2)
-result := composedFilter(streamv3.From([]int{1,2,3,4,5,6,7,8,9,10}))
 ```
 
-### SQL-Style Operations
-```go
-// Group sales by region and calculate totals
-sales := streamv3.ReadCSV("sales.csv")
-grouped := streamv3.GroupRecordsByFields(sales, "region")
-aggregated := streamv3.AggregateGroups(grouped, map[string]streamv3.AggregateFunc{
-    "total_sales": streamv3.Sum("amount"),
-    "avg_sales":   streamv3.Avg("amount"),
-    "count":       streamv3.Count(),
-})
-```
-
-### Command Output Processing
-```go
-// Parse ps command output automatically
-processes := streamv3.ExecCommand("ps", "-eflww")
-topMemory := processes.
-    SortByKey(func(r streamv3.Record) float64 {
-        return r["MEM"].(float64)
-    }, false).
-    Limit(10)
-```
-
-### Time Series Charts
+### **Interactive Dashboards**
 ```go
 config := streamv3.DefaultChartConfig()
-config.Title = "System Metrics Over Time"
-config.EnableCalculations = true
-
-streamv3.TimeSeriesChart(
-    metricsData,
-    "timestamp",
-    []string{"cpu_usage", "memory_usage"},
-    "metrics.html",
-    config
-)
+config.Title = "Sales Dashboard"
+config.ChartType = "line"
+streamv3.InteractiveChart(data, "dashboard.html", config)
 ```
 
-## 📦 Installation
+### **Data Integration**
+```go
+// Join customer and order data
+customerOrders := streamv3.InnerJoin(
+    orderStream,
+    streamv3.OnFields("customer_id")
+)(customerStream)
+```
+
+## 🎨 Try the Examples
+
+Run these to see StreamV3 in action:
 
 ```bash
-go get github.com/rosscartlidge/streamv3
+# Interactive chart showcase
+go run examples/chart_demo.go
+
+# Data analysis pipeline
+go run examples/functional_example.go
+
+# Real-time processing
+go run examples/early_termination_example.go
 ```
 
-Requires Go 1.23+ for iterator support.
+## 🌟 Why Choose StreamV3?
 
-## 🎯 Use Cases
+- **🎯 Simple API** - If you know SQL, you know StreamV3
+- **🔒 Type Safe** - Go generics catch errors at compile time
+- **📊 Visual** - Create charts as easily as processing data
+- **🤖 AI Ready** - Generate code from descriptions
+- **⚡ Performance** - Lazy evaluation and memory efficiency
+- **🔄 Composable** - Build complex pipelines from simple operations
 
-- **Data Analysis** - Process CSV/JSON files with functional operations
-- **System Monitoring** - Parse command output and create dashboards
-- **Business Intelligence** - Generate interactive charts from sales data
-- **Log Processing** - Stream and analyze log files efficiently
-- **ETL Pipelines** - Transform data between formats with type safety
+## 🎯 Perfect For
 
-## 🏗️ Architecture
+- **Data Scientists** - Analyze CSV/JSON files with ease
+- **DevOps Engineers** - Monitor systems and create dashboards
+- **Business Analysts** - Generate reports and visualizations
+- **Developers** - Build ETL pipelines and data processing tools
+- **Anyone** - Who wants to turn data descriptions into working code
 
-StreamV3 is built on three core abstractions:
+## 🚀 What's Next?
 
-- **`Stream[T]`** - Lazy sequence of typed values using Go 1.23 iterators
-- **`Record`** - Flexible map-based data structure for heterogeneous data
-- **`Filter[T,U]`** - Composable transformations with full type safety
+1. **[Install StreamV3](#installation)** and try the quick start
+2. **[Follow the Getting Started Guide](doc/codelab-intro.md)** for fundamentals
+3. **[Try the AI Assistant](doc/human-llm-tutorial.md)** for rapid development
+4. **[Explore Advanced Patterns](doc/advanced-tutorial.md)** for production use
 
-The library emphasizes functional composition while providing modern Go idioms and comprehensive visualization capabilities.
+## 🤝 Community
 
-## 📚 Examples
+StreamV3 is production-ready and actively maintained. Questions, issues, and contributions are welcome!
 
-Check out the `doc/examples/` directory for comprehensive usage demonstrations, including the interactive chart showcase.
+- 📖 **Documentation**: Complete guides and API reference
+- 🤖 **AI Integration**: Generate code from natural language
+- 📊 **Visualization**: Interactive charts and dashboards
+- 🔧 **Examples**: Real-world usage patterns
 
-## 🤝 Contributing
+---
 
-StreamV3 is ready for production use. Issues and contributions are welcome!
+**Ready to transform how you process data?** [Get started now →](doc/codelab-intro.md)
 
-## 📄 License
-
-MIT License - see LICENSE file for details.
+*StreamV3: Where data processing meets AI-powered development* ✨
