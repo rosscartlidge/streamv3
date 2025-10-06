@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"iter"
 	"slices"
+	"time"
 )
 
 // ============================================================================
@@ -359,4 +360,240 @@ func Tee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
 	}
 
 	return streams
+}
+
+// ============================================================================
+// WINDOWING OPERATIONS FOR INFINITE STREAMS
+// ============================================================================
+
+// CountWindow groups elements into fixed-size windows
+// Essential for processing infinite streams in manageable chunks
+func CountWindow[T any](size int) Filter[T, []T] {
+	return func(input iter.Seq[T]) iter.Seq[[]T] {
+		return func(yield func([]T) bool) {
+			if size <= 0 {
+				return
+			}
+
+			window := make([]T, 0, size)
+			for v := range input {
+				window = append(window, v)
+
+				// Emit window when full
+				if len(window) == size {
+					if !yield(slices.Clone(window)) {
+						return
+					}
+					window = window[:0] // Reset window
+				}
+			}
+
+			// Emit partial window if any elements remain
+			if len(window) > 0 {
+				yield(window)
+			}
+		}
+	}
+}
+
+// SlidingCountWindow creates overlapping windows with specified step size
+// Useful for moving averages and trend analysis on infinite streams
+func SlidingCountWindow[T any](windowSize, stepSize int) Filter[T, []T] {
+	return func(input iter.Seq[T]) iter.Seq[[]T] {
+		return func(yield func([]T) bool) {
+			if windowSize <= 0 || stepSize <= 0 {
+				return
+			}
+
+			buffer := make([]T, 0, windowSize)
+			count := 0
+
+			for v := range input {
+				buffer = append(buffer, v)
+				count++
+
+				// Emit window when we have enough elements
+				if len(buffer) == windowSize {
+					if !yield(slices.Clone(buffer)) {
+						return
+					}
+
+					// Slide the window by stepSize
+					if stepSize >= windowSize {
+						buffer = buffer[:0]
+					} else {
+						// Move window forward by stepSize
+						copy(buffer, buffer[stepSize:])
+						buffer = buffer[:len(buffer)-stepSize]
+					}
+				}
+			}
+		}
+	}
+}
+
+// TimeWindow groups elements by time duration (requires timestamp field)
+// Critical for time-series analysis of infinite streams
+func TimeWindow[T any](duration time.Duration, timeField string) Filter[T, []T] {
+	return func(input iter.Seq[T]) iter.Seq[[]T] {
+		return func(yield func([]T) bool) {
+			if duration <= 0 {
+				return
+			}
+
+			var window []T
+			var windowStart time.Time
+			var initialized bool
+
+			for v := range input {
+				// Extract timestamp from record
+				timestamp := extractTimestamp(v, timeField)
+				if timestamp.IsZero() {
+					continue // Skip records without valid timestamps
+				}
+
+				// Initialize window start time
+				if !initialized {
+					windowStart = timestamp.Truncate(duration)
+					initialized = true
+				}
+
+				// Check if we need to emit current window
+				windowEnd := windowStart.Add(duration)
+				if timestamp.After(windowEnd) || timestamp.Equal(windowEnd) {
+					// Emit current window
+					if len(window) > 0 {
+						if !yield(slices.Clone(window)) {
+							return
+						}
+					}
+
+					// Start new window
+					windowStart = timestamp.Truncate(duration)
+					window = window[:0]
+				}
+
+				window = append(window, v)
+			}
+
+			// Emit final window if any elements remain
+			if len(window) > 0 {
+				yield(window)
+			}
+		}
+	}
+}
+
+// SlidingTimeWindow creates overlapping time-based windows
+// Perfect for real-time analytics with overlapping time periods
+func SlidingTimeWindow[T any](windowDuration, slideDuration time.Duration, timeField string) Filter[T, []T] {
+	return func(input iter.Seq[T]) iter.Seq[[]T] {
+		return func(yield func([]T) bool) {
+			if windowDuration <= 0 || slideDuration <= 0 {
+				return
+			}
+
+			var buffer []T
+			var nextEmitTime time.Time
+			var initialized bool
+
+			for v := range input {
+				timestamp := extractTimestamp(v, timeField)
+				if timestamp.IsZero() {
+					continue
+				}
+
+				if !initialized {
+					nextEmitTime = timestamp.Add(slideDuration)
+					initialized = true
+				}
+
+				// Add to buffer
+				buffer = append(buffer, v)
+
+				// Check if it's time to emit a window
+				if timestamp.After(nextEmitTime) || timestamp.Equal(nextEmitTime) {
+					// Collect elements within the window duration
+					cutoffTime := timestamp.Add(-windowDuration)
+					var window []T
+
+					for _, item := range buffer {
+						itemTime := extractTimestamp(item, timeField)
+						if itemTime.After(cutoffTime) {
+							window = append(window, item)
+						}
+					}
+
+					if len(window) > 0 {
+						if !yield(slices.Clone(window)) {
+							return
+						}
+					}
+
+					// Remove old elements from buffer
+					var newBuffer []T
+					for _, item := range buffer {
+						itemTime := extractTimestamp(item, timeField)
+						if itemTime.After(cutoffTime) {
+							newBuffer = append(newBuffer, item)
+						}
+					}
+					buffer = newBuffer
+
+					// Set next emit time
+					nextEmitTime = timestamp.Add(slideDuration)
+				}
+			}
+		}
+	}
+}
+
+// ============================================================================
+// WINDOWING HELPER FUNCTIONS
+// ============================================================================
+
+// extractTimestamp extracts a timestamp from a value based on the field name
+// Supports Record types and tries to parse various timestamp formats
+func extractTimestamp(value any, timeField string) time.Time {
+	// Handle Record type specifically
+	if record, ok := value.(Record); ok {
+		if timeValue, exists := record[timeField]; exists {
+			return parseTimeValue(timeValue)
+		}
+	}
+
+	// For other types, we'd need reflection or type assertions
+	// For now, return zero time for unsupported types
+	return time.Time{}
+}
+
+// parseTimeValue attempts to parse various time representations
+func parseTimeValue(value any) time.Time {
+	switch v := value.(type) {
+	case time.Time:
+		return v
+	case string:
+		// Try common timestamp formats
+		formats := []string{
+			time.RFC3339,
+			time.RFC3339Nano,
+			"2006-01-02 15:04:05",
+			"2006-01-02T15:04:05",
+			"2006-01-02 15:04:05.000000",
+		}
+
+		for _, format := range formats {
+			if t, err := time.Parse(format, v); err == nil {
+				return t
+			}
+		}
+	case int64:
+		// Assume Unix timestamp
+		return time.Unix(v, 0)
+	case float64:
+		// Assume Unix timestamp with potential fractional seconds
+		return time.Unix(int64(v), int64((v-float64(int64(v)))*1e9))
+	}
+
+	return time.Time{} // Zero time if parsing fails
 }
