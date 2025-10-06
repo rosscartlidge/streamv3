@@ -333,3 +333,30 @@ func SlidingWindow[T any](size, step int) Filter[T, []T] {
 		}
 	}
 }
+
+// ============================================================================
+// STREAM UTILITIES
+// ============================================================================
+
+// Tee splits a stream into multiple identical streams for parallel consumption.
+// Returns a slice of iterators that will each yield the same sequence of values.
+// The source stream is fully consumed and buffered to enable multiple iterations.
+func Tee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
+	if n <= 0 {
+		return nil
+	}
+
+	// Collect all values from the source stream
+	var values []T
+	for v := range input {
+		values = append(values, v)
+	}
+
+	// Create n identical iterators over the collected values
+	streams := make([]iter.Seq[T], n)
+	for i := 0; i < n; i++ {
+		streams[i] = slices.Values(values)
+	}
+
+	return streams
+}

@@ -46,6 +46,16 @@ func (s *StreamWithErrors[T]) Collect() ([]T, error) {
 	return result, nil
 }
 
+// Tee splits the stream into multiple identical streams for parallel consumption
+func (s *Stream[T]) Tee(n int) []*Stream[T] {
+	streams := Tee(s.seq, n)
+	result := make([]*Stream[T], len(streams))
+	for i, stream := range streams {
+		result[i] = &Stream[T]{seq: stream}
+	}
+	return result
+}
+
 // From creates a Stream from a slice
 func From[T any](data []T) *Stream[T] {
 	return &Stream[T]{seq: func(yield func(T) bool) {
