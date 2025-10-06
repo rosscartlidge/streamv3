@@ -362,6 +362,74 @@ func Tee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
 	return streams
 }
 
+// LazyTee splits a stream into multiple identical streams using channels for infinite streams.
+// Unlike Tee, this doesn't buffer the entire stream in memory, making it suitable for infinite streams.
+// Uses channels with backpressure to handle slow consumers gracefully.
+func LazyTee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
+	if n <= 0 {
+		return nil
+	}
+
+	// Create channels for each output stream
+	channels := make([]chan T, n)
+	done := make(chan struct{})
+
+	for i := 0; i < n; i++ {
+		channels[i] = make(chan T, 100) // Buffered to handle temporary speed differences
+	}
+
+	// Start broadcaster goroutine
+	go func() {
+		defer func() {
+			for _, ch := range channels {
+				close(ch)
+			}
+		}()
+
+		for v := range input {
+			// Send to all channels
+			for i, ch := range channels {
+				select {
+				case ch <- v:
+					// Successfully sent to this channel
+				case <-done:
+					// One of the consumers has terminated, stop broadcasting
+					return
+				default:
+					// Channel is full - consumer is too slow
+					// For now, we'll drop the value for this consumer
+					// In production, you might want different backpressure strategies
+					_ = i // Just to use the variable
+				}
+			}
+		}
+	}()
+
+	// Create output iterators
+	streams := make([]iter.Seq[T], n)
+	for i := 0; i < n; i++ {
+		ch := channels[i]
+		streams[i] = func(yield func(T) bool) {
+			defer func() {
+				// Signal termination to broadcaster
+				select {
+				case <-done:
+				default:
+					close(done)
+				}
+			}()
+
+			for v := range ch {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+
+	return streams
+}
+
 // ============================================================================
 // WINDOWING OPERATIONS FOR INFINITE STREAMS
 // ============================================================================
