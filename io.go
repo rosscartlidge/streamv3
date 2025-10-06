@@ -37,60 +37,56 @@ func DefaultCSVConfig() CSVConfig {
 	}
 }
 
-// ReadCSV reads CSV from a file and returns an iterator
-func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record] {
+// ============================================================================
+// CSV OPERATIONS WITH IO.READER/IO.WRITER
+// ============================================================================
+
+// ReadCSVFromReader reads CSV data from an io.Reader and returns an iterator
+func ReadCSVFromReader(reader io.Reader, config ...CSVConfig) iter.Seq[Record] {
 	cfg := DefaultCSVConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
 	return func(yield func(Record) bool) {
-		file, err := os.Open(filename)
-		if err != nil {
-			// For simple API, we skip errors - use ReadCSVSafe for error handling
-			return
-		}
-		defer file.Close()
-
-		reader := csv.NewReader(file)
-		reader.Comma = cfg.Delimiter
-		reader.Comment = cfg.Comment
+		csvReader := csv.NewReader(reader)
+		csvReader.Comma = cfg.Delimiter
+		csvReader.Comment = cfg.Comment
 
 		var headers []string
 		if cfg.HasHeaders {
-			headerRow, err := reader.Read()
+			headerRow, err := csvReader.Read()
 			if err != nil {
 				return
 			}
 			headers = headerRow
 		}
 
-		rowNum := 0
+		rowIndex := int64(0)
 		for {
-			row, err := reader.Read()
-			if err == io.EOF {
-				break
-			}
+			row, err := csvReader.Read()
 			if err != nil {
-				continue // Skip invalid rows in simple API
+				return // EOF or error
 			}
 
 			record := make(Record)
 			if cfg.HasHeaders && len(headers) > 0 {
+				// Use headers as field names
 				for i, value := range row {
 					if i < len(headers) {
 						record[headers[i]] = parseValue(value)
 					}
 				}
 			} else {
+				// Generate column names: col_0, col_1, etc.
 				for i, value := range row {
 					record[fmt.Sprintf("col_%d", i)] = parseValue(value)
 				}
 			}
 
-			// Add row metadata
-			record["_row_number"] = int64(rowNum)
-			rowNum++
+			// Add row number
+			record["_row_number"] = rowIndex
+			rowIndex++
 
 			if !yield(record) {
 				return
@@ -99,8 +95,8 @@ func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record] {
 	}
 }
 
-// ReadCSVSafe reads CSV with error handling
-func ReadCSVSafe(filename string, config ...CSVConfig) *StreamWithErrors[Record] {
+// ReadCSVSafeFromReader reads CSV data from an io.Reader with error handling
+func ReadCSVSafeFromReader(reader io.Reader, config ...CSVConfig) *StreamWithErrors[Record] {
 	cfg := DefaultCSVConfig()
 	if len(config) > 0 {
 		cfg = config[0]
@@ -108,39 +104,28 @@ func ReadCSVSafe(filename string, config ...CSVConfig) *StreamWithErrors[Record]
 
 	return &StreamWithErrors[Record]{
 		seq: func(yield func(Record, error) bool) {
-			file, err := os.Open(filename)
-			if err != nil {
-				if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
-					return
-				}
-				return
-			}
-			defer file.Close()
-
-			reader := csv.NewReader(file)
-			reader.Comma = cfg.Delimiter
-			reader.Comment = cfg.Comment
+			csvReader := csv.NewReader(reader)
+			csvReader.Comma = cfg.Delimiter
+			csvReader.Comment = cfg.Comment
 
 			var headers []string
 			if cfg.HasHeaders {
-				headerRow, err := reader.Read()
+				headerRow, err := csvReader.Read()
 				if err != nil {
-					if !yield(Record{}, fmt.Errorf("failed to read CSV headers: %w", err)) {
-						return
-					}
+					yield(nil, fmt.Errorf("failed to read CSV headers: %w", err))
 					return
 				}
 				headers = headerRow
 			}
 
-			rowNum := 0
+			rowIndex := int64(0)
 			for {
-				row, err := reader.Read()
+				row, err := csvReader.Read()
 				if err == io.EOF {
-					break
+					return
 				}
 				if err != nil {
-					if !yield(Record{}, fmt.Errorf("error reading CSV row %d: %w", rowNum, err)) {
+					if !yield(nil, fmt.Errorf("failed to read CSV row %d: %w", rowIndex, err)) {
 						return
 					}
 					continue
@@ -159,9 +144,8 @@ func ReadCSVSafe(filename string, config ...CSVConfig) *StreamWithErrors[Record]
 					}
 				}
 
-				// Add row metadata
-				record["_row_number"] = int64(rowNum)
-				rowNum++
+				record["_row_number"] = rowIndex
+				rowIndex++
 
 				if !yield(record, nil) {
 					return
@@ -171,31 +155,24 @@ func ReadCSVSafe(filename string, config ...CSVConfig) *StreamWithErrors[Record]
 	}
 }
 
-// WriteCSV writes records to a CSV file
-func WriteCSV(sb *Stream[Record], filename string, fields []string, config ...CSVConfig) error {
+// WriteCSVToWriter writes records as CSV to an io.Writer
+func WriteCSVToWriter(sb *Stream[Record], writer io.Writer, fields []string, config ...CSVConfig) error {
 	cfg := DefaultCSVConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	file, err := os.Create(filename)
-	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", filename, err)
-	}
-	defer file.Close()
+	csvWriter := csv.NewWriter(writer)
+	csvWriter.Comma = cfg.Delimiter
 
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-	writer.Comma = cfg.Delimiter
-
-	// Write headers if configured
+	// Write headers if enabled
 	if cfg.HasHeaders {
-		if err := writer.Write(fields); err != nil {
+		if err := csvWriter.Write(fields); err != nil {
 			return fmt.Errorf("failed to write CSV headers: %w", err)
 		}
 	}
 
-	// Write records
+	// Write data rows
 	for record := range sb.Iter() {
 		row := make([]string, len(fields))
 		for i, field := range fields {
@@ -203,8 +180,178 @@ func WriteCSV(sb *Stream[Record], filename string, fields []string, config ...CS
 				row[i] = formatValue(value)
 			}
 		}
-		if err := writer.Write(row); err != nil {
+
+		if err := csvWriter.Write(row); err != nil {
 			return fmt.Errorf("failed to write CSV row: %w", err)
+		}
+	}
+
+	csvWriter.Flush()
+	return csvWriter.Error()
+}
+
+// ============================================================================
+// CSV FILE CONVENIENCE FUNCTIONS
+// ============================================================================
+
+// ReadCSV reads CSV from a file and returns an iterator
+func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record] {
+	return func(yield func(Record) bool) {
+		file, err := os.Open(filename)
+		if err != nil {
+			// For simple API, we skip errors - use ReadCSVSafe for error handling
+			return
+		}
+		defer file.Close()
+
+		// Use the io.Reader version
+		for record := range ReadCSVFromReader(file, config...) {
+			if !yield(record) {
+				return
+			}
+		}
+	}
+}
+
+// ReadCSVSafe reads CSV with error handling
+func ReadCSVSafe(filename string, config ...CSVConfig) *StreamWithErrors[Record] {
+	return &StreamWithErrors[Record]{
+		seq: func(yield func(Record, error) bool) {
+			file, err := os.Open(filename)
+			if err != nil {
+				if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
+					return
+				}
+				return
+			}
+			defer file.Close()
+
+			// Use the io.Reader version
+			for record, err := range ReadCSVSafeFromReader(file, config...).Iter() {
+				if !yield(record, err) {
+					return
+				}
+			}
+		},
+	}
+}
+
+// WriteCSV writes records to a CSV file
+func WriteCSV(sb *Stream[Record], filename string, fields []string, config ...CSVConfig) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", filename, err)
+	}
+	defer file.Close()
+
+	// Use the io.Writer version
+	return WriteCSVToWriter(sb, file, fields, config...)
+}
+
+// ============================================================================
+// JSON OPERATIONS WITH IO.READER/IO.WRITER
+// ============================================================================
+
+// ReadJSONFromReader reads JSON records from an io.Reader (one JSON object per line)
+func ReadJSONFromReader(reader io.Reader) *Stream[Record] {
+	return &Stream[Record]{
+		seq: func(yield func(Record) bool) {
+			scanner := bufio.NewScanner(reader)
+			lineNumber := int64(0)
+
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" {
+					lineNumber++
+					continue
+				}
+
+				var record Record
+				if err := json.Unmarshal([]byte(line), &record); err != nil {
+					// For simple API, skip invalid JSON lines
+					lineNumber++
+					continue
+				}
+
+				// Add line number metadata
+				record["_line_number"] = lineNumber
+				lineNumber++
+
+				if !yield(record) {
+					return
+				}
+			}
+		},
+	}
+}
+
+// ReadJSONSafeFromReader reads JSON records from an io.Reader with error handling
+func ReadJSONSafeFromReader(reader io.Reader) *StreamWithErrors[Record] {
+	return &StreamWithErrors[Record]{
+		seq: func(yield func(Record, error) bool) {
+			scanner := bufio.NewScanner(reader)
+			lineNumber := int64(0)
+
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" {
+					lineNumber++
+					continue
+				}
+
+				var record Record
+				if err := json.Unmarshal([]byte(line), &record); err != nil {
+					if !yield(nil, fmt.Errorf("failed to parse JSON on line %d: %w", lineNumber, err)) {
+						return
+					}
+					lineNumber++
+					continue
+				}
+
+				record["_line_number"] = lineNumber
+				lineNumber++
+
+				if !yield(record, nil) {
+					return
+				}
+			}
+
+			// Check for scanner errors
+			if err := scanner.Err(); err != nil {
+				yield(nil, fmt.Errorf("error reading input: %w", err))
+			}
+		},
+	}
+}
+
+// WriteJSONToWriter writes records as JSON to an io.Writer (one object per line)
+func WriteJSONToWriter(sb *Stream[Record], writer io.Writer) error {
+	encoder := json.NewEncoder(writer)
+	for record := range sb.Iter() {
+		// Convert complex fields for JSON compatibility
+		jsonRecord := make(Record)
+		for key, value := range record {
+			switch v := value.(type) {
+			case JSONString:
+				// Parse JSONString back to structured data to avoid double-encoding
+				if parsed, err := v.Parse(); err == nil {
+					jsonRecord[key] = parsed
+				} else {
+					// Fallback to string if parsing fails
+					jsonRecord[key] = string(v)
+				}
+			default:
+				if isIterSeq(value) {
+					// Convert iter.Seq to array for JSON
+					jsonRecord[key] = materializeSequence(value)
+				} else {
+					jsonRecord[key] = value
+				}
+			}
+		}
+
+		if err := encoder.Encode(jsonRecord); err != nil {
+			return fmt.Errorf("failed to write JSON record: %w", err)
 		}
 	}
 
@@ -212,7 +359,7 @@ func WriteCSV(sb *Stream[Record], filename string, fields []string, config ...CS
 }
 
 // ============================================================================
-// JSON OPERATIONS
+// JSON FILE CONVENIENCE FUNCTIONS
 // ============================================================================
 
 // ReadJSON reads JSON records from a file (one JSON object per line)
@@ -225,23 +372,8 @@ func ReadJSON(filename string) *Stream[Record] {
 			}
 			defer file.Close()
 
-			scanner := bufio.NewScanner(file)
-			lineNum := 0
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" {
-					continue
-				}
-
-				var record Record
-				if err := json.Unmarshal([]byte(line), &record); err != nil {
-					continue // Skip invalid JSON in simple API
-				}
-
-				// Add line metadata
-				record["_line_number"] = int64(lineNum)
-				lineNum++
-
+			// Use the io.Reader version
+			for record := range ReadJSONFromReader(file).Iter() {
 				if !yield(record) {
 					return
 				}
@@ -303,36 +435,8 @@ func WriteJSON(sb *Stream[Record], filename string) error {
 	}
 	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	for record := range sb.Iter() {
-		// Convert complex fields for JSON compatibility
-		jsonRecord := make(Record)
-		for key, value := range record {
-			switch v := value.(type) {
-			case JSONString:
-				// Parse JSONString back to structured data to avoid double-encoding
-				if parsed, err := v.Parse(); err == nil {
-					jsonRecord[key] = parsed
-				} else {
-					// Fallback to string if parsing fails
-					jsonRecord[key] = string(v)
-				}
-			default:
-				if isIterSeq(value) {
-					// Convert iter.Seq to array for JSON
-					jsonRecord[key] = materializeSequence(value)
-				} else {
-					jsonRecord[key] = value
-				}
-			}
-		}
-
-		if err := encoder.Encode(jsonRecord); err != nil {
-			return fmt.Errorf("failed to write JSON record: %w", err)
-		}
-	}
-
-	return nil
+	// Use the io.Writer version
+	return WriteJSONToWriter(sb, file)
 }
 
 // ============================================================================
