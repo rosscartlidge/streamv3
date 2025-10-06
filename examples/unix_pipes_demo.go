@@ -19,7 +19,7 @@ func main() {
 		csvStream := streamv3.ReadCSVFromReader(os.Stdin)
 
 		// Process the stream - add calculated fields
-		processedStream := streamv3.Map(func(record streamv3.Record) streamv3.Record {
+		processedStream := streamv3.Select(func(record streamv3.Record) streamv3.Record {
 			// Add processed timestamp
 			record["processed_at"] = "2024-01-01T10:00:00Z"
 

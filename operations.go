@@ -17,8 +17,8 @@ import (
 // TRANSFORM OPERATIONS
 // ============================================================================
 
-// Map transforms each element using the provided function
-func Map[T, U any](fn func(T) U) Filter[T, U] {
+// Select transforms each element using the provided function (SQL SELECT)
+func Select[T, U any](fn func(T) U) Filter[T, U] {
 	return func(input iter.Seq[T]) iter.Seq[U] {
 		return func(yield func(U) bool) {
 			for v := range input {
@@ -30,8 +30,8 @@ func Map[T, U any](fn func(T) U) Filter[T, U] {
 	}
 }
 
-// MapSafe transforms each element with error handling
-func MapSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U] {
+// SelectSafe transforms each element with error handling (SQL SELECT with errors)
+func SelectSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U] {
 	return func(input iter.Seq2[T, error]) iter.Seq2[U, error] {
 		return func(yield func(U, error) bool) {
 			for v, err := range input {
@@ -51,8 +51,8 @@ func MapSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U] {
 	}
 }
 
-// FlatMap flattens nested iterators
-func FlatMap[T, U any](fn func(T) iter.Seq[U]) Filter[T, U] {
+// SelectMany flattens nested iterators (SQL SELECT with UNNEST/flattening)
+func SelectMany[T, U any](fn func(T) iter.Seq[U]) Filter[T, U] {
 	return func(input iter.Seq[T]) iter.Seq[U] {
 		return func(yield func(U) bool) {
 			for v := range input {
@@ -114,22 +114,6 @@ func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrorsSameType[
 // ============================================================================
 
 // Limit restricts iterator to first N elements (equivalent to SQL LIMIT)
-func Limit[T any](n int) FilterSameType[T] {
-	return func(input iter.Seq[T]) iter.Seq[T] {
-		return func(yield func(T) bool) {
-			count := 0
-			for v := range input {
-				if count >= n {
-					return
-				}
-				if !yield(v) {
-					return
-				}
-				count++
-			}
-		}
-	}
-}
 
 // LimitSafe restricts iterator with error handling
 func LimitSafe[T any](n int) FilterWithErrorsSameType[T] {
@@ -280,62 +264,7 @@ func Reverse[T any]() FilterSameType[T] {
 // WINDOW OPERATIONS
 // ============================================================================
 
-// Window groups elements into fixed-size windows
-func Window[T any](size int) Filter[T, []T] {
-	return func(input iter.Seq[T]) iter.Seq[[]T] {
-		return func(yield func([]T) bool) {
-			window := make([]T, 0, size)
-			for v := range input {
-				window = append(window, v)
-				if len(window) == size {
-					if !yield(slices.Clone(window)) {
-						return
-					}
-					window = window[:0] // Reset window
-				}
-			}
-			// Yield final partial window if any
-			if len(window) > 0 {
-				yield(window)
-			}
-		}
-	}
-}
 
-// SlidingWindow creates overlapping windows
-func SlidingWindow[T any](size, step int) Filter[T, []T] {
-	return func(input iter.Seq[T]) iter.Seq[[]T] {
-		return func(yield func([]T) bool) {
-			buffer := make([]T, 0, size)
-			count := 0
-
-			for v := range input {
-				buffer = append(buffer, v)
-				count++
-
-				// Emit window when we have enough elements
-				if len(buffer) == size {
-					if !yield(slices.Clone(buffer)) {
-						return
-					}
-
-					// Slide the window
-					if step >= size {
-						buffer = buffer[:0]
-						// Skip elements if step > size
-						for i := 1; i < step && count < step; i++ {
-							count++
-						}
-					} else {
-						// Shift buffer by step
-						copy(buffer, buffer[step:])
-						buffer = buffer[:len(buffer)-step]
-					}
-				}
-			}
-		}
-	}
-}
 
 // ============================================================================
 // STREAM UTILITIES
@@ -897,9 +826,9 @@ func TakeUntil[T any](predicate func(T) bool) Filter[T, T] {
 	}
 }
 
-// Take limits the stream to the first n elements
+// Limit limits the stream to the first n elements (SQL LIMIT)
 // Essential for converting infinite streams to finite ones
-func Take[T any](n int) Filter[T, T] {
+func Limit[T any](n int) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return func(yield func(T) bool) {
 			if n <= 0 {
@@ -1017,12 +946,3 @@ func SkipUntil[T any](predicate func(T) bool) Filter[T, T] {
 	}
 }
 
-// FirstN is an alias for Take - limits to first n elements
-func FirstN[T any](n int) Filter[T, T] {
-	return Take[T](n)
-}
-
-// HeadWhile is an alias for TakeWhile - for SQL-like naming
-func HeadWhile[T any](predicate func(T) bool) Filter[T, T] {
-	return TakeWhile[T](predicate)
-}

@@ -11,10 +11,10 @@ func main() {
 	fmt.Println("🛑 Early Termination Patterns for Infinite Streams")
 	fmt.Println("==================================================\n")
 
-	// Test 1: Take - Limit infinite stream to first N elements
-	fmt.Println("📊 Test 1: Take - Processing First N Elements")
-	fmt.Println("==============================================")
-	testTake()
+	// Test 1: Limit - Limit infinite stream to first N elements
+	fmt.Println("📊 Test 1: Limit - Processing First N Elements")
+	fmt.Println("===============================================")
+	testLimit()
 
 	// Test 2: TakeWhile - Stop when condition becomes false
 	fmt.Println("\n🎯 Test 2: TakeWhile - Conditional Processing")
@@ -50,7 +50,7 @@ func main() {
 	fmt.Println("🔄 Perfect for real-time data processing")
 }
 
-func testTake() {
+func testLimit() {
 	// Simulate infinite sensor readings
 	sensorGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 1; ; i++ { // Infinite loop
@@ -71,9 +71,9 @@ func testTake() {
 
 	fmt.Println("Processing infinite sensor stream - taking first 5 readings...")
 
-	// Apply Take to limit to first 5 elements
-	takeOp := streamv3.Take[streamv3.Record](5)
-	limitedStream := takeOp(sensorGenerator)
+	// Apply Limit to limit to first 5 elements
+	limitOp := streamv3.Limit[streamv3.Record](5)
+	limitedStream := limitOp(sensorGenerator)
 
 	for record := range limitedStream {
 		readingId := streamv3.GetOr(record, "reading_id", "unknown")

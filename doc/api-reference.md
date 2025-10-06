@@ -2,16 +2,44 @@
 
 *Complete reference for all StreamV3 types, functions, and methods*
 
-## Installation
+## Table of Contents
 
+### Documentation Navigation
+- [Getting Started Guide](codelab-intro.md) - Learn StreamV3 basics step-by-step
+- [Advanced Tutorial](advanced-tutorial.md) - Complex patterns and real-world examples
+
+### API Reference Sections
+- [Installation & Setup](#installation--setup)
+- [Core Types](#core-types)
+- [Stream Creation](#stream-creation)
+- [Transform Operations](#transform-operations)
+- [Filter Operations](#filter-operations)
+- [Limiting & Pagination](#limiting--pagination)
+- [Ordering Operations](#ordering-operations)
+- [Aggregation & Analysis](#aggregation--analysis)
+- [Window Operations](#window-operations)
+- [Early Termination](#early-termination)
+- [SQL-Style Operations](#sql-style-operations)
+  - [Join Operations](#join-operations)
+  - [GroupBy Operations](#groupby-operations)
+  - [Aggregation Functions](#aggregation-functions)
+- [Utility Operations](#utility-operations)
+- [I/O Operations](#io-operations)
+- [Chart & Visualization](#chart--visualization)
+
+---
+
+## Installation & Setup
+
+### Requirements
+- **Go 1.23+** (required for iterator support)
+
+### Installation
 ```bash
 go get github.com/rosscartlidge/streamv3
 ```
 
-**Requires:** Go 1.23+ (for iterator support)
-
-## Package Import
-
+### Package Import
 ```go
 import "github.com/rosscartlidge/streamv3"
 ```
@@ -21,7 +49,6 @@ import "github.com/rosscartlidge/streamv3"
 ## Core Types
 
 ### Stream[T]
-
 The fundamental type representing a lazy sequence of values.
 
 ```go
@@ -30,13 +57,7 @@ type Stream[T] interface {
 }
 ```
 
-Created by:
-- `From[T]([]T) Stream[T]`
-- `FromIter[T](iter.Seq[T]) Stream[T]`
-- `FromChannel[T](<-chan T) Stream[T]`
-
 ### Record
-
 A flexible map-based data structure for heterogeneous data.
 
 ```go
@@ -45,23 +66,33 @@ type Record map[string]any
 
 **Supported value types:** `int`, `int64`, `float64`, `string`, `bool`, `time.Time`, nested `Record`, and `Stream` types.
 
-### Filter[T, U]
-
-A function that transforms one iterator to another.
+### Filter Types
+Function types for stream transformations:
 
 ```go
 type Filter[T, U any] func(iter.Seq[T]) iter.Seq[U]
+type FilterSameType[T any] func(iter.Seq[T]) iter.Seq[T]
+type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
 ```
 
-Used for functional composition with `Pipe`, `Chain`, etc.
+### GroupedRecord
+Result type from GroupBy operations:
+
+```go
+type GroupedRecord struct {
+    GroupKey   string
+    GroupValue any
+    Records    []Record
+}
+```
 
 ---
 
 ## Stream Creation
 
-### From
+### From[T]
 ```go
-func From[T any](data []T) *StreamBuilder[T]
+func From[T any](items []T) Stream[T]
 ```
 Creates a stream from a slice.
 
@@ -70,224 +101,23 @@ Creates a stream from a slice.
 numbers := streamv3.From([]int{1, 2, 3, 4, 5})
 ```
 
-### FromIter
+### FromIter[T]
 ```go
-func FromIter[T any](seq iter.Seq[T]) *StreamBuilder[T]
+func FromIter[T any](seq iter.Seq[T]) Stream[T]
 ```
-Creates a stream from an existing iterator.
+Creates a stream from an iterator.
 
-### FromChannel
+### FromChannel[T]
 ```go
-func FromChannel[T any](ch <-chan T) *StreamBuilder[T]
+func FromChannel[T any](ch <-chan T) Stream[T]
 ```
 Creates a stream from a channel.
 
-### ReadCSV
+### NewRecord
 ```go
-func ReadCSV(filename string) *StreamBuilder[Record]
+func NewRecord() *RecordBuilder
 ```
-Reads CSV file and returns stream of Records.
-
-**Error-aware version:**
-```go
-func ReadCSVSafe(filename string) iter.Seq2[Record, error]
-```
-
-### ReadJSON
-```go
-func ReadJSON(filename string) *StreamBuilder[Record]
-```
-Reads JSON file (array of objects) and returns stream of Records.
-
-### ExecCommand
-```go
-func ExecCommand(command string, args ...string) *StreamBuilder[Record]
-```
-Executes command and parses output as Records with automatic field detection.
-
-**Example:**
-```go
-processes := streamv3.ExecCommand("ps", "aux")
-```
-
----
-
-## Stream Operations (Fluent API)
-
-### Filtering
-
-#### Where
-```go
-func (s *StreamBuilder[T]) Where(predicate func(T) bool) *StreamBuilder[T]
-```
-Filters elements based on predicate.
-
-**Example:**
-```go
-evens := numbers.Where(func(x int) bool { return x%2 == 0 })
-```
-
-#### Limit
-```go
-func (s *StreamBuilder[T]) Limit(n int) *StreamBuilder[T]
-```
-Takes first n elements.
-
-#### Skip
-```go
-func (s *StreamBuilder[T]) Skip(n int) *StreamBuilder[T]
-```
-Skips first n elements.
-
-#### Distinct
-```go
-func (s *StreamBuilder[T]) Distinct() *StreamBuilder[T]
-```
-Removes duplicate elements.
-
-### Transformation
-
-#### Map
-```go
-func (s *StreamBuilder[T]) Map(fn func(T) U) *StreamBuilder[U]
-```
-Transforms each element.
-
-**Example:**
-```go
-squares := numbers.Map(func(x int) int { return x * x })
-```
-
-#### FlatMap
-```go
-func (s *StreamBuilder[T]) FlatMap(fn func(T) Stream[U]) *StreamBuilder[U]
-```
-Maps each element to a stream and flattens results.
-
-### Sorting
-
-#### Sort
-```go
-func (s *StreamBuilder[T]) Sort(less func(T, T) bool) *StreamBuilder[T]
-```
-Sorts elements using comparison function.
-
-#### SortByKey
-```go
-func (s *StreamBuilder[T]) SortByKey(keyFn func(T) K, ascending bool) *StreamBuilder[T]
-```
-Sorts by extracted key.
-
-**Example:**
-```go
-sorted := people.SortByKey(func(p Record) string {
-    return p["name"].(string)
-}, true)
-```
-
-### Aggregation
-
-#### Collect
-```go
-func (s *StreamBuilder[T]) Collect() []T
-```
-Materializes stream into slice.
-
-#### Reduce
-```go
-func (s *StreamBuilder[T]) Reduce(initial U, fn func(U, T) U) U
-```
-Reduces stream to single value.
-
-#### Count
-```go
-func (s *StreamBuilder[T]) Count() int
-```
-Counts elements in stream.
-
-#### First
-```go
-func (s *StreamBuilder[T]) First() (T, bool)
-```
-Returns first element and whether it exists.
-
-#### Last
-```go
-func (s *StreamBuilder[T]) Last() (T, bool)
-```
-Returns last element and whether it exists.
-
----
-
-## Functional API
-
-### Core Operations
-
-#### Map
-```go
-func Map[T, U any](fn func(T) U) Filter[T, U]
-```
-
-#### Where
-```go
-func Where[T any](predicate func(T) bool) FilterSameType[T]
-```
-
-#### Limit
-```go
-func Limit[T any](n int) FilterSameType[T]
-```
-
-#### Skip
-```go
-func Skip[T any](n int) FilterSameType[T]
-```
-
-### Composition
-
-#### Pipe
-```go
-func Pipe[T, U, V any](f1 Filter[T, U], f2 Filter[U, V]) Filter[T, V]
-```
-Composes two filters sequentially.
-
-**Example:**
-```go
-pipeline := streamv3.Pipe(
-    streamv3.Where(func(x int) bool { return x > 5 }),
-    streamv3.Map(func(x int) int { return x * 2 }),
-)
-result := streamv3.Collect(pipeline(streamv3.From(numbers)))
-```
-
-#### Chain
-```go
-func Chain[T any](filters ...FilterSameType[T]) FilterSameType[T]
-```
-Chains multiple same-type filters.
-
----
-
-## Record Operations
-
-### Record Builder
-
-#### NewRecord
-```go
-func NewRecord() *TypedRecord
-```
-Creates a new type-safe Record builder.
-
-**Methods:**
-```go
-func (tr *TypedRecord) String(key, value string) *TypedRecord
-func (tr *TypedRecord) Int(key string, value int64) *TypedRecord
-func (tr *TypedRecord) Float(key string, value float64) *TypedRecord
-func (tr *TypedRecord) Bool(key string, value bool) *TypedRecord
-func (tr *TypedRecord) Time(key string, value time.Time) *TypedRecord
-func (tr *TypedRecord) Set(key string, value any) *TypedRecord
-func (tr *TypedRecord) Build() Record
-```
+Creates a new record builder for constructing Records.
 
 **Example:**
 ```go
@@ -298,396 +128,599 @@ record := streamv3.NewRecord().
     Build()
 ```
 
-### Record Stream Operations
+---
 
-#### GroupRecordsByFields
-```go
-func GroupRecordsByFields(stream Stream[Record], fields ...string) Stream[RecordGroup]
-```
-Groups records by specified field values.
+## Transform Operations
 
-**RecordGroup:**
-```go
-type RecordGroup struct {
-    Key     Record    // Group key fields
-    Records []Record  // Records in group
-}
-```
+*Functions that transform elements from one type to another*
 
-#### AggregateGroups
+> 💡 **Learn by Example**: See these operations in action in the [Getting Started Guide](codelab-intro.md#basic-transformations) and [Advanced Tutorial](advanced-tutorial.md#complex-aggregations).
+
+### Select[T, U]
 ```go
-func AggregateGroups(groups Stream[RecordGroup],
-                    aggregates map[string]AggregateFunc) Stream[Record]
+func Select[T, U any](fn func(T) U) Filter[T, U]
 ```
-Applies aggregation functions to grouped records.
+Transforms each element using the provided function (SQL SELECT equivalent).
 
 **Example:**
 ```go
-groups := streamv3.GroupRecordsByFields(sales, "region")
-results := streamv3.AggregateGroups(groups, map[string]streamv3.AggregateFunc{
-    "total_revenue": streamv3.Sum("amount"),
-    "avg_deal":      streamv3.Avg("deal_size"),
-    "count":         streamv3.Count(),
-})
+doubled := streamv3.Select(func(x int) int { return x * 2 })(numbers)
+```
+
+### SelectSafe[T, U]
+```go
+func SelectSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U]
+```
+Safe version of Select that handles errors.
+
+### SelectMany[T, U]
+```go
+func SelectMany[T, U any](fn func(T) iter.Seq[U]) Filter[T, U]
+```
+Flattens nested sequences (FlatMap equivalent).
+
+**Example:**
+```go
+words := streamv3.SelectMany(func(line string) iter.Seq[string] {
+    return slices.Values(strings.Fields(line))
+})(lines)
 ```
 
 ---
 
-## Aggregation Functions
+## Filter Operations
 
-### Numeric Aggregations
+*Functions that filter elements based on conditions*
 
-#### Sum
+### Where[T]
 ```go
-func Sum(field string) AggregateFunc
+func Where[T any](predicate func(T) bool) FilterSameType[T]
+```
+Filters elements based on a predicate (SQL WHERE equivalent).
+
+**Example:**
+```go
+evens := streamv3.Where(func(x int) bool { return x%2 == 0 })(numbers)
 ```
 
-#### Avg
+### WhereSafe[T]
 ```go
-func Avg(field string) AggregateFunc
+func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrorsSameType[T]
+```
+Safe version of Where that handles errors.
+
+### Distinct[T]
+```go
+func Distinct[T comparable]() FilterSameType[T]
+```
+Removes duplicate elements.
+
+### DistinctBy[T, K]
+```go
+func DistinctBy[T any, K comparable](keyFn func(T) K) FilterSameType[T]
+```
+Removes duplicates based on a key function.
+
+---
+
+## Limiting & Pagination
+
+*Functions for limiting and paginating streams*
+
+### Limit[T]
+```go
+func Limit[T any](n int) Filter[T, T]
+```
+Takes only the first n elements (SQL LIMIT equivalent).
+
+**Example:**
+```go
+first5 := streamv3.Limit[int](5)(numbers)
 ```
 
-#### Min
+### LimitSafe[T]
 ```go
-func Min(field string) AggregateFunc
+func LimitSafe[T any](n int) FilterWithErrorsSameType[T]
+```
+Safe version of Limit that handles errors.
+
+### Offset[T]
+```go
+func Offset[T any](n int) FilterSameType[T]
+```
+Skips the first n elements (SQL OFFSET equivalent).
+
+### OffsetSafe[T]
+```go
+func OffsetSafe[T any](n int) FilterWithErrorsSameType[T]
+```
+Safe version of Offset that handles errors.
+
+---
+
+## Ordering Operations
+
+*Functions for sorting and ordering streams*
+
+### Sort[T]
+```go
+func Sort[T cmp.Ordered]() FilterSameType[T]
+```
+Sorts elements in ascending order.
+
+### SortBy[T, K]
+```go
+func SortBy[T any, K cmp.Ordered](keyFn func(T) K) FilterSameType[T]
+```
+Sorts elements by a key function.
+
+### SortDesc[T]
+```go
+func SortDesc[T cmp.Ordered]() FilterSameType[T]
+```
+Sorts elements in descending order.
+
+### Reverse[T]
+```go
+func Reverse[T any]() FilterSameType[T]
+```
+Reverses the order of elements.
+
+---
+
+## Aggregation & Analysis
+
+*Functions for running aggregations and statistical analysis*
+
+### RunningSum
+```go
+func RunningSum(fieldName string) Filter[Record, Record]
+```
+Calculates running sum for a numeric field.
+
+### RunningAverage
+```go
+func RunningAverage(fieldName string, windowSize int) Filter[Record, Record]
+```
+Calculates running average over a sliding window.
+
+### ExponentialMovingAverage
+```go
+func ExponentialMovingAverage(fieldName string, alpha float64) Filter[Record, Record]
+```
+Calculates exponential moving average.
+
+### RunningMinMax
+```go
+func RunningMinMax(fieldName string) Filter[Record, Record]
+```
+Tracks running minimum and maximum values.
+
+### RunningCount
+```go
+func RunningCount(fieldName string) Filter[Record, Record]
+```
+Maintains running count statistics.
+
+---
+
+## Window Operations
+
+*Functions for windowing and batching streams*
+
+> 🔄 **Infinite Stream Patterns**: Learn advanced windowing for real-time processing in the [Advanced Tutorial](advanced-tutorial.md#windowing-for-infinite-streams).
+
+### CountWindow[T]
+```go
+func CountWindow[T any](size int) Filter[T, []T]
+```
+Groups elements into fixed-size windows.
+
+**Example:**
+```go
+batches := streamv3.CountWindow[int](3)(numbers) // [1,2,3], [4,5,6], ...
 ```
 
-#### Max
+### SlidingCountWindow[T]
 ```go
-func Max(field string) AggregateFunc
+func SlidingCountWindow[T any](windowSize, stepSize int) Filter[T, []T]
+```
+Creates sliding windows with configurable step size.
+
+### TimeWindow[T]
+```go
+func TimeWindow[T any](duration time.Duration, timeField string) Filter[T, []T]
+```
+Groups elements by time intervals.
+
+### SlidingTimeWindow[T]
+```go
+func SlidingTimeWindow[T any](windowDuration, slideDuration time.Duration, timeField string) Filter[T, []T]
+```
+Creates sliding time-based windows.
+
+---
+
+## Early Termination
+
+*Functions for controlled stream termination*
+
+### TakeWhile[T]
+```go
+func TakeWhile[T any](predicate func(T) bool) Filter[T, T]
+```
+Takes elements while condition is true.
+
+### TakeUntil[T]
+```go
+func TakeUntil[T any](predicate func(T) bool) Filter[T, T]
+```
+Takes elements until condition becomes true.
+
+### SkipWhile[T]
+```go
+func SkipWhile[T any](predicate func(T) bool) Filter[T, T]
+```
+Skips elements while condition is true.
+
+### SkipUntil[T]
+```go
+func SkipUntil[T any](predicate func(T) bool) Filter[T, T]
+```
+Skips elements until condition becomes true.
+
+### Timeout[T]
+```go
+func Timeout[T any](duration time.Duration) Filter[T, T]
+```
+Terminates stream after specified duration.
+
+### TimeBasedTimeout
+```go
+func TimeBasedTimeout(timeField string, duration time.Duration) Filter[Record, Record]
+```
+Terminates based on time field values in records.
+
+---
+
+## SQL-Style Operations
+
+*Database-like operations for Record streams*
+
+> 🎯 **Real-World Examples**: See comprehensive join and aggregation patterns in the [Advanced Tutorial](advanced-tutorial.md#stream-joins) section.
+
+### Join Operations
+
+#### InnerJoin
+```go
+func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+```
+Performs inner join between two record streams.
+
+#### LeftJoin
+```go
+func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+```
+Performs left outer join.
+
+#### RightJoin
+```go
+func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+```
+Performs right outer join.
+
+#### FullJoin
+```go
+func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+```
+Performs full outer join.
+
+#### Join Predicates
+
+##### OnFields
+```go
+func OnFields(fields ...string) JoinPredicate
+```
+Creates join predicate based on field equality.
+
+##### OnCondition
+```go
+func OnCondition(condition func(left, right Record) bool) JoinPredicate
+```
+Creates custom join predicate.
+
+**Example:**
+```go
+joined := streamv3.InnerJoin(
+    rightStream,
+    streamv3.OnFields("user_id")
+)(leftStream)
 ```
 
-#### StdDev
+### GroupBy Operations
+
+#### GroupBy[K]
 ```go
-func StdDev(field string) AggregateFunc
+func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) FilterSameType[Record]
+```
+Groups records by a key function.
+
+#### GroupByFields
+```go
+func GroupByFields(sequenceField string, fields ...string) FilterSameType[Record]
+```
+Groups records by field values.
+
+**Example:**
+```go
+grouped := streamv3.GroupByFields("sales_data", "region", "product")(records)
 ```
 
-### Other Aggregations
+### Aggregation Functions
 
 #### Count
 ```go
 func Count() AggregateFunc
 ```
+Counts records in each group.
 
-#### First
+#### Sum
+```go
+func Sum(field string) AggregateFunc
+```
+Sums numeric field values.
+
+#### Avg
+```go
+func Avg(field string) AggregateFunc
+```
+Calculates average of numeric field.
+
+#### Min[T] / Max[T]
+```go
+func Min[T cmp.Ordered](field string) AggregateFunc
+func Max[T cmp.Ordered](field string) AggregateFunc
+```
+Finds minimum/maximum field values.
+
+#### First / Last
 ```go
 func First(field string) AggregateFunc
-```
-
-#### Last
-```go
 func Last(field string) AggregateFunc
 ```
+Gets first/last field value in group.
 
 #### Collect
 ```go
 func Collect(field string) AggregateFunc
 ```
-Collects all values into a slice.
+Collects all field values into an array.
 
-#### Custom
+#### Aggregate
 ```go
-func Custom(fn func([]Record) interface{}) AggregateFunc
+func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) FilterSameType[Record]
 ```
-Creates custom aggregation function.
+Applies multiple aggregations to grouped data.
+
+**Example:**
+```go
+results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
+    "total_sales": streamv3.Sum("amount"),
+    "avg_sale":    streamv3.Avg("amount"),
+    "count":       streamv3.Count(),
+})(groupedRecords)
+```
 
 ---
 
-## Visualization
+## Utility Operations
 
-### Quick Charts
-
-#### QuickChart
+### Tee[T]
 ```go
-func QuickChart(data Stream[Record], xField, yField, filename string) error
+func Tee[T any](input iter.Seq[T], n int) []iter.Seq[T]
 ```
-Creates interactive chart with default settings.
+Splits stream into multiple independent streams.
+
+### LazyTee[T]
+```go
+func LazyTee[T any](input iter.Seq[T], n int) []iter.Seq[T]
+```
+Lazy version of Tee for memory efficiency.
+
+### Chain[T]
+```go
+func Chain[T any](filters ...FilterSameType[T]) FilterSameType[T]
+```
+Chains multiple same-type filters together.
 
 **Example:**
 ```go
-streamv3.QuickChart(salesData, "month", "revenue", "sales.html")
+pipeline := streamv3.Chain(
+    streamv3.Where(func(x int) bool { return x > 0 }),
+    streamv3.Where(func(x int) bool { return x < 100 }),
+    streamv3.Sort[int](),
+)
+result := pipeline(numbers)
 ```
-
-### Advanced Charts
-
-#### InteractiveChart
-```go
-func InteractiveChart(data Stream[Record], filename string, config ChartConfig) error
-```
-
-#### TimeSeriesChart
-```go
-func TimeSeriesChart(data Stream[Record], timeField string,
-                    valueFields []string, filename string, config ChartConfig) error
-```
-
-**Example:**
-```go
-streamv3.TimeSeriesChart(metrics, "timestamp",
-    []string{"cpu_usage", "memory_usage"}, "metrics.html", config)
-```
-
-### Chart Configuration
-
-#### ChartConfig
-```go
-type ChartConfig struct {
-    Title              string            // Chart title
-    Width              int               // Chart width (default: 1200)
-    Height             int               // Chart height (default: 600)
-    ChartType          string            // line, bar, scatter, pie, etc.
-    TimeFormat         string            // Time format for time axes
-    XAxisType          string            // linear, logarithmic, time, category
-    YAxisType          string            // linear, logarithmic
-    ShowLegend         bool              // Show legend
-    ShowTooltips       bool              // Show tooltips
-    EnableZoom         bool              // Enable zoom/pan
-    EnableAnimations   bool              // Enable animations
-    ShowDataLabels     bool              // Show data labels
-    EnableInteractive  bool              // Enable field selection UI
-    EnableCalculations bool              // Enable trend lines, moving averages
-    ColorScheme        string            // default, vibrant, pastel, monochrome
-    Theme              string            // light, dark
-    ExportFormats      []string          // png, svg, pdf, csv
-    CustomCSS          string            // Custom CSS
-    Fields             map[string]string // Field type hints
-}
-```
-
-#### DefaultChartConfig
-```go
-func DefaultChartConfig() ChartConfig
-```
-Returns configuration with sensible defaults.
-
-**Chart Types:**
-- `"line"` - Line chart
-- `"bar"` - Bar chart
-- `"scatter"` - Scatter plot
-- `"pie"` - Pie chart
-- `"doughnut"` - Doughnut chart
-- `"radar"` - Radar chart
-- `"polarArea"` - Polar area chart
 
 ---
 
 ## I/O Operations
 
+> 📁 **Practical Examples**: See file processing patterns in the [Getting Started Guide](codelab-intro.md#working-with-data) and production I/O strategies in the [Advanced Tutorial](advanced-tutorial.md#performance-optimization).
+
 ### CSV Operations
 
 #### ReadCSV
 ```go
-func ReadCSV(filename string) Stream[Record]
-func ReadCSVSafe(filename string) iter.Seq2[Record, error]
+func ReadCSV(filename string) (Stream[Record], error)
 ```
+Reads CSV file into Record stream.
+
+#### ReadCSVFromReader
+```go
+func ReadCSVFromReader(reader io.Reader) iter.Seq[Record]
+```
+Reads CSV from any io.Reader.
 
 #### WriteCSV
 ```go
-func WriteCSV(data Stream[Record], filename string) error
+func WriteCSV(stream Stream[Record], filename string, fields []string) error
 ```
+Writes Record stream to CSV file.
 
 ### JSON Operations
 
-#### ReadJSON
+#### ReadJSON[T]
 ```go
-func ReadJSON(filename string) Stream[Record]
-func ReadJSONSafe(filename string) iter.Seq2[Record, error]
+func ReadJSON[T any](filename string) (Stream[T], error)
+```
+Reads JSON file into typed stream.
+
+#### WriteJSON[T]
+```go
+func WriteJSON[T any](stream Stream[T], filename string) error
+```
+Writes stream to JSON file.
+
+#### WriteJSONToWriter[T]
+```go
+func WriteJSONToWriter[T any](stream Stream[T], writer io.Writer) error
+```
+Writes stream to any io.Writer as JSON.
+
+---
+
+## Chart & Visualization
+
+> 📊 **Interactive Examples**: See chart creation in action in the [Getting Started Guide](codelab-intro.md#visualizing-data) and advanced dashboard patterns in the [Advanced Tutorial](advanced-tutorial.md#advanced-visualizations).
+
+### Chart Configuration
+
+#### DefaultChartConfig
+```go
+func DefaultChartConfig() ChartConfig
+```
+Creates default chart configuration.
+
+#### ChartConfig
+```go
+type ChartConfig struct {
+    Title       string
+    Width       int
+    Height      int
+    ChartType   string // "line", "bar", "scatter", "pie"
+    Theme       string // "light", "dark"
+    // ... more options
+}
 ```
 
-#### WriteJSON
+### Chart Creation
+
+#### InteractiveChart
 ```go
-func WriteJSON(data Stream[Record], filename string) error
+func InteractiveChart(data Stream[Record], filename string, config ChartConfig) error
+```
+Creates interactive HTML chart.
+
+#### TimeSeriesChart
+```go
+func TimeSeriesChart(data Stream[Record], timeField string, valueFields []string, filename string, config ChartConfig) error
+```
+Creates time series chart.
+
+#### QuickChart
+```go
+func QuickChart(data Stream[Record], filename string) error
+```
+Creates chart with default settings.
+
+**Example:**
+```go
+config := streamv3.DefaultChartConfig()
+config.Title = "Sales Analysis"
+config.ChartType = "bar"
+
+err := streamv3.InteractiveChart(
+    salesData,
+    "sales_chart.html",
+    config,
+)
 ```
 
-### Command Execution
+---
 
-#### ExecCommand
+## Helper Functions
+
+### Record Access
+
+#### Get[T]
 ```go
-func ExecCommand(command string, args ...string) Stream[Record]
+func Get[T any](record Record, key string) (T, bool)
 ```
-Executes command and parses output with automatic field detection.
+Safely gets typed value from Record.
 
-**Supported commands:**
-- `ps` - Process listings
-- `top` - System monitoring
-- `df` - Disk usage
-- `netstat` - Network connections
-- Custom commands with tabular output
+#### GetOr[T]
+```go
+func GetOr[T any](record Record, key string, defaultValue T) T
+```
+Gets value with default fallback.
+
+#### SetField
+```go
+func SetField[T any](record Record, key string, value T) Record
+```
+Sets field value in Record.
+
+**Example:**
+```go
+name, exists := streamv3.Get[string](record, "name")
+age := streamv3.GetOr(record, "age", 0)
+updated := streamv3.SetField(record, "processed", true)
+```
 
 ---
 
 ## Error Handling
 
-### Error-Aware Streams
+> 🛡️ **Production Patterns**: Learn robust error handling strategies in the [Advanced Tutorial](advanced-tutorial.md#error-handling-and-resilience).
 
-Error-aware operations return `iter.Seq2[T, error]` instead of `iter.Seq[T]`.
+StreamV3 provides both safe and unsafe versions of operations:
 
-#### Safe Operations
+- **Regular functions**: Panic on errors (fail-fast approach)
+- **Safe functions**: Return errors via `iter.Seq2[T, error]`
+
+**Example:**
 ```go
-func ReadCSVSafe(filename string) iter.Seq2[Record, error]
-func ReadJSONSafe(filename string) iter.Seq2[Record, error]
-func MapSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U]
-```
+// Unsafe - panics on error
+result := streamv3.Select(transform)(data)
 
-### Conversion Utilities
-
-#### Safe
-```go
-func Safe[T any](seq iter.Seq[T]) iter.Seq2[T, error]
-```
-Converts simple iterator to error-aware (never errors).
-
-#### Unsafe
-```go
-func Unsafe[T any](seq iter.Seq2[T, error]) iter.Seq[T]
-```
-Converts error-aware iterator to simple (panics on errors).
-
-#### IgnoreErrors
-```go
-func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T]
-```
-Converts error-aware iterator to simple (ignores errors).
-
----
-
-## Utility Functions
-
-### Collection Utilities
-
-#### Collect
-```go
-func Collect[T any](stream Stream[T]) []T
-```
-
-#### ToSlice
-```go
-func ToSlice[T any](seq iter.Seq[T]) []T
-```
-
-#### Length
-```go
-func Length[T any](seq iter.Seq[T]) int
-```
-
-### Comparison Utilities
-
-#### Equal
-```go
-func Equal[T comparable](a, b Stream[T]) bool
-```
-
-#### Contains
-```go
-func Contains[T comparable](stream Stream[T], value T) bool
+// Safe - handles errors
+safeResult := streamv3.SelectSafe(safeTransform)(dataWithErrors)
+for value, err := range safeResult {
+    if err != nil {
+        log.Printf("Error: %v", err)
+        continue
+    }
+    // Process value
+}
 ```
 
 ---
 
-## Performance Notes
+## Best Practices
 
-### Memory Efficiency
+1. **Chain Operations**: Use functional composition for readable pipelines
+2. **Use Type Safety**: Leverage generics for compile-time safety
+3. **Handle Errors**: Use Safe versions for error-prone operations
+4. **Memory Efficiency**: Use lazy evaluation and avoid materializing large datasets
+5. **Performance**: Use appropriate window sizes and batch operations
 
-- **Lazy evaluation:** Operations are not executed until terminal operation (`Collect`, `Reduce`, etc.)
-- **Streaming:** Large datasets processed without loading into memory
-- **Iterator-based:** Built on Go 1.23 iterators for optimal performance
+## Related Documentation
 
-### Best Practices
-
-1. **Use streaming operations** for large datasets
-2. **Filter early** to reduce processing overhead
-3. **Prefer functional composition** for reusable pipelines
-4. **Use error-aware streams** for production code
-5. **Batch operations** when processing very large streams
-
-### Benchmarks
-
-Performance characteristics (typical workloads):
-
-- **CSV parsing:** 100K+ records/second
-- **Aggregations:** 500K+ records/second
-- **Filtering:** 1M+ records/second
-- **Memory usage:** O(1) for streaming operations
+- **[Getting Started Guide](codelab-intro.md)** - Learn StreamV3 basics with hands-on examples
+- **[Advanced Tutorial](advanced-tutorial.md)** - Complex patterns, performance optimization, and real-world use cases
 
 ---
 
-## Examples
-
-### Basic Processing
-```go
-result := streamv3.From(data).
-    Where(condition).
-    Map(transform).
-    SortByKey(keyFunc, true).
-    Limit(10).
-    Collect()
-```
-
-### Functional Composition
-```go
-pipeline := streamv3.Pipe(
-    streamv3.Where(condition),
-    streamv3.Map(transform),
-    streamv3.Limit(10),
-)
-result := streamv3.Collect(pipeline(streamv3.From(data)))
-```
-
-### Aggregation
-```go
-groups := streamv3.GroupRecordsByFields(data, "category")
-results := streamv3.AggregateGroups(groups, map[string]streamv3.AggregateFunc{
-    "total":   streamv3.Sum("amount"),
-    "average": streamv3.Avg("amount"),
-    "count":   streamv3.Count(),
-})
-```
-
-### Visualization
-```go
-config := streamv3.DefaultChartConfig()
-config.Title = "Sales Analysis"
-config.ChartType = "line"
-config.EnableCalculations = true
-
-streamv3.InteractiveChart(data, "analysis.html", config)
-```
-
----
-
-## Migration from StreamV2
-
-StreamV3 is designed to be familiar to StreamV2 users:
-
-### Key Changes
-- Uses Go 1.23 `iter.Seq[T]` instead of custom iterator interface
-- Enhanced type safety with generics
-- Built-in visualization capabilities
-- Improved error handling with `iter.Seq2[T, error]`
-
-### Migration Examples
-
-**StreamV2:**
-```go
-stream := stream.From(data).Filter(pred).Map(fn).Collect()
-```
-
-**StreamV3:**
-```go
-result := streamv3.From(data).Where(pred).Map(fn).Collect()
-```
-
-Most operations have direct equivalents with similar names.
-
----
-
-## See Also
-
-- [Introduction Codelab](codelab-intro.md) - Getting started
-- [Advanced Tutorial](advanced-tutorial.md) - Complex use cases
-- [Chart Gallery](doc/chart_examples/) - Interactive visualization examples
-- [GitHub Repository](https://github.com/rosscartlidge/streamv3) - Source code and issues
-
----
-
-*This reference covers StreamV3 v1.0. For the latest updates, see the GitHub repository.*
+*Generated for StreamV3 - Modern Go stream processing library*
