@@ -23,7 +23,7 @@ func main() {
 	fmt.Println("===============================================\n")
 
 	// Step 1: Apply preprocessing filters
-	filtered := streamv3.Chain(
+	chained := streamv3.Chain(
 		streamv3.Where(func(r streamv3.Record) bool {
 			amount := streamv3.GetOr(r, "amount", 0.0)
 			return amount >= 600 // Filter >= $600
@@ -32,14 +32,16 @@ func main() {
 			product := streamv3.GetOr(r, "product", "")
 			return product != "Tablet" // Exclude tablets
 		}),
-		streamv3.Limit[streamv3.Record](10), // Add some limit for demo
 	)(slices.Values(sales))
 
+	// Apply limit separately since it has different type signature
+	filtered := streamv3.Limit[streamv3.Record](10)(chained)
+
 	// Step 2: Apply grouping operation
-	groups := streamv3.GroupByFields("region")(filtered)
+	groups := streamv3.GroupByFields("sales_data", "region")(filtered)
 
 	// Final aggregation step
-	results := streamv3.Aggregate(map[string]streamv3.AggregateFunc{
+	results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 		"total_revenue": streamv3.Sum("amount"),
 		"avg_deal":      streamv3.Avg("amount"),
 		"count":         streamv3.Count(),
@@ -73,9 +75,9 @@ func main() {
 		return amount >= 600 && product != "Tablet"
 	})(slices.Values(sales))
 
-	grouped2 := streamv3.GroupByFields("region")(filtered2)
+	grouped2 := streamv3.GroupByFields("sales_data", "region")(filtered2)
 
-	functionalResults := streamv3.Aggregate(map[string]streamv3.AggregateFunc{
+	functionalResults := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 		"total_revenue": streamv3.Sum("amount"),
 		"avg_deal":      streamv3.Avg("amount"),
 		"count":         streamv3.Count(),

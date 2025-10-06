@@ -24,14 +24,14 @@ func main() {
 		amount := streamv3.GetOr(r, "amount", 0.0)
 		return amount >= 1000
 	})
-	groupStep := streamv3.GroupByFields("region")
+	groupStep := streamv3.GroupByFields("sales_data", "region")
 
 	// Apply steps manually
 	filtered := filterStep(slices.Values(sales))
 	groups := groupStep(filtered)
 
 	// Apply aggregation
-	aggregationStep := streamv3.Aggregate(map[string]streamv3.AggregateFunc{
+	aggregationStep := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 		"total_sales": streamv3.Sum("amount"),
 		"count":       streamv3.Count(),
 	})

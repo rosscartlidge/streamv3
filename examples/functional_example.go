@@ -32,10 +32,10 @@ func main() {
 	})(slices.Values(sales))
 
 	// Step 2: Group by region
-	groups1 := streamv3.GroupByFields("region")(filtered1)
+	groups1 := streamv3.GroupByFields("sales_data", "region")(filtered1)
 
 	// Step 3: Aggregate
-	regionTotals := streamv3.Aggregate(map[string]streamv3.AggregateFunc{
+	regionTotals := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 		"total_sales": streamv3.Sum("amount"),
 		"count":       streamv3.Count(),
 	})(groups1)
@@ -50,8 +50,8 @@ func main() {
 	fmt.Println("\n2. All sales by product category:")
 
 	// Example 2: Group all sales by product and calculate totals - FUNCTIONAL PIPELINE!
-	groups2 := streamv3.GroupByFields("product")(slices.Values(sales))
-	productTotals := streamv3.Aggregate(map[string]streamv3.AggregateFunc{
+	groups2 := streamv3.GroupByFields("sales_data", "product")(slices.Values(sales))
+	productTotals := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 		"total_revenue": streamv3.Sum("amount"),
 		"avg_price":     streamv3.Avg("amount"),
 		"sales_count":   streamv3.Count(),
@@ -79,8 +79,8 @@ func main() {
 		}),
 	)(slices.Values(sales))
 
-	groups3 := streamv3.GroupByFields("region")(filtered3)
-	northLaptopTotals := streamv3.Aggregate(map[string]streamv3.AggregateFunc{
+	groups3 := streamv3.GroupByFields("sales_data", "region")(filtered3)
+	northLaptopTotals := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 		"total": streamv3.Sum("amount"),
 		"count": streamv3.Count(),
 	})(groups3)

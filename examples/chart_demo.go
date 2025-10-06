@@ -1,44 +1,44 @@
-package streamv3
+package main
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"os"
-	"slices"
-	"testing"
 	"time"
+
+	"github.com/rosscartlidge/streamv3"
 )
 
-// TestChartDemo creates comprehensive chart examples to showcase features
-func TestChartDemo(t *testing.T) {
+func main() {
 	fmt.Println("🎨 StreamV3 Interactive Chart Demo")
 	fmt.Println("=====================================")
 
 	// Create output directory
 	if err := os.MkdirAll("doc/chart_examples", 0755); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 
 	// 1. Sales Performance Dashboard
 	fmt.Println("📊 Creating Sales Performance Dashboard...")
-	createSalesDashboard(t)
+	createSalesDashboard()
 
 	// 2. System Metrics Time Series
 	fmt.Println("⏰ Creating System Metrics Time Series...")
-	createSystemMetrics(t)
+	createSystemMetrics()
 
 	// 3. Process Analysis
 	fmt.Println("🖥️  Creating Process Analysis Chart...")
-	createProcessAnalysis(t)
+	createProcessAnalysis()
 
 	// 4. Network Traffic Analysis
 	fmt.Println("🌐 Creating Network Traffic Analysis...")
-	createNetworkAnalysis(t)
+	createNetworkAnalysis()
 
 	// 5. Quick Chart Example
 	fmt.Println("⚡ Creating Quick Chart Example...")
-	createQuickExample(t)
+	createQuickExample()
 
 	fmt.Println("\n✅ All charts created successfully!")
 	fmt.Println("\n🎯 Open these HTML files in your browser:")
@@ -57,9 +57,9 @@ func TestChartDemo(t *testing.T) {
 }
 
 // createSalesDashboard demonstrates business analytics visualization
-func createSalesDashboard(t *testing.T) {
+func createSalesDashboard() {
 	// Generate realistic sales data
-	salesData := []Record{}
+	salesData := []streamv3.Record{}
 
 	regions := []string{"North America", "Europe", "Asia Pacific", "Latin America"}
 	products := []string{"Software Licenses", "Consulting", "Support", "Training"}
@@ -80,7 +80,7 @@ func createSalesDashboard(t *testing.T) {
 				sales := baseAmount * seasonality * growth * noise
 				profit := sales * (0.15 + rand.Float64()*0.15) // 15-30% profit margin
 
-				record := NewRecord().
+				record := streamv3.NewRecord().
 					String("date", date.Format("2006-01-02")).
 					String("region", region).
 					String("product", product).
@@ -96,9 +96,9 @@ func createSalesDashboard(t *testing.T) {
 	}
 
 	// Create interactive dashboard
-	data := &Stream[Record]{seq: slices.Values(salesData)}
+	data := streamv3.From(salesData)
 
-	config := DefaultChartConfig()
+	config := streamv3.DefaultChartConfig()
 	config.Title = "📊 Sales Performance Dashboard - Interactive Analytics"
 	config.ChartType = "line"
 	config.EnableCalculations = true
@@ -108,14 +108,14 @@ func createSalesDashboard(t *testing.T) {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := InteractiveChart(data, "doc/chart_examples/sales_dashboard.html", config); err != nil {
-		t.Errorf("Error creating sales dashboard: %v", err)
+	if err := streamv3.InteractiveChart(data, "doc/chart_examples/sales_dashboard.html", config); err != nil {
+		log.Fatalf("Error creating sales dashboard: %v", err)
 	}
 }
 
 // createSystemMetrics demonstrates time series monitoring
-func createSystemMetrics(t *testing.T) {
-	metricsData := []Record{}
+func createSystemMetrics() {
+	metricsData := []streamv3.Record{}
 
 	startTime := time.Now().Add(-2 * time.Hour)
 
@@ -140,7 +140,7 @@ func createSystemMetrics(t *testing.T) {
 			memoryUsage = math.Min(100, memoryUsage+20)
 		}
 
-		record := NewRecord().
+		record := streamv3.NewRecord().
 			String("timestamp", timestamp.Format("2006-01-02 15:04:05")).
 			Float("cpu_usage", cpuUsage).
 			Float("memory_usage", memoryUsage).
@@ -154,9 +154,9 @@ func createSystemMetrics(t *testing.T) {
 		metricsData = append(metricsData, record)
 	}
 
-	data := &Stream[Record]{seq: slices.Values(metricsData)}
+	data := streamv3.From(metricsData)
 
-	config := DefaultChartConfig()
+	config := streamv3.DefaultChartConfig()
 	config.Title = "🖥️ System Metrics - Real-time Monitoring Dashboard"
 	config.ChartType = "line"
 	config.XAxisType = "time"
@@ -166,15 +166,15 @@ func createSystemMetrics(t *testing.T) {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, "doc/chart_examples/system_metrics.html", config); err != nil {
-		t.Errorf("Error creating system metrics: %v", err)
+	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, "doc/chart_examples/system_metrics.html", config); err != nil {
+		log.Fatalf("Error creating system metrics: %v", err)
 	}
 }
 
 // createProcessAnalysis demonstrates command output visualization
-func createProcessAnalysis(t *testing.T) {
+func createProcessAnalysis() {
 	// Simulate ps command output
-	processData := []Record{}
+	processData := []streamv3.Record{}
 
 	users := []string{"root", "postgres", "nginx", "app", "monitoring"}
 	commands := []string{
@@ -206,7 +206,7 @@ func createProcessAnalysis(t *testing.T) {
 			memSize = int64(memUsage * 1024)
 		}
 
-		record := NewRecord().
+		record := streamv3.NewRecord().
 			Int("PID", int64(1000+i)).
 			String("USER", user).
 			Float("CPU", cpuUsage).
@@ -220,9 +220,9 @@ func createProcessAnalysis(t *testing.T) {
 		processData = append(processData, record)
 	}
 
-	data := &Stream[Record]{seq: slices.Values(processData)}
+	data := streamv3.From(processData)
 
-	config := DefaultChartConfig()
+	config := streamv3.DefaultChartConfig()
 	config.Title = "🖥️ Process Analysis - CPU & Memory Usage"
 	config.ChartType = "scatter"
 	config.EnableInteractive = true
@@ -230,14 +230,14 @@ func createProcessAnalysis(t *testing.T) {
 	config.Width = 1300
 	config.Height = 600
 
-	if err := InteractiveChart(data, "doc/chart_examples/process_analysis.html", config); err != nil {
-		t.Errorf("Error creating process analysis: %v", err)
+	if err := streamv3.InteractiveChart(data, "doc/chart_examples/process_analysis.html", config); err != nil {
+		log.Fatalf("Error creating process analysis: %v", err)
 	}
 }
 
 // createNetworkAnalysis demonstrates network traffic visualization
-func createNetworkAnalysis(t *testing.T) {
-	networkData := []Record{}
+func createNetworkAnalysis() {
+	networkData := []streamv3.Record{}
 
 	protocols := []string{"TCP", "UDP", "ICMP"}
 	ports := []int{22, 80, 443, 3306, 5432, 6379, 8080, 9090}
@@ -275,7 +275,7 @@ func createNetworkAnalysis(t *testing.T) {
 				bytesOut := baseTraffic * 0.6 * (0.8 + rand.Float64()*0.4)
 				connections := int64(1 + rand.Intn(50))
 
-				record := NewRecord().
+				record := streamv3.NewRecord().
 					String("timestamp", timestamp.Format("2006-01-02 15:04:05")).
 					String("protocol", protocol).
 					Int("port", int64(port)).
@@ -291,9 +291,9 @@ func createNetworkAnalysis(t *testing.T) {
 		}
 	}
 
-	data := &Stream[Record]{seq: slices.Values(networkData)}
+	data := streamv3.From(networkData)
 
-	config := DefaultChartConfig()
+	config := streamv3.DefaultChartConfig()
 	config.Title = "🌐 Network Traffic Analysis - Bytes & Connections"
 	config.ChartType = "line"
 	config.XAxisType = "time"
@@ -304,27 +304,27 @@ func createNetworkAnalysis(t *testing.T) {
 	config.Width = 1400
 	config.Height = 650
 
-	if err := TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, "doc/chart_examples/network_analysis.html", config); err != nil {
-		t.Errorf("Error creating network analysis: %v", err)
+	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, "doc/chart_examples/network_analysis.html", config); err != nil {
+		log.Fatalf("Error creating network analysis: %v", err)
 	}
 }
 
 // createQuickExample demonstrates the simple API
-func createQuickExample(t *testing.T) {
+func createQuickExample() {
 	// Simple monthly revenue data
-	revenueData := []Record{
-		NewRecord().String("month", "Jan 2024").Float("revenue", 120000).Int("customers", 450).Float("avg_deal", 2667).Build(),
-		NewRecord().String("month", "Feb 2024").Float("revenue", 135000).Int("customers", 480).Float("avg_deal", 2813).Build(),
-		NewRecord().String("month", "Mar 2024").Float("revenue", 118000).Int("customers", 425).Float("avg_deal", 2776).Build(),
-		NewRecord().String("month", "Apr 2024").Float("revenue", 142000).Int("customers", 510).Float("avg_deal", 2784).Build(),
-		NewRecord().String("month", "May 2024").Float("revenue", 156000).Int("customers", 545).Float("avg_deal", 2862).Build(),
-		NewRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Build(),
+	revenueData := []streamv3.Record{
+		streamv3.NewRecord().String("month", "Jan 2024").Float("revenue", 120000).Int("customers", 450).Float("avg_deal", 2667).Build(),
+		streamv3.NewRecord().String("month", "Feb 2024").Float("revenue", 135000).Int("customers", 480).Float("avg_deal", 2813).Build(),
+		streamv3.NewRecord().String("month", "Mar 2024").Float("revenue", 118000).Int("customers", 425).Float("avg_deal", 2776).Build(),
+		streamv3.NewRecord().String("month", "Apr 2024").Float("revenue", 142000).Int("customers", 510).Float("avg_deal", 2784).Build(),
+		streamv3.NewRecord().String("month", "May 2024").Float("revenue", 156000).Int("customers", 545).Float("avg_deal", 2862).Build(),
+		streamv3.NewRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Build(),
 	}
 
-	data := &Stream[Record]{seq: slices.Values(revenueData)}
+	data := streamv3.From(revenueData)
 
 	// Use the simple QuickChart API
-	if err := QuickChart(data, "month", "revenue", "doc/chart_examples/quick_example.html"); err != nil {
-		t.Errorf("Error creating quick example: %v", err)
+	if err := streamv3.QuickChart(data, "month", "revenue", "doc/chart_examples/quick_example.html"); err != nil {
+		log.Fatalf("Error creating quick example: %v", err)
 	}
 }

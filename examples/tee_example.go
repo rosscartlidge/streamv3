@@ -73,7 +73,7 @@ func main() {
 
 	// Stream 3: Extract just names
 	fmt.Println("Stream 3 - Names only:")
-	nameExtractor := streamv3.Map(func(r streamv3.Record) string {
+	nameExtractor := streamv3.Select(func(r streamv3.Record) string {
 		return streamv3.GetOr(r, "name", "Unknown")
 	})
 	names := nameExtractor(streams3[2])
