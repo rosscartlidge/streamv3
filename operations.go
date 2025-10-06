@@ -2,6 +2,8 @@ package streamv3
 
 import (
 	"cmp"
+	"context"
+	"fmt"
 	"iter"
 	"slices"
 	"time"
@@ -431,6 +433,197 @@ func LazyTee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
 }
 
 // ============================================================================
+// STREAMING AGGREGATIONS FOR INFINITE STREAMS
+// ============================================================================
+
+// RunningSum maintains a running total, emitting updated results for each input element
+// Perfect for real-time dashboards and continuous monitoring
+func RunningSum(fieldName string) Filter[Record, Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			var runningTotal float64
+			count := 0
+
+			for record := range input {
+				// Extract value and add to running total
+				value := GetOr(record, fieldName, 0.0)
+				runningTotal += value
+				count++
+
+				// Create output record with running sum
+				outputRecord := make(Record)
+				// Copy original record
+				for k, v := range record {
+					outputRecord[k] = v
+				}
+				// Add running sum fields
+				outputRecord["running_sum"] = runningTotal
+				outputRecord["running_count"] = int64(count)
+				outputRecord["running_avg"] = runningTotal / float64(count)
+
+				if !yield(outputRecord) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// RunningAverage computes a moving average over a specified window size
+// Maintains bounded memory usage even for infinite streams
+func RunningAverage(fieldName string, windowSize int) Filter[Record, Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			if windowSize <= 0 {
+				return
+			}
+
+			window := make([]float64, 0, windowSize)
+			var sum float64
+			count := 0
+
+			for record := range input {
+				value := GetOr(record, fieldName, 0.0)
+				count++
+
+				// Add to window
+				if len(window) < windowSize {
+					window = append(window, value)
+					sum += value
+				} else {
+					// Remove oldest value and add new one
+					sum = sum - window[0] + value
+					copy(window, window[1:])
+					window[windowSize-1] = value
+				}
+
+				// Calculate moving average
+				avg := sum / float64(len(window))
+
+				// Create output record
+				outputRecord := make(Record)
+				for k, v := range record {
+					outputRecord[k] = v
+				}
+				outputRecord["moving_avg"] = avg
+				outputRecord["window_size"] = int64(len(window))
+				outputRecord["total_count"] = int64(count)
+
+				if !yield(outputRecord) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// ExponentialMovingAverage computes EMA with configurable smoothing factor
+// Memory efficient and responsive to recent changes
+func ExponentialMovingAverage(fieldName string, alpha float64) Filter[Record, Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			var ema float64
+			initialized := false
+
+			for record := range input {
+				value := GetOr(record, fieldName, 0.0)
+
+				if !initialized {
+					ema = value
+					initialized = true
+				} else {
+					// EMA formula: EMA = alpha * current + (1 - alpha) * previous_EMA
+					ema = alpha*value + (1-alpha)*ema
+				}
+
+				// Create output record
+				outputRecord := make(Record)
+				for k, v := range record {
+					outputRecord[k] = v
+				}
+				outputRecord["ema"] = ema
+				outputRecord["alpha"] = alpha
+
+				if !yield(outputRecord) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// RunningMinMax tracks minimum and maximum values continuously
+func RunningMinMax(fieldName string) Filter[Record, Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			var min, max float64
+			initialized := false
+
+			for record := range input {
+				value := GetOr(record, fieldName, 0.0)
+
+				if !initialized {
+					min = value
+					max = value
+					initialized = true
+				} else {
+					if value < min {
+						min = value
+					}
+					if value > max {
+						max = value
+					}
+				}
+
+				// Create output record
+				outputRecord := make(Record)
+				for k, v := range record {
+					outputRecord[k] = v
+				}
+				outputRecord["running_min"] = min
+				outputRecord["running_max"] = max
+				outputRecord["running_range"] = max - min
+
+				if !yield(outputRecord) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// RunningCount counts occurrences of distinct values for a field
+// Useful for real-time frequency analysis
+func RunningCount(fieldName string) Filter[Record, Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			counts := make(map[string]int64)
+			totalCount := int64(0)
+
+			for record := range input {
+				// Convert field value to string for counting
+				value := fmt.Sprintf("%v", record[fieldName])
+				counts[value]++
+				totalCount++
+
+				// Create output record
+				outputRecord := make(Record)
+				for k, v := range record {
+					outputRecord[k] = v
+				}
+				outputRecord["distinct_counts"] = counts
+				outputRecord["total_count"] = totalCount
+				outputRecord["distinct_values"] = int64(len(counts))
+
+				if !yield(outputRecord) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// ============================================================================
 // WINDOWING OPERATIONS FOR INFINITE STREAMS
 // ============================================================================
 
@@ -664,4 +857,172 @@ func parseTimeValue(value any) time.Time {
 	}
 
 	return time.Time{} // Zero time if parsing fails
+}
+
+// ============================================================================
+// EARLY TERMINATION PATTERNS FOR INFINITE STREAMS
+// ============================================================================
+
+// TakeWhile continues emitting elements while a predicate is true
+// Stops processing as soon as the condition becomes false
+func TakeWhile[T any](predicate func(T) bool) Filter[T, T] {
+	return func(input iter.Seq[T]) iter.Seq[T] {
+		return func(yield func(T) bool) {
+			for v := range input {
+				if !predicate(v) {
+					return // Stop when predicate becomes false
+				}
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// TakeUntil continues emitting elements until a predicate becomes true
+// Stops processing as soon as the condition becomes true
+func TakeUntil[T any](predicate func(T) bool) Filter[T, T] {
+	return func(input iter.Seq[T]) iter.Seq[T] {
+		return func(yield func(T) bool) {
+			for v := range input {
+				if predicate(v) {
+					return // Stop when predicate becomes true
+				}
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// Take limits the stream to the first n elements
+// Essential for converting infinite streams to finite ones
+func Take[T any](n int) Filter[T, T] {
+	return func(input iter.Seq[T]) iter.Seq[T] {
+		return func(yield func(T) bool) {
+			if n <= 0 {
+				return
+			}
+
+			count := 0
+			for v := range input {
+				if count >= n {
+					return
+				}
+				if !yield(v) {
+					return
+				}
+				count++
+			}
+		}
+	}
+}
+
+// Timeout limits stream processing to a maximum duration
+// Automatically terminates infinite streams after the specified time
+func Timeout[T any](duration time.Duration) Filter[T, T] {
+	return func(input iter.Seq[T]) iter.Seq[T] {
+		return func(yield func(T) bool) {
+			ctx, cancel := context.WithTimeout(context.Background(), duration)
+			defer cancel()
+
+			done := make(chan struct{})
+
+			go func() {
+				defer close(done)
+				for v := range input {
+					select {
+					case <-ctx.Done():
+						return // Timeout reached
+					default:
+						if !yield(v) {
+							return
+						}
+					}
+				}
+			}()
+
+			select {
+			case <-done:
+				// Processing completed normally
+			case <-ctx.Done():
+				// Timeout reached
+			}
+		}
+	}
+}
+
+// TimeBasedTimeout stops processing after a specified time from the first element
+// Uses a time field from records to determine when to stop
+func TimeBasedTimeout(timeField string, duration time.Duration) Filter[Record, Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			var startTime time.Time
+			started := false
+
+			for record := range input {
+				currentTime := extractTimestamp(record, timeField)
+
+				if !started {
+					startTime = currentTime
+					started = true
+				} else if !currentTime.IsZero() && currentTime.Sub(startTime) > duration {
+					return // Time window exceeded
+				}
+
+				if !yield(record) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// SkipWhile skips elements while a predicate is true, then emits all remaining elements
+// Useful for skipping headers or initial conditions in infinite streams
+func SkipWhile[T any](predicate func(T) bool) Filter[T, T] {
+	return func(input iter.Seq[T]) iter.Seq[T] {
+		return func(yield func(T) bool) {
+			skipping := true
+			for v := range input {
+				if skipping && predicate(v) {
+					continue // Skip this element
+				}
+				skipping = false // Start emitting from here
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// SkipUntil skips elements until a predicate becomes true, then emits all remaining elements
+func SkipUntil[T any](predicate func(T) bool) Filter[T, T] {
+	return func(input iter.Seq[T]) iter.Seq[T] {
+		return func(yield func(T) bool) {
+			skipping := true
+			for v := range input {
+				if skipping && !predicate(v) {
+					continue // Keep skipping
+				}
+				skipping = false // Start emitting from here
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// FirstN is an alias for Take - limits to first n elements
+func FirstN[T any](n int) Filter[T, T] {
+	return Take[T](n)
+}
+
+// HeadWhile is an alias for TakeWhile - for SQL-like naming
+func HeadWhile[T any](predicate func(T) bool) Filter[T, T] {
+	return TakeWhile[T](predicate)
 }
