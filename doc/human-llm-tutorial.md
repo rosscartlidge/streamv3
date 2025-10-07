@@ -24,7 +24,12 @@ This tutorial teaches you how to effectively communicate with Large Language Mod
 
 ### Step 1: Prime Your LLM
 
-**Recommended:** Copy the complete prompt from **[streamv3-ai-prompt.md](streamv3-ai-prompt.md)** into your LLM session.
+**Recommended:**
+1. Open the file **[streamv3-ai-prompt.md](streamv3-ai-prompt.md)**
+2. Copy the entire contents of that file (everything from "You are an expert Go developer..." to the end)
+3. Paste it as your first message in your LLM conversation (Claude, ChatGPT, etc.)
+
+This teaches the LLM how to generate proper StreamV3 code following the project's conventions.
 
 **Alternative:** If you need a custom prompt, here's the essential content:
 
@@ -92,24 +97,24 @@ The LLM will generate clean, step-by-step code that you can easily read and veri
 #### Claude (Anthropic)
 - Visit: https://claude.ai
 - Start new conversation
-- Paste the prompt template above
+- Copy and paste the complete contents of **[streamv3-ai-prompt.md](streamv3-ai-prompt.md)** as your first message
 - Begin asking for StreamV3 solutions
 
 #### ChatGPT (OpenAI)
 - Visit: https://chat.openai.com
 - Start new chat
-- Use the prompt template
+- Copy and paste the complete contents of **[streamv3-ai-prompt.md](streamv3-ai-prompt.md)** as your first message
 - Ask for StreamV3 code generation
 
 #### Gemini (Google)
 - Visit: https://gemini.google.com
 - New conversation
-- Apply the prompt template
+- Copy and paste the complete contents of **[streamv3-ai-prompt.md](streamv3-ai-prompt.md)** as your first message
 - Request StreamV3 solutions
 
 #### Local LLMs (Ollama, etc.)
 - Install your preferred local LLM
-- Use the same prompt template
+- Copy and paste the complete contents of **[streamv3-ai-prompt.md](streamv3-ai-prompt.md)** as your first message
 - Ensure the model has sufficient context window
 
 ### Prompt Template Variations
