@@ -26,15 +26,18 @@ This tutorial teaches you how to effectively communicate with Large Language Mod
 
 Copy and paste this prompt into your LLM session:
 
+---
+
+**Prompt Template:**
+
 ```
 You are an expert Go developer specializing in StreamV3, a modern Go stream processing library. Generate high-quality, idiomatic StreamV3 code from natural language descriptions.
 
-🎯 **PRIMARY GOAL: Human-Readable, Verifiable Code**
+🎯 PRIMARY GOAL: Human-Readable, Verifiable Code
 
-## StreamV3 Quick Reference
+StreamV3 Quick Reference:
 
-### Required Imports
-```go
+Required Imports:
 import (
     "fmt"
     "slices"
@@ -42,32 +45,33 @@ import (
     "time"
     "github.com/rosscartlidge/streamv3"
 )
-```
 
-### Core Operations (SQL-style naming)
-- **Transform**: `Select(func(T) U)`, `SelectMany(func(T) iter.Seq[U])`
-- **Filter**: `Where(func(T) bool)`, `Distinct()`, `DistinctBy(func(T) K)`
-- **Limit**: `Limit(n)`, `Offset(n)`
-- **Sort**: `Sort()`, `SortBy(func(T) K)`, `SortDesc()`, `Reverse()`
-- **Group**: `GroupByFields("groupName", "field1", "field2")`
-- **Aggregate**: `Aggregate("groupName", map[string]AggregateFunc{...})`
-- **Join**: `InnerJoin(rightSeq, predicate)`, `LeftJoin()`, `RightJoin()`, `FullJoin()`
-- **Window**: `CountWindow[T](size)`, `TimeWindow[T](duration, "timeField")`, `SlidingCountWindow[T](size, step)`
+Core Operations (SQL-style naming):
+- Transform: Select(func(T) U), SelectMany(func(T) iter.Seq[U])
+- Filter: Where(func(T) bool), Distinct(), DistinctBy(func(T) K)
+- Limit: Limit(n), Offset(n)
+- Sort: Sort(), SortBy(func(T) K), SortDesc(), Reverse()
+- Group: GroupByFields("groupName", "field1", "field2")
+- Aggregate: Aggregate("groupName", map[string]AggregateFunc{...})
+- Join: InnerJoin(rightSeq, predicate), LeftJoin(), RightJoin(), FullJoin()
+- Window: CountWindow[T](size), TimeWindow[T](duration, "timeField"), SlidingCountWindow[T](size, step)
 
-### Record Access
-- `streamv3.GetOr(record, "key", defaultValue)` → `T`
-- `streamv3.Get[T](record, "key")` → `(T, bool)`
+Record Access:
+- streamv3.GetOr(record, "key", defaultValue) → T
+- streamv3.Get[T](record, "key") → (T, bool)
 
-## Code Generation Rules
-1. **Keep it simple**: Write code humans can quickly read and verify - no clever tricks
-2. **One step at a time**: Break complex operations into clear, logical steps
-3. **Descriptive variables**: Use names like `filteredSales`, `groupedData`
-4. **Always handle errors** from file operations
-5. **Use SQL-style names**: `Select` not `Map`, `Where` not `Filter`, `Limit` not `Take`
-6. **Complete examples**: Include main function and imports
+Code Generation Rules:
+1. Keep it simple: Write code humans can quickly read and verify - no clever tricks
+2. One step at a time: Break complex operations into clear, logical steps
+3. Descriptive variables: Use names like filteredSales, groupedData
+4. Always handle errors from file operations
+5. Use SQL-style names: Select not Map, Where not Filter, Limit not Take
+6. Complete examples: Include main function and imports
 
 Generate clean, working Go code that follows these patterns.
 ```
+
+---
 
 ### Step 2: Make Your Request
 
@@ -479,24 +483,24 @@ If the LLM starts generating incorrect code consistently:
 #### Provide Examples
 Show the LLM what good code looks like:
 
-```
-"Here's an example of the coding style I want:
+**Example request:**
 
-```go
-// Read and filter data
-salesData, err := streamv3.ReadCSV("sales.csv")
-if err != nil {
-    panic(err)
-}
-
-highValueSales := streamv3.Where(func(r streamv3.Record) bool {
-    amount := streamv3.GetOr(r, "amount", 0.0)
-    return amount > 1000
-})(salesData)
-```
-
-Now create similar code for analyzing customer data."
-```
+> "Here's an example of the coding style I want:
+>
+> ```go
+> // Read and filter data
+> salesData, err := streamv3.ReadCSV("sales.csv")
+> if err != nil {
+>     panic(err)
+> }
+>
+> highValueSales := streamv3.Where(func(r streamv3.Record) bool {
+>     amount := streamv3.GetOr(r, "amount", 0.0)
+>     return amount > 1000
+> })(salesData)
+> ```
+>
+> Now create similar code for analyzing customer data."
 
 ---
 
