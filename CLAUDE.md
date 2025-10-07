@@ -61,3 +61,4 @@ StreamV3 is a modern Go library built on three core abstractions:
 
 This library emphasizes functional composition with Go 1.23+ iterators while providing comprehensive data visualization capabilities.
 - ai_generation
+- doc_improvement
