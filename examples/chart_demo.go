@@ -15,38 +15,39 @@ func main() {
 	fmt.Println("🎨 StreamV3 Interactive Chart Demo")
 	fmt.Println("=====================================")
 
-	// Create output directory
-	if err := os.MkdirAll("doc/chart_examples", 0755); err != nil {
+	// Create output directory in /tmp
+	outputDir := "/tmp/chart_demo"
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		log.Fatal(err)
 	}
 
 	// 1. Sales Performance Dashboard
 	fmt.Println("📊 Creating Sales Performance Dashboard...")
-	createSalesDashboard()
+	createSalesDashboard(outputDir)
 
 	// 2. System Metrics Time Series
 	fmt.Println("⏰ Creating System Metrics Time Series...")
-	createSystemMetrics()
+	createSystemMetrics(outputDir)
 
 	// 3. Process Analysis
 	fmt.Println("🖥️  Creating Process Analysis Chart...")
-	createProcessAnalysis()
+	createProcessAnalysis(outputDir)
 
 	// 4. Network Traffic Analysis
 	fmt.Println("🌐 Creating Network Traffic Analysis...")
-	createNetworkAnalysis()
+	createNetworkAnalysis(outputDir)
 
 	// 5. Quick Chart Example
 	fmt.Println("⚡ Creating Quick Chart Example...")
-	createQuickExample()
+	createQuickExample(outputDir)
 
 	fmt.Println("\n✅ All charts created successfully!")
 	fmt.Println("\n🎯 Open these HTML files in your browser:")
-	fmt.Println("   📈 doc/chart_examples/sales_dashboard.html")
-	fmt.Println("   📊 doc/chart_examples/system_metrics.html")
-	fmt.Println("   🖥️  doc/chart_examples/process_analysis.html")
-	fmt.Println("   🌐 doc/chart_examples/network_analysis.html")
-	fmt.Println("   ⚡ doc/chart_examples/quick_example.html")
+	fmt.Printf("   📈 %s/sales_dashboard.html\n", outputDir)
+	fmt.Printf("   📊 %s/system_metrics.html\n", outputDir)
+	fmt.Printf("   🖥️  %s/process_analysis.html\n", outputDir)
+	fmt.Printf("   🌐 %s/network_analysis.html\n", outputDir)
+	fmt.Printf("   ⚡ %s/quick_example.html\n", outputDir)
 	fmt.Println("\n🎪 Features to try:")
 	fmt.Println("   • Click different chart types (line/bar/scatter/pie)")
 	fmt.Println("   • Select different X and Y fields")
@@ -57,7 +58,7 @@ func main() {
 }
 
 // createSalesDashboard demonstrates business analytics visualization
-func createSalesDashboard() {
+func createSalesDashboard(outputDir string) {
 	// Generate realistic sales data
 	salesData := []streamv3.Record{}
 
@@ -108,13 +109,13 @@ func createSalesDashboard() {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := streamv3.InteractiveChart(data, "doc/chart_examples/sales_dashboard.html", config); err != nil {
+	if err := streamv3.InteractiveChart(data, outputDir+"/sales_dashboard.html", config); err != nil {
 		log.Fatalf("Error creating sales dashboard: %v", err)
 	}
 }
 
 // createSystemMetrics demonstrates time series monitoring
-func createSystemMetrics() {
+func createSystemMetrics(outputDir string) {
 	metricsData := []streamv3.Record{}
 
 	startTime := time.Now().Add(-2 * time.Hour)
@@ -166,13 +167,13 @@ func createSystemMetrics() {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, "doc/chart_examples/system_metrics.html", config); err != nil {
+	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, outputDir+"/system_metrics.html", config); err != nil {
 		log.Fatalf("Error creating system metrics: %v", err)
 	}
 }
 
 // createProcessAnalysis demonstrates command output visualization
-func createProcessAnalysis() {
+func createProcessAnalysis(outputDir string) {
 	// Simulate ps command output
 	processData := []streamv3.Record{}
 
@@ -230,13 +231,13 @@ func createProcessAnalysis() {
 	config.Width = 1300
 	config.Height = 600
 
-	if err := streamv3.InteractiveChart(data, "doc/chart_examples/process_analysis.html", config); err != nil {
+	if err := streamv3.InteractiveChart(data, outputDir+"/process_analysis.html", config); err != nil {
 		log.Fatalf("Error creating process analysis: %v", err)
 	}
 }
 
 // createNetworkAnalysis demonstrates network traffic visualization
-func createNetworkAnalysis() {
+func createNetworkAnalysis(outputDir string) {
 	networkData := []streamv3.Record{}
 
 	protocols := []string{"TCP", "UDP", "ICMP"}
@@ -304,13 +305,13 @@ func createNetworkAnalysis() {
 	config.Width = 1400
 	config.Height = 650
 
-	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, "doc/chart_examples/network_analysis.html", config); err != nil {
+	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, outputDir+"/network_analysis.html", config); err != nil {
 		log.Fatalf("Error creating network analysis: %v", err)
 	}
 }
 
 // createQuickExample demonstrates the simple API
-func createQuickExample() {
+func createQuickExample(outputDir string) {
 	// Simple monthly revenue data
 	revenueData := []streamv3.Record{
 		streamv3.NewRecord().String("month", "Jan 2024").Float("revenue", 120000).Int("customers", 450).Float("avg_deal", 2667).Build(),
@@ -324,7 +325,7 @@ func createQuickExample() {
 	data := streamv3.From(revenueData)
 
 	// Use the simple QuickChart API
-	if err := streamv3.QuickChart(data, "month", "revenue", "doc/chart_examples/quick_example.html"); err != nil {
+	if err := streamv3.QuickChart(data, "month", "revenue", outputDir+"/quick_example.html"); err != nil {
 		log.Fatalf("Error creating quick example: %v", err)
 	}
 }
