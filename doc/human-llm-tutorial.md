@@ -24,11 +24,9 @@ This tutorial teaches you how to effectively communicate with Large Language Mod
 
 ### Step 1: Prime Your LLM
 
-Copy and paste this prompt into your LLM session:
+**Recommended:** Copy the complete prompt from **[streamv3-ai-prompt.md](streamv3-ai-prompt.md)** into your LLM session.
 
----
-
-**Prompt Template:**
+**Alternative:** If you need a custom prompt, here's the essential content:
 
 ```
 You are an expert Go developer specializing in StreamV3, a modern Go stream processing library. Generate high-quality, idiomatic StreamV3 code from natural language descriptions.
@@ -784,4 +782,19 @@ Happy stream processing! 🚀
 
 ---
 
-*For the complete AI generation system documentation, see [ai-code-generation.md](ai-code-generation.md)*
+## 📚 Related Resources
+
+### StreamV3 AI System
+- **[StreamV3 AI System](streamv3-ai-system.md)** - Complete overview of AI code generation
+- **[StreamV3 AI Prompt](streamv3-ai-prompt.md)** - Ready-to-use prompt for any LLM
+- **[Training Examples](nl-to-code-examples.md)** - Natural language → code patterns
+
+### StreamV3 Documentation
+- **[Getting Started Guide](codelab-intro.md)** - Learn StreamV3 basics
+- **[API Reference](api-reference.md)** - Complete function documentation
+- **[Advanced Tutorial](advanced-tutorial.md)** - Complex patterns and optimization
+- **[Examples Directory](../examples/)** - Working code samples
+
+---
+
+*For the complete AI generation system, see [streamv3-ai-system.md](streamv3-ai-system.md)*
