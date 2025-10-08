@@ -27,17 +27,31 @@ Write code that humans can quickly read and verify - no clever tricks. Always pr
 
 # PART 1: QUICK REFERENCE
 
-## Standard Imports
+## Imports - CRITICAL RULE
+
+**ONLY import packages that are actually used in your code.**
+
+Common imports for StreamV3:
 ```go
 import (
-    "fmt"
-    "slices"
-    "time"
-    "github.com/rosscartlidge/streamv3"
+    "fmt"                                    // When using fmt.Printf, fmt.Println
+    "github.com/rosscartlidge/streamv3"     // Always needed for StreamV3
 )
 ```
 
-**Note**: You do NOT need to import `"iter"` for typical StreamV3 usage. The `iter.Seq[T]` types are used internally, but you create iterators with `slices.Values()` and consume them with `for range`. Only import `"iter"` if you need to explicitly reference iterator types (rare).
+Additional imports - ONLY when needed:
+```go
+import (
+    "slices"     // ONLY if using slices.Values() to create iterators from slices
+    "time"       // ONLY if using time.Duration, time.Time, or time-based operations
+    "strings"    // ONLY if using strings.Fields, strings.HasPrefix, etc.
+)
+```
+
+**DO NOT import:**
+- `"iter"` - Never needed for typical StreamV3 usage
+- `"slices"` - Only needed if you use slices.Values() to convert []T to iter.Seq[T]
+- Any package not actually referenced in your code
 
 ## Core Types
 - `iter.Seq[T]` / `iter.Seq2[T, error]` - Go 1.23+ lazy iterators
@@ -100,6 +114,7 @@ import (
 9. **Type parameters**: Add `[T]` when compiler needs help: `CountWindow[streamv3.Record](10)`
 10. **Complete examples**: Include main function and imports
 11. **Comments for clarity**: Explain non-obvious logic with simple comments
+12. **CRITICAL - Imports**: ONLY import packages that are actually used in the code. Do NOT import "slices" unless you use slices.Values(), do NOT import "time" unless you use time types, etc.
 
 ## Code Style Examples
 

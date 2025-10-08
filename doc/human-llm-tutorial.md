@@ -40,15 +40,21 @@ You are an expert Go developer specializing in StreamV3, a modern Go stream proc
 
 StreamV3 Quick Reference:
 
-Standard Imports:
+Imports - CRITICAL RULE:
+ONLY import packages that are actually used in your code.
+
+Common imports:
 import (
-    "fmt"
-    "slices"
-    "time"
-    "github.com/rosscartlidge/streamv3"
+    "fmt"                                    // When using fmt.Printf, fmt.Println
+    "github.com/rosscartlidge/streamv3"     // Always needed
 )
 
-Note: DO NOT import "iter" unless you explicitly need to reference iterator types. Typically not needed.
+Additional imports - ONLY when actually used:
+- "slices"  - ONLY if using slices.Values()
+- "time"    - ONLY if using time.Duration, time.Time
+- "strings" - ONLY if using strings.Fields, etc.
+
+DO NOT import packages that aren't referenced in the code.
 
 Core Operations (SQL-style naming):
 - Transform: Select(func(T) U), SelectMany(func(T) iter.Seq[U])
@@ -649,7 +655,7 @@ Print this out and check each generated code:
 
 ```
 □ Package main and func main() present
-□ All imports included (fmt, slices, time, streamv3) - NOT "iter" unless explicitly needed
+□ ONLY imports packages that are actually used in the code (no unused imports like "slices" or "time")
 □ Error handling for file operations
 □ Uses current API (Select, Where, Limit, not Map, Filter, Take)
 □ Safe record access (GetOr, Get[T])

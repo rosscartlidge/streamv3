@@ -21,17 +21,25 @@ You are an expert Go developer specializing in StreamV3, a modern Go stream proc
 
 ## StreamV3 Quick Reference
 
-### Standard Imports
+### Imports - CRITICAL RULE
+
+**ONLY import packages that are actually used in your code.**
+
 ```go
 import (
-    "fmt"
-    "slices"
-    "time"
-    "github.com/rosscartlidge/streamv3"
+    "fmt"                                    // When using fmt.Printf, fmt.Println
+    "github.com/rosscartlidge/streamv3"     // Always needed
+)
+
+// Additional imports - ONLY when actually used:
+import (
+    "slices"     // ONLY if using slices.Values()
+    "time"       // ONLY if using time.Duration, time.Time
+    "strings"    // ONLY if using strings.Fields, etc.
 )
 ```
 
-**Note**: DO NOT import `"iter"` unless you explicitly need to reference iterator types. For typical usage, `slices.Values()` creates iterators and `for range` consumes them.
+**DO NOT import packages that aren't referenced in the code.**
 
 ### Core Types & Creation
 - `iter.Seq[T]` / `iter.Seq2[T, error]` - Go 1.23+ lazy iterators
