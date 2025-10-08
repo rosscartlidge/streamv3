@@ -24,14 +24,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 StreamV3 is a modern Go library built on three core abstractions:
 
 **Core Types:**
-- `Stream[T]` - Lazy sequences using Go 1.23+ `iter.Seq[T]` and `iter.Seq2[T,error]`
+- `iter.Seq[T]` and `iter.Seq2[T,error]` - Go 1.23+ iterators (lazy sequences)
 - `Record` - Map-based flexible data structure (`map[string]any`)
 - `Filter[T,U]` - Composable transformations (`func(iter.Seq[T]) iter.Seq[U]`)
 
 **Key Architecture Files:**
 - `core.go` - Core types, Filter functions, Record system, composition functions
 - `operations.go` - Stream operations (Map, Where, Reduce, etc.)
-- `types.go` - Simple stream types for I/O compatibility (no fluent methods)
 - `chart.go` - Interactive Chart.js visualization with Bootstrap 5 UI
 - `io.go` - CSV/JSON I/O, command parsing, file operations
 - `sql.go` - GROUP BY aggregations and SQL-style operations
@@ -55,10 +54,12 @@ StreamV3 is a modern Go library built on three core abstractions:
 
 **Entry Points:**
 - `slices.Values(slice)` - Create iterator from slice
-- `ReadCSV(filename)` - Parse CSV files returning iterator
-- `ExecCommand(cmd, args...)` - Parse command output returning stream
+- `ReadCSV(filename)` - Parse CSV files returning `iter.Seq[Record]`
+- `ExecCommand(cmd, args...)` - Parse command output returning `iter.Seq[Record]`
 - `QuickChart(data, x, y, filename)` - Generate interactive charts
 
 This library emphasizes functional composition with Go 1.23+ iterators while providing comprehensive data visualization capabilities.
 - ai_generation
 - doc_improvement
+- llm_test
+- llm_eval
