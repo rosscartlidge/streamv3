@@ -26,6 +26,7 @@ type CSVConfig struct {
 	HasHeaders bool
 	Delimiter  rune
 	Comment    rune
+	Fields     []string // Optional: fields to write (nil = auto-detect all fields in alphabetical order)
 }
 
 // DefaultCSVConfig provides sensible defaults for CSV processing
@@ -34,6 +35,7 @@ func DefaultCSVConfig() CSVConfig {
 		HasHeaders: true,
 		Delimiter:  ',',
 		Comment:    '#',
+		Fields:     nil, // Auto-detect fields
 	}
 }
 
@@ -154,7 +156,7 @@ func ReadCSVSafeFromReader(reader io.Reader, config ...CSVConfig) iter.Seq2[Reco
 }
 
 // WriteCSVToWriter writes records as CSV to an io.Writer
-func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, fields []string, config ...CSVConfig) error {
+func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig) error {
 	cfg := DefaultCSVConfig()
 	if len(config) > 0 {
 		cfg = config[0]
@@ -162,6 +164,46 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, fields []string, co
 
 	csvWriter := csv.NewWriter(writer)
 	csvWriter.Comma = cfg.Delimiter
+
+	var fields []string
+	var recordsBuffer []Record
+
+	// Determine fields to write
+	if cfg.Fields != nil {
+		// Use explicitly provided fields
+		fields = cfg.Fields
+	} else {
+		// Auto-detect: materialize all records to collect unique field names
+		fieldSet := make(map[string]bool)
+		for record := range sb {
+			recordsBuffer = append(recordsBuffer, record)
+			for field := range record {
+				// Skip complex fields (iter.Seq, Record) and internal metadata fields
+				if val := record[field]; !isIterSeq(val) {
+					if _, isRecord := val.(Record); !isRecord {
+						// Skip internal metadata fields starting with underscore
+						if !strings.HasPrefix(field, "_") {
+							fieldSet[field] = true
+						}
+					}
+				}
+			}
+		}
+
+		// Sort field names alphabetically for consistent ordering
+		for field := range fieldSet {
+			fields = append(fields, field)
+		}
+
+		// Use standard library sort
+		for i := 0; i < len(fields); i++ {
+			for j := i + 1; j < len(fields); j++ {
+				if fields[i] > fields[j] {
+					fields[i], fields[j] = fields[j], fields[i]
+				}
+			}
+		}
+	}
 
 	// Write headers if enabled
 	if cfg.HasHeaders {
@@ -171,7 +213,19 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, fields []string, co
 	}
 
 	// Write data rows
-	for record := range sb {
+	dataSource := sb
+	if len(recordsBuffer) > 0 {
+		// Use buffered records if we materialized for field detection
+		dataSource = func(yield func(Record) bool) {
+			for _, record := range recordsBuffer {
+				if !yield(record) {
+					return
+				}
+			}
+		}
+	}
+
+	for record := range dataSource {
 		row := make([]string, len(fields))
 		for i, field := range fields {
 			if value, exists := record[field]; exists {
@@ -233,7 +287,7 @@ func ReadCSVSafe(filename string, config ...CSVConfig) iter.Seq2[Record, error] 
 }
 
 // WriteCSV writes records to a CSV file
-func WriteCSV(sb iter.Seq[Record], filename string, fields []string, config ...CSVConfig) error {
+func WriteCSV(sb iter.Seq[Record], filename string, config ...CSVConfig) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", filename, err)
@@ -241,7 +295,7 @@ func WriteCSV(sb iter.Seq[Record], filename string, fields []string, config ...C
 	defer file.Close()
 
 	// Use the io.Writer version
-	return WriteCSVToWriter(sb, file, fields, config...)
+	return WriteCSVToWriter(sb, file, config...)
 }
 
 // ============================================================================

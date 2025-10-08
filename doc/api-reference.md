@@ -553,9 +553,9 @@ Reads CSV from any io.Reader.
 
 #### WriteCSV
 ```go
-func WriteCSV(stream iter.Seq[Record], filename string, fields []string, config ...CSVConfig) error
+func WriteCSV(stream iter.Seq[Record], filename string, config ...CSVConfig) error
 ```
-Writes Record iterator to CSV file.
+Writes Record iterator to CSV file. Fields are auto-detected (all non-underscore, non-complex fields in alphabetical order) unless explicitly specified via config.Fields.
 
 ### JSON Operations
 

@@ -57,10 +57,9 @@ func main() {
 	fmt.Println("\n🔧 Testing WriteCSV with all iter.Seq types:")
 
 	stream := streamv3.From([]streamv3.Record{record})
-	fields := []string{"id", "title", "string_tags", "int_scores", "float_values", "bool_flags"}
 	filename := "/tmp/comprehensive_seq_test.csv"
 
-	err := streamv3.WriteCSV(stream, filename, fields)
+	err := streamv3.WriteCSV(stream, filename)
 	if err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 		return
