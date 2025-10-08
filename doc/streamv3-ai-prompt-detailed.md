@@ -42,7 +42,6 @@ import (
 - `iter.Seq[T]` / `iter.Seq2[T, error]` - Go 1.23+ lazy iterators
 - `Record` - Map-based data: `map[string]any`
 - `Filter[T, U]` - Function type: `func(iter.Seq[T]) iter.Seq[U]`
-- `GroupedRecord` - Result from GroupBy operations
 
 ## Creating Iterators
 - `slices.Values([]T)` - Create iterator from slice

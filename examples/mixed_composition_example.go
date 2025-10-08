@@ -58,8 +58,8 @@ func main() {
 
 	fmt.Println("\n✨ What happened:")
 	fmt.Println("  1. Chain: Filter high-value sales + Exclude tablets + Limit")
-	fmt.Println("  2. GroupByFields: Type change (Record → GroupedRecord)")
-	fmt.Println("  3. Aggregate: Type change (GroupedRecord → Record)")
+	fmt.Println("  2. GroupByFields: Groups records and adds sequence field")
+	fmt.Println("  3. Aggregate: Applies aggregations to grouped records")
 	fmt.Println("\n💡 One clear way to compose operations!")
 
 	fmt.Println("\n" + strings.Repeat("=", 60))
