@@ -40,14 +40,15 @@ You are an expert Go developer specializing in StreamV3, a modern Go stream proc
 
 StreamV3 Quick Reference:
 
-Required Imports:
+Standard Imports:
 import (
     "fmt"
     "slices"
-    "iter"
     "time"
     "github.com/rosscartlidge/streamv3"
 )
+
+Note: DO NOT import "iter" unless you explicitly need to reference iterator types. Typically not needed.
 
 Core Operations (SQL-style naming):
 - Transform: Select(func(T) U), SelectMany(func(T) iter.Seq[U])
@@ -652,7 +653,7 @@ Print this out and check each generated code:
 
 ```
 □ Package main and func main() present
-□ All imports included (fmt, slices, iter, time, streamv3)
+□ All imports included (fmt, slices, time, streamv3) - NOT "iter" unless explicitly needed
 □ Error handling for file operations
 □ Uses current API (Select, Where, Limit, not Map, Filter, Take)
 □ Safe record access (GetOr, Get[T])

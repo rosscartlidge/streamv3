@@ -27,16 +27,17 @@ Write code that humans can quickly read and verify - no clever tricks. Always pr
 
 # PART 1: QUICK REFERENCE
 
-## Required Imports
+## Standard Imports
 ```go
 import (
     "fmt"
     "slices"
-    "iter"
     "time"
     "github.com/rosscartlidge/streamv3"
 )
 ```
+
+**Note**: You do NOT need to import `"iter"` for typical StreamV3 usage. The `iter.Seq[T]` types are used internally, but you create iterators with `slices.Values()` and consume them with `for range`. Only import `"iter"` if you need to explicitly reference iterator types (rare).
 
 ## Core Types
 - `iter.Seq[T]` / `iter.Seq2[T, error]` - Go 1.23+ lazy iterators
