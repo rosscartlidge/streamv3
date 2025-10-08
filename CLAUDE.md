@@ -63,3 +63,4 @@ This library emphasizes functional composition with Go 1.23+ iterators while pro
 - doc_improvement
 - llm_test
 - llm_eval
+- gemini_works

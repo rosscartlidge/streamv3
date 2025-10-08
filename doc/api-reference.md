@@ -34,14 +34,87 @@
 ### Requirements
 - **Go 1.23+** (required for iterator support)
 
-### Installation
+### Step 1: Install Go
+
+If you don't have Go installed:
+
+**macOS:**
+```bash
+brew install go
+```
+
+**Linux:**
+```bash
+# Download and install Go 1.23+
+wget https://go.dev/dl/go1.23.0.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+```
+
+**Windows:**
+Download the installer from [https://go.dev/dl/](https://go.dev/dl/)
+
+**Verify installation:**
+```bash
+go version  # Should show 1.23 or higher
+```
+
+### Step 2: Create a New Project
+
+```bash
+# Create project directory
+mkdir my-streamv3-project
+cd my-streamv3-project
+
+# Initialize Go module (required for dependency management)
+go mod init myproject
+
+# Or use your GitHub path for a real project:
+# go mod init github.com/yourusername/myproject
+```
+
+### Step 3: Install StreamV3
+
 ```bash
 go get github.com/rosscartlidge/streamv3
 ```
 
-### Package Import
+This will:
+- Download StreamV3 and its dependencies
+- Update your `go.mod` file with the dependency
+- Create/update `go.sum` with checksums
+
+### Step 4: Import and Use
+
+Create a file `main.go`:
 ```go
-import "github.com/rosscartlidge/streamv3"
+package main
+
+import (
+    "fmt"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    data := streamv3.ReadCSV("data.csv")
+
+    for record := range data {
+        name := streamv3.GetOr(record, "name", "")
+        fmt.Println(name)
+    }
+}
+```
+
+### Step 5: Run Your Program
+
+```bash
+go run main.go
+```
+
+Or build an executable:
+```bash
+go build
+./my-streamv3-project  # or my-streamv3-project.exe on Windows
 ```
 
 ---
