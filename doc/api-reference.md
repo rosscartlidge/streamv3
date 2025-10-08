@@ -48,13 +48,12 @@ import "github.com/rosscartlidge/streamv3"
 
 ## Core Types
 
-### Stream[T]
-The fundamental type representing a lazy sequence of values.
+### Iterator Types
+StreamV3 uses Go 1.23+ iterators as its core abstraction:
 
 ```go
-type Stream[T] interface {
-    iter.Seq[T]
-}
+iter.Seq[T]           // Simple iterator
+iter.Seq2[T, error]   // Iterator with error handling
 ```
 
 ### Record
@@ -64,7 +63,7 @@ A flexible map-based data structure for heterogeneous data.
 type Record map[string]any
 ```
 
-**Supported value types:** `int`, `int64`, `float64`, `string`, `bool`, `time.Time`, nested `Record`, and `Stream` types.
+**Supported value types:** `int`, `int64`, `float64`, `string`, `bool`, `time.Time`, nested `Record`, and slices.
 
 ### Filter Types
 Function types for stream transformations:
@@ -88,30 +87,24 @@ type GroupedRecord struct {
 
 ---
 
-## Stream Creation
+## Creating Iterators
 
-### From[T]
+### From Slices
 ```go
-func From[T any](items []T) Stream[T]
+slices.Values([]T) iter.Seq[T]
 ```
-Creates a stream from a slice.
+Creates an iterator from a slice (standard library function).
 
 **Example:**
 ```go
-numbers := streamv3.From([]int{1, 2, 3, 4, 5})
+numbers := slices.Values([]int{1, 2, 3, 4, 5})
 ```
-
-### FromIter[T]
-```go
-func FromIter[T any](seq iter.Seq[T]) Stream[T]
-```
-Creates a stream from an iterator.
 
 ### FromChannel[T]
 ```go
-func FromChannel[T any](ch <-chan T) Stream[T]
+func FromChannel[T any](ch <-chan T) iter.Seq[T]
 ```
-Creates a stream from a channel.
+Creates an iterator from a channel.
 
 ### NewRecord
 ```go
@@ -553,9 +546,9 @@ result := pipeline(numbers)
 
 #### ReadCSV
 ```go
-func ReadCSV(filename string) (Stream[Record], error)
+func ReadCSV(filename string) iter.Seq[Record]
 ```
-Reads CSV file into Record stream.
+Reads CSV file into Record iterator. Panics on file errors.
 
 #### ReadCSVFromReader
 ```go
@@ -565,29 +558,29 @@ Reads CSV from any io.Reader.
 
 #### WriteCSV
 ```go
-func WriteCSV(stream Stream[Record], filename string, fields []string) error
+func WriteCSV(stream iter.Seq[Record], filename string, fields []string) error
 ```
-Writes Record stream to CSV file.
+Writes Record iterator to CSV file.
 
 ### JSON Operations
 
 #### ReadJSON[T]
 ```go
-func ReadJSON[T any](filename string) (Stream[T], error)
+func ReadJSON[T any](filename string) iter.Seq2[T, error]
 ```
-Reads JSON file into typed stream.
+Reads JSON file into typed iterator with error handling.
 
 #### WriteJSON[T]
 ```go
-func WriteJSON[T any](stream Stream[T], filename string) error
+func WriteJSON[T any](stream iter.Seq[T], filename string) error
 ```
-Writes stream to JSON file.
+Writes iterator to JSON file.
 
 #### WriteJSONToWriter[T]
 ```go
-func WriteJSONToWriter[T any](stream Stream[T], writer io.Writer) error
+func WriteJSONToWriter[T any](stream iter.Seq[T], writer io.Writer) error
 ```
-Writes stream to any io.Writer as JSON.
+Writes iterator to any io.Writer as JSON.
 
 ---
 
@@ -619,19 +612,19 @@ type ChartConfig struct {
 
 #### InteractiveChart
 ```go
-func InteractiveChart(data Stream[Record], filename string, config ChartConfig) error
+func InteractiveChart(data iter.Seq[Record], filename string, config ChartConfig) error
 ```
 Creates interactive HTML chart.
 
 #### TimeSeriesChart
 ```go
-func TimeSeriesChart(data Stream[Record], timeField string, valueFields []string, filename string, config ChartConfig) error
+func TimeSeriesChart(data iter.Seq[Record], timeField string, valueFields []string, filename string, config ChartConfig) error
 ```
 Creates time series chart.
 
 #### QuickChart
 ```go
-func QuickChart(data Stream[Record], filename string) error
+func QuickChart(data iter.Seq[Record], filename string) error
 ```
 Creates chart with default settings.
 

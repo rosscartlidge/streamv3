@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"iter"
 	"math"
 	"os"
 	"sort"
@@ -92,7 +93,7 @@ type NumericStat struct {
 }
 
 // InteractiveChart creates an HTML file with a fully interactive Chart.js visualization
-func InteractiveChart(sb *Stream[Record], filename string, config ...ChartConfig) error {
+func InteractiveChart(sb iter.Seq[Record], filename string, config ...ChartConfig) error {
 	cfg := DefaultChartConfig()
 	if len(config) > 0 {
 		cfg = config[0]
@@ -100,7 +101,7 @@ func InteractiveChart(sb *Stream[Record], filename string, config ...ChartConfig
 
 	// Collect all records
 	var records []Record
-	for record := range sb.Iter() {
+	for record := range sb {
 		records = append(records, record)
 	}
 	if len(records) == 0 {
@@ -115,12 +116,12 @@ func InteractiveChart(sb *Stream[Record], filename string, config ...ChartConfig
 }
 
 // QuickChart creates a simple chart with minimal configuration
-func QuickChart(sb *Stream[Record], xField, yField, filename string) error {
+func QuickChart(sb iter.Seq[Record], xField, yField, filename string) error {
 	cfg := DefaultChartConfig()
 	cfg.Title = fmt.Sprintf("%s vs %s", yField, xField)
 
 	var records []Record
-	for record := range sb.Iter() {
+	for record := range sb {
 		records = append(records, record)
 	}
 	if len(records) == 0 {
@@ -135,7 +136,7 @@ func QuickChart(sb *Stream[Record], xField, yField, filename string) error {
 }
 
 // TimeSeriesChart creates a time-based chart
-func TimeSeriesChart(sb *Stream[Record], timeField string, valueFields []string, filename string, config ...ChartConfig) error {
+func TimeSeriesChart(sb iter.Seq[Record], timeField string, valueFields []string, filename string, config ...ChartConfig) error {
 	cfg := DefaultChartConfig()
 	if len(config) > 0 {
 		cfg = config[0]
@@ -146,7 +147,7 @@ func TimeSeriesChart(sb *Stream[Record], timeField string, valueFields []string,
 	cfg.TimeFormat = "YYYY-MM-DD HH:mm:ss"
 
 	var records []Record
-	for record := range sb.Iter() {
+	for record := range sb {
 		records = append(records, record)
 	}
 	if len(records) == 0 {

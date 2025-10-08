@@ -2,6 +2,16 @@
 
 *Copy and paste this prompt into any LLM to enable StreamV3 code generation*
 
+## ⚠️ Maintenance Note
+
+**This file must be kept in sync with:**
+- Core library code - When function signatures or behavior changes
+- Common usage patterns - When best practices evolve
+
+**For comprehensive version:** See [streamv3-ai-prompt-detailed.md](streamv3-ai-prompt-detailed.md) for LLMs with large context windows (includes full API reference and extensive examples)
+
+**Last Updated:** 2025-10-09
+
 ---
 
 ## Ready-to-Use Prompt
@@ -23,10 +33,10 @@ import (
 ```
 
 ### Core Types & Creation
-- `Stream[T]` - Lazy sequence implementing `iter.Seq[T]`
+- `iter.Seq[T]` / `iter.Seq2[T, error]` - Go 1.23+ lazy iterators
 - `Record` - Map-based data: `map[string]any`
-- `streamv3.From([]T)` - Create from slice
-- `streamv3.ReadCSV("file.csv")` - Read CSV (returns `(Stream[Record], error)`)
+- `slices.Values([]T)` - Create iterator from slice
+- `streamv3.ReadCSV("file.csv")` - Read CSV (returns `iter.Seq[Record]` - panics on file errors)
 - `streamv3.NewRecord().String("key", "val").Int("num", 42).Build()` - Build records
 
 ### Core Operations (SQL-style naming)
@@ -49,6 +59,8 @@ import (
 - `streamv3.Count()`, `streamv3.Sum("field")`, `streamv3.Avg("field")`
 - `streamv3.Min[T]("field")`, `streamv3.Max[T]("field")`
 - `streamv3.First("field")`, `streamv3.Last("field")`, `streamv3.Collect("field")`
+
+**Important**: After `Aggregate()`, grouping fields retain their original names (e.g., grouping by "region" keeps field "region")
 
 ### Join Predicates
 - `streamv3.OnFields("field1", "field2", ...)` - Join on field equality
@@ -112,16 +124,31 @@ top10Regions := streamv3.Limit[streamv3.Record](10)(sortedByRevenue)
 
 ## Common Patterns
 
-### CSV Analysis
+### CSV Analysis with Filtering on Aggregated Results
 ```go
-data, err := streamv3.ReadCSV("file.csv")
-if err != nil { panic(err) }
+// Read sales data and find regions with total sales over $500
+data := streamv3.ReadCSV("sales.csv")
 
-grouped := streamv3.GroupByFields("analysis", "category")(data)
-aggregated := streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
-    "total": streamv3.Sum("amount"),
-    "count": streamv3.Count(),
+// Group all sales by region
+grouped := streamv3.GroupByFields("regional_analysis", "region")(data)
+
+// Calculate total sales per region
+regionTotals := streamv3.Aggregate("regional_analysis", map[string]streamv3.AggregateFunc{
+    "total_sales": streamv3.Sum("amount"),
 })(grouped)
+
+// Filter for regions with totals over $500
+highValueRegions := streamv3.Where(func(r streamv3.Record) bool {
+    total := streamv3.GetOr(r, "total_sales", 0.0)
+    return total > 500
+})(regionTotals)
+
+// Display results
+for result := range highValueRegions {
+    region := streamv3.GetOr(result, "region", "Unknown") // Original field name preserved
+    total := streamv3.GetOr(result, "total_sales", 0.0)
+    fmt.Printf("- %s: $%.2f\n", region, total)
+}
 ```
 
 ### Real-time Processing
