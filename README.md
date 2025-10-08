@@ -42,11 +42,27 @@ streamv3.QuickChart(data, "month", "revenue", "chart.html")  // One line = full 
 
 ## 🚀 Quick Start
 
+### Prerequisites
+- **Go 1.23+** required for iterator support
+
+**Don't have Go installed?**
+- macOS: `brew install go`
+- Linux/Windows: [Download from go.dev](https://go.dev/dl/)
+- Verify: `go version` (should show 1.23+)
+
 ### Installation
+
+**Step 1: Create a new project**
+```bash
+mkdir my-project
+cd my-project
+go mod init myproject  # Initialize Go module (required!)
+```
+
+**Step 2: Install StreamV3**
 ```bash
 go get github.com/rosscartlidge/streamv3
 ```
-*Requires Go 1.23+ for iterator support*
 
 ### Hello StreamV3
 ```go
