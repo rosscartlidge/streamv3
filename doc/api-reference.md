@@ -11,7 +11,7 @@
 ### API Reference Sections
 - [Installation & Setup](#installation--setup)
 - [Core Types](#core-types)
-- [Stream Creation](#stream-creation)
+- [Creating Iterators](#creating-iterators)
 - [Transform Operations](#transform-operations)
 - [Filter Operations](#filter-operations)
 - [Limiting & Pagination](#limiting--pagination)
