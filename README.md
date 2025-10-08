@@ -9,17 +9,17 @@ Built on Go 1.23+ with first-class support for iterators, generics, and function
 ### 🎯 **Simple Yet Powerful**
 ```go
 // Read data, filter, group, and visualize - all type-safe
-sales, _ := streamv3.ReadCSV("sales.csv")
+sales := streamv3.ReadCSV("sales.csv")
 
 topRegions := streamv3.Limit[streamv3.Record](5)(
     streamv3.SortBy(func(r streamv3.Record) float64 {
-        return -streamv3.GetOr(r, "revenue", 0.0) // Descending
+        return -streamv3.GetOr(r, "total_revenue", 0.0) // Descending
     })(streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
         "total_revenue": streamv3.Sum("amount"),
     })(streamv3.GroupByFields("sales", "region")(sales)))
 )
 
-streamv3.QuickChart(topRegions, "top_regions.html")
+streamv3.QuickChart(topRegions, "region", "total_revenue", "top_regions.html")
 ```
 
 ### 🤖 **AI-Powered Code Generation**
@@ -35,7 +35,7 @@ Describe what you want in plain English, get working StreamV3 code:
 Create modern, responsive charts with zoom, pan, and filtering capabilities:
 
 ```go
-streamv3.QuickChart(data, "chart.html")  // One line = full dashboard
+streamv3.QuickChart(data, "month", "revenue", "chart.html")  // One line = full dashboard
 ```
 
 [**See Chart Examples →**](doc/chart_examples/)
@@ -58,7 +58,7 @@ import (
 )
 
 func main() {
-    numbers := streamv3.From([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+    numbers := slices.Values([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 
     evenNumbers := streamv3.Where(func(x int) bool {
         return x%2 == 0
@@ -82,10 +82,10 @@ monthlyRevenue := []streamv3.Record{
     streamv3.NewRecord().String("month", "Mar").Float("revenue", 118000).Build(),
 }
 
-data := streamv3.From(monthlyRevenue)
+data := slices.Values(monthlyRevenue)
 
 // Generate interactive chart
-streamv3.QuickChart(data, "revenue_chart.html")
+streamv3.QuickChart(data, "month", "revenue", "revenue_chart.html")
 // Opens in browser with zoom, pan, and export features
 ```
 

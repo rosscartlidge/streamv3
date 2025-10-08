@@ -100,11 +100,17 @@ Creates an iterator from a slice (standard library function).
 numbers := slices.Values([]int{1, 2, 3, 4, 5})
 ```
 
-### FromChannel[T]
+### ToChannel[T]
 ```go
-func FromChannel[T any](ch <-chan T) iter.Seq[T]
+func ToChannel[T any](sb iter.Seq[T]) <-chan T
 ```
-Creates an iterator from a channel.
+Converts an iterator to a channel.
+
+### FromChannelSafe[T]
+```go
+func FromChannelSafe[T any](itemCh <-chan T, errCh <-chan error) iter.Seq2[T, error]
+```
+Creates an iterator from separate item and error channels.
 
 ### NewRecord
 ```go
@@ -546,41 +552,41 @@ result := pipeline(numbers)
 
 #### ReadCSV
 ```go
-func ReadCSV(filename string) iter.Seq[Record]
+func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record]
 ```
 Reads CSV file into Record iterator. Panics on file errors.
 
 #### ReadCSVFromReader
 ```go
-func ReadCSVFromReader(reader io.Reader) iter.Seq[Record]
+func ReadCSVFromReader(reader io.Reader, config ...CSVConfig) iter.Seq[Record]
 ```
 Reads CSV from any io.Reader.
 
 #### WriteCSV
 ```go
-func WriteCSV(stream iter.Seq[Record], filename string, fields []string) error
+func WriteCSV(stream iter.Seq[Record], filename string, fields []string, config ...CSVConfig) error
 ```
 Writes Record iterator to CSV file.
 
 ### JSON Operations
 
-#### ReadJSON[T]
+#### ReadJSON
 ```go
-func ReadJSON[T any](filename string) iter.Seq2[T, error]
+func ReadJSON(filename string) iter.Seq[Record]
 ```
-Reads JSON file into typed iterator with error handling.
+Reads JSON file into Record iterator. Panics on file errors.
 
-#### WriteJSON[T]
+#### WriteJSON
 ```go
-func WriteJSON[T any](stream iter.Seq[T], filename string) error
+func WriteJSON(stream iter.Seq[Record], filename string) error
 ```
-Writes iterator to JSON file.
+Writes Record iterator to JSON file.
 
-#### WriteJSONToWriter[T]
+#### WriteJSONToWriter
 ```go
-func WriteJSONToWriter[T any](stream iter.Seq[T], writer io.Writer) error
+func WriteJSONToWriter(stream iter.Seq[Record], writer io.Writer) error
 ```
-Writes iterator to any io.Writer as JSON.
+Writes Record iterator to any io.Writer as JSON.
 
 ---
 
@@ -612,21 +618,21 @@ type ChartConfig struct {
 
 #### InteractiveChart
 ```go
-func InteractiveChart(data iter.Seq[Record], filename string, config ChartConfig) error
+func InteractiveChart(data iter.Seq[Record], filename string, config ...ChartConfig) error
 ```
 Creates interactive HTML chart.
 
 #### TimeSeriesChart
 ```go
-func TimeSeriesChart(data iter.Seq[Record], timeField string, valueFields []string, filename string, config ChartConfig) error
+func TimeSeriesChart(data iter.Seq[Record], timeField string, valueFields []string, filename string, config ...ChartConfig) error
 ```
 Creates time series chart.
 
 #### QuickChart
 ```go
-func QuickChart(data iter.Seq[Record], filename string) error
+func QuickChart(data iter.Seq[Record], xField, yField, filename string) error
 ```
-Creates chart with default settings.
+Creates chart with default settings using specified X and Y fields.
 
 **Example:**
 ```go
