@@ -197,7 +197,7 @@ Example: "Join customers.csv with orders.csv on customer_id, find high-value cus
 
 **Request:**
 ```
-"Read employee data, find all employees in Engineering department with salary > $80,000, show count by location"
+"Read employee data from employees.csv, group by department and location, count employees in each group, then filter to show only groups with more than 5 employees"
 ```
 
 **Expected Output:**
@@ -211,33 +211,29 @@ import (
 
 func main() {
     // Read employee data
-    employees := streamv3.ReadCSV("employee_data.csv")
+    employees := streamv3.ReadCSV("employees.csv")
 
-    // Filter for Engineering department
-    engineeringEmployees := streamv3.Where(func(r streamv3.Record) bool {
-        dept := streamv3.GetOr(r, "department", "")
-        return dept == "Engineering"
-    })(employees)
+    // Group by department and location
+    grouped := streamv3.GroupByFields("dept_location_analysis", "department", "location")(employees)
 
-    // Filter for high salary
-    highSalaryEngineers := streamv3.Where(func(r streamv3.Record) bool {
-        salary := streamv3.GetOr(r, "salary", 0.0)
-        return salary > 80000
-    })(engineeringEmployees)
-
-    // Group by location and count
-    groupedByLocation := streamv3.GroupByFields("location_analysis", "location")(highSalaryEngineers)
-
-    locationCounts := streamv3.Aggregate("location_analysis", map[string]streamv3.AggregateFunc{
+    // Count employees in each group
+    employeeCounts := streamv3.Aggregate("dept_location_analysis", map[string]streamv3.AggregateFunc{
         "employee_count": streamv3.Count(),
-    })(groupedByLocation)
+    })(grouped)
+
+    // Filter to show only groups with more than 5 employees
+    largeGroups := streamv3.Where(func(r streamv3.Record) bool {
+        count := streamv3.GetOr(r, "employee_count", int64(0))
+        return count > 5
+    })(employeeCounts)
 
     // Display results
-    fmt.Println("High-salary Engineering employees by location:")
-    for result := range locationCounts {
-        location := streamv3.GetOr(result, "GroupValue", "")
-        count := streamv3.GetOr(result, "employee_count", 0)
-        fmt.Printf("%s: %d employees\n", location, count)
+    fmt.Println("Department/Location groups with more than 5 employees:")
+    for result := range largeGroups {
+        dept := streamv3.GetOr(result, "department", "")
+        location := streamv3.GetOr(result, "location", "")
+        count := streamv3.GetOr(result, "employee_count", int64(0))
+        fmt.Printf("%s - %s: %d employees\n", dept, location, count)
     }
 }
 ```
