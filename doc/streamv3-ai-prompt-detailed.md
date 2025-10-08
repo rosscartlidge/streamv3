@@ -46,8 +46,9 @@ import (
 
 ## Creating Iterators
 - `slices.Values([]T)` - Create iterator from slice
-- `streamv3.ReadCSV("file.csv")` - Read CSV (returns `iter.Seq[Record]` - panics on file errors)
-- `streamv3.FromChannel(<-chan T)` - Create from channel
+- `streamv3.ReadCSV("file.csv", config...)` - Read CSV (returns `iter.Seq[Record]` - panics on file errors)
+- `streamv3.ToChannel[T](iter.Seq[T])` - Convert iterator to channel
+- `streamv3.FromChannelSafe[T](itemCh, errCh)` - Create iterator from channels
 - `streamv3.NewRecord().String("key", "val").Int("num", 42).Build()` - Build records
 
 ## Core Operations (SQL-style naming)
@@ -78,9 +79,9 @@ import (
 - `streamv3.OnCondition(func(left, right Record) bool)` - Custom join condition
 
 ## Charts & Visualization
-- `streamv3.QuickChart(data, "output.html")` - Simple chart with defaults
-- `streamv3.InteractiveChart(data, "file.html", config)` - Custom interactive chart
-- `streamv3.TimeSeriesChart(data, timeField, valueFields, filename, config)` - Time series charts
+- `streamv3.QuickChart(data, xField, yField, "output.html")` - Simple chart with X and Y fields
+- `streamv3.InteractiveChart(data, "file.html", config...)` - Custom interactive chart
+- `streamv3.TimeSeriesChart(data, timeField, valueFields, filename, config...)` - Time series charts
 
 ---
 
@@ -427,41 +428,41 @@ results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 
 ### ReadCSV
 ```go
-func ReadCSV(filename string) iter.Seq[Record]
+func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record]
 ```
 Reads CSV file into Record iterator. Panics on file errors.
 
 ### WriteCSV
 ```go
-func WriteCSV(stream iter.Seq[Record], filename string, fields []string) error
+func WriteCSV(stream iter.Seq[Record], filename string, fields []string, config ...CSVConfig) error
 ```
 Writes Record iterator to CSV file.
 
-### ReadJSON[T]
+### ReadJSON
 ```go
-func ReadJSON[T any](filename string) iter.Seq2[T, error]
+func ReadJSON(filename string) iter.Seq[Record]
 ```
-Reads JSON file into typed iterator with error handling.
+Reads JSON file into Record iterator. Panics on file errors.
 
-### WriteJSON[T]
+### WriteJSON
 ```go
-func WriteJSON[T any](stream iter.Seq[T], filename string) error
+func WriteJSON(stream iter.Seq[Record], filename string) error
 ```
-Writes iterator to JSON file.
+Writes Record iterator to JSON file.
 
 ## Chart & Visualization
 
 ### InteractiveChart
 ```go
-func InteractiveChart(data iter.Seq[Record], filename string, config ChartConfig) error
+func InteractiveChart(data iter.Seq[Record], filename string, config ...ChartConfig) error
 ```
 Creates interactive HTML chart with Chart.js.
 
 ### QuickChart
 ```go
-func QuickChart(data iter.Seq[Record], filename string) error
+func QuickChart(data iter.Seq[Record], xField, yField, filename string) error
 ```
-Creates chart with default settings.
+Creates chart with default settings using specified X and Y fields.
 
 **Example:**
 ```go

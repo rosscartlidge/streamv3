@@ -210,10 +210,7 @@ import (
 
 func main() {
     // Read employee data
-    employees, err := streamv3.ReadCSV("employee_data.csv")
-    if err != nil {
-        panic(err)
-    }
+    employees := streamv3.ReadCSV("employee_data.csv")
 
     // Filter for Engineering department
     engineeringEmployees := streamv3.Where(func(r streamv3.Record) bool {
@@ -307,16 +304,13 @@ result := streamv3.Filter(fn)(data)   // Should be Where
 result := streamv3.Take(10)(data)     // Should be Limit
 ```
 
-#### ❌ **Missing Error Handling**
+#### ❌ **Unsafe Record Access**
 ```go
-// Wrong - no error handling
-data := streamv3.ReadCSV("file.csv")  // Should check error
+// Wrong - direct map access could panic
+name := record["name"].(string)
 
-// Correct
-data, err := streamv3.ReadCSV("file.csv")
-if err != nil {
-    panic(err)
-}
+// Correct - use GetOr for safe access
+name := streamv3.GetOr(record, "name", "")
 ```
 
 #### ❌ **Unsafe Record Access**
@@ -492,10 +486,7 @@ Show the LLM what good code looks like:
 >
 > ```go
 > // Read and filter data
-> salesData, err := streamv3.ReadCSV("sales.csv")
-> if err != nil {
->     panic(err)
-> }
+> salesData := streamv3.ReadCSV("sales.csv")
 >
 > highValueSales := streamv3.Where(func(r streamv3.Record) bool {
 >     amount := streamv3.GetOr(r, "amount", 0.0)
