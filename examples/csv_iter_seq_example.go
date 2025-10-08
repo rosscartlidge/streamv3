@@ -49,13 +49,11 @@ func main() {
 	stream := streamv3.From(records)
 
 	// Try to write CSV including the iter.Seq field
-	fields := []string{"id", "title", "tags"}
 	filename := "/tmp/test_with_iterseq.csv"
 
 	fmt.Printf("Writing to: %s\n", filename)
-	fmt.Printf("Fields: %v\n", fields)
 
-	err := streamv3.WriteCSV(stream, filename, fields)
+	err := streamv3.WriteCSV(stream, filename)
 	if err != nil {
 		fmt.Printf("❌ Error writing CSV: %v\n", err)
 		return

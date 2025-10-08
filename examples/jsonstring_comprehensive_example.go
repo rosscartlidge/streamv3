@@ -134,7 +134,7 @@ func main() {
 
 	// Test CSV output
 	csvStream := streamv3.From([]streamv3.Record{recordWithJSON})
-	err := streamv3.WriteCSV(csvStream, "/tmp/jsonstring_test.csv", []string{"id", "user_data", "test_scores"})
+	err := streamv3.WriteCSV(csvStream, "/tmp/jsonstring_test.csv")
 	if err != nil {
 		fmt.Printf("❌ CSV Error: %v\n", err)
 	} else {

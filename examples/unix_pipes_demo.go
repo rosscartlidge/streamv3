@@ -64,9 +64,8 @@ func main() {
 
 	// Write CSV to a file
 	csvFile := "/tmp/demo_data.csv"
-	fields := []string{"id", "name", "age", "score"}
 
-	err := streamv3.WriteCSV(streamv3.From(sampleData), csvFile, fields)
+	err := streamv3.WriteCSV(streamv3.From(sampleData), csvFile)
 	if err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 		return
