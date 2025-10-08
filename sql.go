@@ -228,13 +228,6 @@ func OnCondition(condition func(left, right Record) bool) JoinPredicate {
 // GROUPBY OPERATIONS
 // ============================================================================
 
-// GroupedRecord represents a group of records with a key and grouping fields
-type GroupedRecord struct {
-	Key           any
-	GroupingFields Record  // The original field values that defined this group
-	Records       []Record
-}
-
 // GroupBy groups records by a key extraction function
 func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) FilterSameType[Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {

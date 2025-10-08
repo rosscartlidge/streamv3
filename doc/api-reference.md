@@ -74,17 +74,6 @@ type FilterSameType[T any] func(iter.Seq[T]) iter.Seq[T]
 type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
 ```
 
-### GroupedRecord
-Result type from GroupBy operations:
-
-```go
-type GroupedRecord struct {
-    GroupKey   string
-    GroupValue any
-    Records    []Record
-}
-```
-
 ---
 
 ## Creating Iterators
