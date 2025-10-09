@@ -844,15 +844,22 @@ func main() {
 
 StreamV3 provides both safe and unsafe versions of operations:
 
-- **Regular functions**: Panic on errors (fail-fast approach)
-- **Safe functions**: Return errors via `iter.Seq2[T, error]`
+- **Regular functions**: Use `iter.Seq[T]` - clean, simple iterators
+- **Safe functions**: Use `iter.Seq2[T, error]` - error-aware iterators
+
+## Safe vs Unsafe Operations
+
+Only operations with fallible user callbacks have Safe versions:
+- `Select/SelectSafe` - transformation function might fail
+- `Where/WhereSafe` - predicate function might fail
+- `Limit/LimitSafe`, `Offset/OffsetSafe` - error propagation
 
 **Example:**
 ```go
-// Unsafe - panics on error
+// Unsafe - simple iterator, panics on error
 result := streamv3.Select(transform)(data)
 
-// Safe - handles errors
+// Safe - error-aware iterator
 safeResult := streamv3.SelectSafe(safeTransform)(dataWithErrors)
 for value, err := range safeResult {
     if err != nil {
@@ -861,6 +868,179 @@ for value, err := range safeResult {
     }
     // Process value
 }
+```
+
+## Mixing Safe and Unsafe Filters
+
+StreamV3 provides three conversion utilities for mixing error-aware and simple iterators:
+
+### Conversion Utilities
+
+```go
+// Safe() - Convert simple to error-aware (never errors)
+func Safe[T any](seq iter.Seq[T]) iter.Seq2[T, error]
+
+// Unsafe() - Convert error-aware to simple (panics on errors)
+func Unsafe[T any](seq iter.Seq2[T, error]) iter.Seq[T]
+
+// IgnoreErrors() - Convert error-aware to simple (skips errors)
+func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T]
+```
+
+### Pattern 1: Normal → Safe → Normal (Best-Effort)
+
+Start with normal data, add error handling for risky operations, then continue with normal processing:
+
+```go
+// Start with normal data
+transactions := streamv3.ReadCSV("data.csv")
+
+// Apply normal filter
+filtered := streamv3.Where(func(r streamv3.Record) bool {
+    return streamv3.GetOr(r, "id", "") != ""
+})(transactions)
+
+// Convert to Safe for error-prone parsing
+safeStream := streamv3.Safe(filtered)
+
+// Use Safe filter for parsing
+parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+    amountStr := streamv3.GetOr(r, "amount_str", "")
+    amount, err := strconv.ParseFloat(amountStr, 64)
+    if err != nil {
+        return streamv3.Record{}, fmt.Errorf("invalid amount: %s", amountStr)
+    }
+    return streamv3.NewRecord().
+        String("id", streamv3.GetOr(r, "id", "")).
+        Float("amount", amount).
+        Build(), nil
+})(safeStream)
+
+// Convert back to normal, ignoring parse errors
+cleanData := streamv3.IgnoreErrors(parsed)
+
+// Continue with normal filters
+final := streamv3.Where(func(r streamv3.Record) bool {
+    return streamv3.GetOr(r, "amount", 0.0) > 100.0
+})(cleanData)
+```
+
+### Pattern 2: I/O with Safe, Processing with Normal
+
+Use Safe for I/O operations, then convert to normal for fast processing:
+
+```go
+// Read CSV with Safe version
+csvStream := streamv3.ReadCSVSafe("data.csv")
+
+// Validate with Safe filter
+validated := streamv3.WhereSafe(func(r streamv3.Record) (bool, error) {
+    // Note: CSV parsing auto-converts "25" → int64(25)
+    age, ok := streamv3.Get[int64](r, "age")
+    if !ok {
+        return false, fmt.Errorf("invalid age")
+    }
+    return age >= 18, nil
+})(csvStream)
+
+// Convert to normal for fast processing
+normalStream := streamv3.IgnoreErrors(validated)
+
+// Process with normal filters
+final := streamv3.SortBy(func(r streamv3.Record) string {
+    return streamv3.GetOr(r, "name", "")
+})(normalStream)
+```
+
+### Pattern 3: Fail-Fast with Unsafe
+
+Use Unsafe when errors are critical and must stop processing:
+
+```go
+// Read with Safe
+csvStream := streamv3.ReadCSVSafe("critical_data.csv")
+
+// Validate with Safe
+validated := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+    balance, ok := streamv3.Get[float64](r, "balance")
+    if !ok {
+        return streamv3.Record{}, fmt.Errorf("invalid balance")
+    }
+    return streamv3.NewRecord().Float("balance", balance).Build(), nil
+})(csvStream)
+
+// Convert to Unsafe - will panic on any error
+unsafeStream := streamv3.Unsafe(validated)
+
+// Process - panics on first error
+for record := range unsafeStream {
+    // Critical processing
+}
+```
+
+### Pattern 4: Best-Effort with IgnoreErrors
+
+Process multiple data sources, skipping invalid records:
+
+```go
+// Read from multiple sources
+csvStream := streamv3.ReadCSVSafe("messy_data.csv")
+
+// Parse with Safe (some records will have errors)
+parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+    price, ok := streamv3.Get[float64](r, "price")
+    if !ok {
+        return streamv3.Record{}, fmt.Errorf("invalid price")
+    }
+    return streamv3.NewRecord().Float("price", price).Build(), nil
+})(csvStream)
+
+// Skip errors, collect valid records
+validRecords := streamv3.IgnoreErrors(parsed)
+
+// Process valid data
+for record := range validRecords {
+    // Process only valid records
+}
+```
+
+### When to Use Each Conversion
+
+**Use `Safe()`:**
+- Before error-prone operations (parsing, validation)
+- When entering error-aware processing
+- Before I/O operations with error handling
+
+**Use `Unsafe()`:**
+- After validation when errors should not occur
+- Fail-fast scenarios where errors are critical
+- When partial results are unacceptable
+
+**Use `IgnoreErrors()`:**
+- Best-effort processing of messy data
+- ETL pipelines where some failures are acceptable
+- Collecting statistics where partial data is useful
+- Processing multiple data sources
+
+### Important: CSV Auto-Parsing
+
+StreamV3's CSV reader automatically converts numeric strings:
+- `"25"` → `int64(25)`
+- `"999.99"` → `float64(999.99)`
+- `"invalid"` → `string("invalid")`
+
+When validating CSV data, use `Get[T]()` with the expected type:
+
+```go
+// ✅ Correct - handles auto-parsed values
+age, ok := streamv3.Get[int64](r, "age")
+if !ok {
+    return false, fmt.Errorf("invalid age")
+}
+
+// ❌ Wrong - tries to parse already-parsed value
+ageStr := streamv3.GetOr(r, "age", "")
+age, err := strconv.Atoi(ageStr)  // Fails!
 ```
 
 ---
