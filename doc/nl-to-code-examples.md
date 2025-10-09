@@ -25,10 +25,7 @@ import (
 
 func main() {
     // Read employee data
-    employees, err := streamv3.ReadCSV("employees.csv")
-    if err != nil {
-        panic(err)
-    }
+    employees := streamv3.ReadCSV("employees.csv")
 
     // Filter for high salary employees
     highSalaryEmployees := streamv3.Where(func(r streamv3.Record) bool {
@@ -69,10 +66,7 @@ import (
 
 func main() {
     // Read sales data
-    sales, err := streamv3.ReadCSV("sales.csv")
-    if err != nil {
-        panic(err)
-    }
+    sales := streamv3.ReadCSV("sales.csv")
 
     // Group by product
     grouped := streamv3.GroupByFields("product_analysis", "product_name")(sales)
@@ -116,10 +110,7 @@ import (
 
 func main() {
     // Read traffic data
-    traffic, err := streamv3.ReadCSV("traffic.csv")
-    if err != nil {
-        panic(err)
-    }
+    traffic := streamv3.ReadCSV("traffic.csv")
 
     // Sort by date to ensure proper time series
     sortedTraffic := streamv3.SortBy(func(r streamv3.Record) string {
@@ -186,10 +177,7 @@ import (
 
 func main() {
     // Read customer data
-    customers, err := streamv3.ReadCSV("customers.csv")
-    if err != nil {
-        panic(err)
-    }
+    customers := streamv3.ReadCSV("customers.csv")
 
     // Add customer tier based on total purchases
     enrichedCustomers := streamv3.Select(func(r streamv3.Record) streamv3.Record {
@@ -242,10 +230,7 @@ import (
 
 func main() {
     // Read product data
-    products, err := streamv3.ReadCSV("products.csv")
-    if err != nil {
-        panic(err)
-    }
+    products := streamv3.ReadCSV("products.csv")
 
     // Filter out invalid products
     validProducts := streamv3.Where(func(r streamv3.Record) bool {
@@ -642,10 +627,7 @@ import (
 
 func main() {
     // Read sales data
-    sales, err := streamv3.ReadCSV("monthly_sales.csv")
-    if err != nil {
-        panic(err)
-    }
+    sales := streamv3.ReadCSV("monthly_sales.csv")
 
     // Group by month and category
     grouped := streamv3.GroupByFields("monthly_analysis", "month", "category")(sales)
@@ -701,10 +683,7 @@ import (
 
 func main() {
     // Read API performance data
-    apiLogs, err := streamv3.ReadCSV("api_performance.csv")
-    if err != nil {
-        panic(err)
-    }
+    apiLogs := streamv3.ReadCSV("api_performance.csv")
 
     // Group by endpoint
     grouped := streamv3.GroupByFields("endpoint_analysis", "endpoint")(apiLogs)
@@ -790,10 +769,7 @@ import (
 
 func main() {
     // Read transaction data
-    transactions, err := streamv3.ReadCSV("transactions.csv")
-    if err != nil {
-        panic(err)
-    }
+    transactions := streamv3.ReadCSV("transactions.csv")
 
     // Step 1: Filter for high-value transactions (>$1000)
     highValueTxns := streamv3.Where(func(r streamv3.Record) bool {
@@ -957,7 +933,7 @@ func uniqueStrings(strings []string) []string {
 
 ```go
 // Basic Analysis Pipeline
-data, err := streamv3.ReadCSV("file.csv")
+data := streamv3.ReadCSV("file.csv")
 filtered := streamv3.Where(predicate)(data)
 grouped := streamv3.GroupByFields("analysis", "field")(filtered)
 results := streamv3.Aggregate("analysis", aggregations)(grouped)
