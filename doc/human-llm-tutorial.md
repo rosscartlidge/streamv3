@@ -10,6 +10,7 @@ This tutorial teaches you how to effectively communicate with Large Language Mod
 
 - [Quick Start](#quick-start)
 - [Setting Up Your LLM](#setting-up-your-llm)
+- [Interactive Development with CLI Tools](#interactive-development-with-cli-tools)
 - [Writing Effective Requests](#writing-effective-requests)
 - [Common Request Patterns](#common-request-patterns)
 - [Verifying Generated Code](#verifying-generated-code)
@@ -134,6 +135,345 @@ Use: Select() not Map(), Where() not Filter(), Limit() not Take().
 Always include imports and error handling.
 Keep code simple and human-readable - no complex chaining.
 ```
+
+---
+
+## Interactive Development with CLI Tools
+
+For the most powerful StreamV3 development experience, use LLM CLI tools that can **run and iterate on code** for you. These tools provide an interactive coding assistant that can generate, execute, debug, and refine StreamV3 code in real-time.
+
+### Claude Code (Recommended)
+
+**What it is**: An official CLI from Anthropic that combines Claude's intelligence with direct access to your filesystem and the ability to run commands.
+
+**Installation**:
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**Usage for StreamV3**:
+```bash
+# Start Claude Code in your project directory
+cd my-streamv3-project
+claude-code
+
+# The assistant already knows about StreamV3 if it's in your project!
+```
+
+**Example Interactive Session**:
+```
+You: "Read sales.csv, filter for sales over $500, group by region, show top 5"
+
+Claude Code:
+- Generates the code
+- Creates main.go file
+- Runs it with `go run main.go`
+- Shows you the output
+- If there are errors, automatically fixes them
+
+You: "Great! Now add a chart visualization"
+
+Claude Code:
+- Updates the code with chart generation
+- Runs it again
+- Opens the chart in your browser
+- Iterates until it's perfect
+```
+
+**Why it's powerful**:
+- ✅ **Automatic iteration**: Fixes compilation errors and runtime issues
+- ✅ **File awareness**: Knows your CSV structure by reading the file
+- ✅ **Runs code**: Actually executes and tests the code
+- ✅ **Context aware**: Remembers your project structure and previous conversations
+- ✅ **StreamV3 knowledge**: Has access to StreamV3 documentation via CLAUDE.md
+
+**Best practices with Claude Code**:
+```
+✅ "Read my sales.csv file and tell me what fields are available"
+   → Claude Code will read the file and show you the structure
+
+✅ "Create a StreamV3 pipeline to analyze this data"
+   → Generates, runs, and iterates until it works
+
+✅ "The chart isn't showing correctly - can you fix it?"
+   → Claude Code will read the generated HTML, identify issues, and fix them
+
+✅ "Now do the same analysis but for products instead of regions"
+   → Quick iteration on working code
+```
+
+### Gemini CLI (Google)
+
+**Installation**:
+```bash
+# Install Gemini CLI (check current installation method)
+npm install -g @google/generative-ai-cli
+```
+
+**Usage**:
+```bash
+gemini-cli
+
+# Copy the StreamV3 prompt as your first message
+# Then start requesting code
+```
+
+**Advantages**:
+- Good for quick iterations
+- Fast response times
+- Multi-modal capabilities (can read images if you have chart screenshots)
+
+### GitHub Copilot CLI
+
+**Installation**:
+```bash
+gh extension install github/gh-copilot
+```
+
+**Usage**:
+```bash
+gh copilot suggest "create streamv3 pipeline to analyze sales data"
+```
+
+**Advantages**:
+- Integrates with GitHub workflow
+- Good for command-line operations
+- Can suggest both code and terminal commands
+
+### Aider (Local Development)
+
+**What it is**: An AI pair programmer that works with your local editor and can use various LLM backends.
+
+**Installation**:
+```bash
+pip install aider-chat
+```
+
+**Usage**:
+```bash
+cd my-streamv3-project
+aider
+
+# In aider:
+/add main.go
+"Create a StreamV3 pipeline to process sales data"
+```
+
+**Advantages**:
+- Works with multiple LLM backends (GPT-4, Claude, local models)
+- Git integration - automatically commits working code
+- Can edit existing files intelligently
+
+### Interactive Development Workflow
+
+Here's a complete workflow using Claude Code or similar tools:
+
+#### Step 1: Project Setup
+```bash
+mkdir my-analysis
+cd my-analysis
+go mod init my-analysis
+go get github.com/rosscartlidge/streamv3
+
+# Start Claude Code
+claude-code
+```
+
+#### Step 2: Explore Your Data
+```
+You: "I have a file called sales.csv. Can you read it and show me what fields are in it?"
+
+Claude Code:
+- Reads sales.csv
+- Shows you the CSV structure
+- Suggests relevant StreamV3 operations
+```
+
+#### Step 3: Generate Initial Pipeline
+```
+You: "Create a StreamV3 pipeline that:
+1. Reads sales.csv
+2. Filters for amounts over $500
+3. Groups by region and product
+4. Calculates total revenue and count
+5. Shows the top 10 by revenue"
+
+Claude Code:
+- Generates complete Go program
+- Saves it to main.go
+- Runs `go run main.go`
+- Shows you the output
+```
+
+#### Step 4: Iterate and Refine
+```
+You: "The output looks good but I also want to see the average sale amount per region"
+
+Claude Code:
+- Updates the aggregation
+- Reruns the code
+- Shows updated results
+
+You: "Perfect! Now create a bar chart of the top 10 regions"
+
+Claude Code:
+- Adds chart generation
+- Runs the code
+- Chart opens in your browser
+- You see the visualization
+
+You: "Can you change it to a horizontal bar chart and use a dark theme?"
+
+Claude Code:
+- Updates chart configuration
+- Regenerates the chart
+- Shows the improved visualization
+```
+
+#### Step 5: Handle Edge Cases
+```
+You: "What if the CSV file doesn't exist?"
+
+Claude Code:
+- Adds error handling
+- Shows you the updated code
+- Explains the error handling approach
+```
+
+### Comparison: Web LLMs vs CLI Tools
+
+| Feature | Web LLMs (Claude.ai, ChatGPT) | CLI Tools (Claude Code, Aider) |
+|---------|-------------------------------|--------------------------------|
+| **Code Generation** | ✅ Excellent | ✅ Excellent |
+| **File Access** | ❌ None | ✅ Can read your files |
+| **Code Execution** | ❌ Manual | ✅ Automatic |
+| **Error Fixing** | 🔶 Manual iteration | ✅ Automatic iteration |
+| **Context Awareness** | 🔶 Limited | ✅ Full project context |
+| **Chart Viewing** | ❌ Manual | ✅ Opens automatically |
+| **Learning Curve** | ✅ Easy | 🔶 Moderate |
+| **Best For** | Learning, planning | Development, production |
+
+### Tips for Interactive CLI Development
+
+**1. Start with exploration**:
+```
+"Read my data files and tell me what you see"
+"What fields are available in customers.csv?"
+"Show me the first few records"
+```
+
+**2. Build incrementally**:
+```
+"First, just read and filter the data"
+→ Works? Good!
+"Now add grouping and aggregation"
+→ Works? Great!
+"Now add the chart"
+→ Perfect!
+```
+
+**3. Let the tool iterate**:
+```
+❌ Don't: "Generate code" → copy → paste → run → find errors → ask for fix
+✅ Do: "Create a pipeline to analyze sales" → tool generates, runs, and fixes automatically
+```
+
+**4. Use specific file references**:
+```
+✅ "Read data from sales.csv in the data/ directory"
+✅ "The CSV has columns: date, amount, region, product"
+❌ "Read some sales data"
+```
+
+**5. Ask for improvements**:
+```
+"The code works but it's a bit slow with large files - can you optimize it?"
+"Can you add progress indicators?"
+"Add logging so I can see what's happening at each step"
+```
+
+### Example: Complete Interactive Session
+
+```bash
+$ claude-code
+
+You: "I want to analyze monthly sales trends. I have sales_2024.csv with columns:
+date, product_id, quantity, unit_price, total_amount, region"
+
+Claude Code:
+✓ Read sales_2024.csv
+✓ Detected 15,234 records
+✓ Confirmed column structure
+
+"I can help you analyze this data. What specific insights are you looking for?"
+
+You: "Show me total sales by month and region, with a line chart showing the trend"
+
+Claude Code:
+✓ Created main.go with StreamV3 pipeline
+✓ Running: go run main.go
+✓ Generated analysis:
+  - Grouped by month and region
+  - Calculated total sales per group
+  - Created chart: sales_trends.html
+✓ Opening chart in browser...
+
+"The chart shows sales trends across 4 regions over 12 months.
+I notice the East region has strong growth. Would you like me to add any filters or drill-downs?"
+
+You: "Yes - filter for just Q4 (October-December) and show which products are driving the East region growth"
+
+Claude Code:
+✓ Updated pipeline with Q4 filter
+✓ Added product breakdown for East region
+✓ Running updated analysis...
+✓ Generated new chart: q4_east_products.html
+
+"Here are the top products in East region for Q4. Product SKU-1234 shows
+the strongest growth. Would you like to export this data to CSV?"
+
+You: "Yes please, and also create a summary report"
+
+Claude Code:
+✓ Added CSV export
+✓ Created summary report in markdown
+✓ Files generated:
+  - q4_analysis.csv (detailed data)
+  - summary_report.md (executive summary)
+  - q4_east_products.html (interactive chart)
+
+"Analysis complete! All files are in the current directory."
+```
+
+### Setting Up Claude Code for StreamV3
+
+Create a `.claude/CLAUDE.md` file in your project to give Claude Code StreamV3 knowledge:
+
+```bash
+mkdir -p .claude
+cat > .claude/CLAUDE.md << 'EOF'
+# StreamV3 Project
+
+This project uses StreamV3 for data processing.
+
+## Quick Reference
+
+- Use `streamv3.ReadCSV(filename)` to read CSV files (panics on error)
+- Use SQL-style names: `Select`, `Where`, `Limit` (not Map, Filter, Take)
+- Access records safely with `streamv3.GetOr(record, "field", defaultValue)`
+- Group with `GroupByFields("groupName", "field1", "field2")`
+- Aggregate with `Aggregate("groupName", map[string]AggregateFunc{...})`
+- Create charts with `QuickChart(data, "output.html")`
+
+## Important
+- Always include `package main` and `func main()`
+- Only import packages actually used (don't import "slices" unless using slices.Values())
+- Write human-readable code with descriptive variable names
+- Break complex operations into clear steps
+EOF
+```
+
+Now Claude Code will automatically know StreamV3 conventions when working in this directory!
 
 ---
 
