@@ -77,7 +77,7 @@ func main() {
 	reconstructedStream := streamv3.ReadJSON(jsonFile)
 
 	var reconstructedRecords []streamv3.Record
-	for record := range reconstructedStream.Iter() {
+	for record := range reconstructedStream {
 		reconstructedRecords = append(reconstructedRecords, record)
 	}
 

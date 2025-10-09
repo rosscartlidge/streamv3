@@ -671,6 +671,22 @@ func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
 }
 
 // ============================================================================
+// SEQUENCE CREATION UTILITIES
+// ============================================================================
+
+// From creates an iterator from a slice - convenience wrapper around slices.Values
+// This provides a more discoverable API for users coming from other streaming libraries
+func From[T any](slice []T) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, v := range slice {
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
+// ============================================================================
 // SEQUENCE MATERIALIZATION - EFFICIENT GROUPING SUPPORT
 // ============================================================================
 

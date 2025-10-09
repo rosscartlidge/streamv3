@@ -134,7 +134,7 @@ func filterData() {
 
 	// Process records manually for simplicity
 	var records []streamv3.Record
-	for record := range stream.Iter() {
+	for record := range stream {
 		price := streamv3.GetOr(record, "price", float64(0))
 
 		// Filter: only high-value items
@@ -165,7 +165,7 @@ func aggregateData() {
 
 	// Collect all records
 	var records []streamv3.Record
-	for record := range stream.Iter() {
+	for record := range stream {
 		records = append(records, record)
 	}
 
@@ -206,7 +206,7 @@ func formatOutput() {
 	fmt.Println("========================")
 	fmt.Println()
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		region := streamv3.GetOr(record, "region", "Unknown")
 		totalSales := streamv3.GetOr(record, "total_sales", int64(0))
 		totalRevenue := streamv3.GetOr(record, "total_revenue", float64(0))
@@ -269,7 +269,7 @@ func runChainDemo() {
 	inputStream := streamv3.ReadJSONFromReader(step2Input)
 
 	var filteredRecords []streamv3.Record
-	for record := range inputStream.Iter() {
+	for record := range inputStream {
 		price := streamv3.GetOr(record, "price", float64(0))
 		if price >= 500.0 {
 			quantity := streamv3.GetOr(record, "quantity", int64(0))

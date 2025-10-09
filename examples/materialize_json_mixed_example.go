@@ -64,7 +64,7 @@ func main() {
 	fmt.Println("\n1. String sequence materialization:")
 	tagsResult := streamv3.Chain(
 		streamv3.MaterializeJSON("tags", "tags_json"),
-	)(stream.Iter())
+	)(stream)
 	for result := range tagsResult {
 		fmt.Printf("   tags_json: %s\n", streamv3.GetOr(result, "tags_json", ""))
 	}
@@ -73,7 +73,7 @@ func main() {
 	fmt.Println("\n2. Int sequence materialization:")
 	scoresResult := streamv3.Chain(
 		streamv3.MaterializeJSON("scores", "scores_json"),
-	)(streamv3.From([]streamv3.Record{task}).Iter())
+	)(streamv3.From([]streamv3.Record{task}))
 	for result := range scoresResult {
 		fmt.Printf("   scores_json: %s\n", streamv3.GetOr(result, "scores_json", ""))
 	}
@@ -82,7 +82,7 @@ func main() {
 	fmt.Println("\n3. Nested Record materialization:")
 	metaResult := streamv3.Chain(
 		streamv3.MaterializeJSON("metadata", "metadata_json"),
-	)(streamv3.From([]streamv3.Record{task}).Iter())
+	)(streamv3.From([]streamv3.Record{task}))
 	for result := range metaResult {
 		fmt.Printf("   metadata_json: %s\n", streamv3.GetOr(result, "metadata_json", ""))
 	}
@@ -91,7 +91,7 @@ func main() {
 	fmt.Println("\n4. Simple field materialization:")
 	titleResult := streamv3.Chain(
 		streamv3.MaterializeJSON("title", "title_json"),
-	)(streamv3.From([]streamv3.Record{task}).Iter())
+	)(streamv3.From([]streamv3.Record{task}))
 	for result := range titleResult {
 		fmt.Printf("   title_json: %s\n", streamv3.GetOr(result, "title_json", ""))
 	}

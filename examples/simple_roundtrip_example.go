@@ -55,7 +55,7 @@ func main() {
 	// 2. JSON → Stream
 	reconstructedStream := streamv3.ReadJSON(jsonFile)
 	var reconstructed streamv3.Record
-	for record := range reconstructedStream.Iter() {
+	for record := range reconstructedStream {
 		reconstructed = record
 		break
 	}

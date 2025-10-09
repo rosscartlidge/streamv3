@@ -101,25 +101,25 @@ func runTeeAnalysis(data []streamv3.Record) {
 
 	// Create stream and split with Tee
 	stream := streamv3.From(data)
-	streams := stream.Tee(4) // Split into 4 parallel streams
+	streams := streamv3.Tee(stream, 4) // Split into 4 parallel streams
 
 	// Analysis 1: Total Revenue
 	var totalRevenue float64
-	for record := range streams[0].Iter() {
+	for record := range streams[0] {
 		amount := streamv3.GetOr(record, "amount", 0.0)
 		totalRevenue += amount
 	}
 
 	// Analysis 2: Region Distribution
 	regionCounts := make(map[string]int)
-	for record := range streams[1].Iter() {
+	for record := range streams[1] {
 		region := streamv3.GetOr(record, "region", "unknown")
 		regionCounts[region]++
 	}
 
 	// Analysis 3: Product Performance
 	productRevenue := make(map[string]float64)
-	for record := range streams[2].Iter() {
+	for record := range streams[2] {
 		product := streamv3.GetOr(record, "product", "unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 		productRevenue[product] += amount
@@ -127,7 +127,7 @@ func runTeeAnalysis(data []streamv3.Record) {
 
 	// Analysis 4: Priority Distribution
 	priorityCounts := make(map[int]int)
-	for record := range streams[3].Iter() {
+	for record := range streams[3] {
 		priority := streamv3.GetOr(record, "priority", 0)
 		priorityCounts[priority]++
 	}

@@ -65,7 +65,7 @@ func testIntegratedStrategies() {
 
 	fmt.Println("\n🌊 Step 1: Apply Early Termination (Take 20 readings)")
 	// Strategy 4: Early Termination - Limit infinite stream
-	limitedStream := streamv3.Take[streamv3.Record](20)(iotDataGenerator)
+	limitedStream := streamv3.Limit[streamv3.Record](20)(iotDataGenerator)
 
 	fmt.Println("🚀 Step 2: Apply LazyTee (Split into 3 processing pipelines)")
 	// Strategy 2: LazyTee - Split stream for parallel processing

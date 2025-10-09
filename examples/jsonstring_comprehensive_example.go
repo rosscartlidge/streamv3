@@ -42,7 +42,7 @@ func main() {
 		streamv3.MaterializeJSON("tags", "tags_json"),
 		streamv3.MaterializeJSON("scores", "scores_json"),
 		streamv3.MaterializeJSON("metadata", "metadata_json"),
-	)(stream.Iter())
+	)(stream)
 
 	var result streamv3.Record
 	for r := range materialized {

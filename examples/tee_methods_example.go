@@ -50,12 +50,12 @@ func main() {
 
 	// Create a Stream and use the Tee method
 	stream := streamv3.From(data)
-	streams2 := stream.Tee(3)
+	streams2 := streamv3.Tee(stream, 3)
 	fmt.Printf("Created %d streams using Stream.Tee() method\n", len(streams2))
 
 	// Use streams with different processing
 	fmt.Println("Stream 1 - Names only:")
-	for record := range streams2[0].Iter() {
+	for record := range streams2[0] {
 		name := streamv3.GetOr(record, "name", "Unknown")
 		fmt.Printf("  %s\n", name)
 	}
@@ -66,7 +66,7 @@ func main() {
 			score := streamv3.GetOr(r, "score", 0.0)
 			return score > 90.0
 		}),
-	)(streams2[1].Iter())
+	)(streams2[1])
 
 	for record := range highScores {
 		name := streamv3.GetOr(record, "name", "Unknown")
@@ -75,7 +75,7 @@ func main() {
 	}
 
 	fmt.Println("Stream 3 - Collect all:")
-	allRecords := streams2[2].Collect()
+	allRecords := slices.Collect(streams2[2])
 	fmt.Printf("  Collected %d records\n", len(allRecords))
 
 	fmt.Println("\n💡 Usage Comparison:")
