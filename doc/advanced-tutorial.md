@@ -1103,12 +1103,9 @@ func main() {
 }
 
 func demonstrateMemoryEfficientProcessing() {
-    // Process large CSV files efficiently
-    data, err := streamv3.ReadCSV("large_dataset.csv")
-    if err != nil {
-        fmt.Printf("Note: This example requires a CSV file\n")
-        return
-    }
+    // Process large CSV files efficiently (panics if file doesn't exist)
+    // In production, you'd wrap this in a defer/recover for graceful degradation
+    data := streamv3.ReadCSV("large_dataset.csv")
 
     // Chain operations without materializing intermediate results
     pipeline := func(stream iter.Seq[streamv3.Record]) iter.Seq[streamv3.Record] {

@@ -43,10 +43,7 @@ import (
 
 func main() {
     // Read sales data
-    salesData, err := streamv3.ReadCSV("sales.csv")
-    if err != nil {
-        panic(err)
-    }
+    salesData := streamv3.ReadCSV("sales.csv")
 
     // Filter for high-value sales
     highValueSales := streamv3.Where(func(r streamv3.Record) bool {

@@ -229,11 +229,8 @@ import (
 )
 
 func main() {
-    // Read CSV data
-    data, err := streamv3.ReadCSV("people.csv")
-    if err != nil {
-        log.Fatal(err)
-    }
+    // Read CSV data (panics on error)
+    data := streamv3.ReadCSV("people.csv")
 
     // Find well-paid engineers
     engineers := streamv3.Where(func(r streamv3.Record) bool {
@@ -504,12 +501,11 @@ for value, err := range safeResult {
 
 ### I/O Error Handling
 ```go
-data, err := streamv3.ReadCSV("data.csv")
-if err != nil {
-    log.Fatalf("Failed to read CSV: %v", err)
-}
+// ReadCSV panics on error - use for simple cases
+data := streamv3.ReadCSV("data.csv")
 
-err = streamv3.WriteJSON(processedData, "output.json")
+// WriteJSON returns error - handle it
+err := streamv3.WriteJSON(processedData, "output.json")
 if err != nil {
     log.Fatalf("Failed to write JSON: %v", err)
 }
