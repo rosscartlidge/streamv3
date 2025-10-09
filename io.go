@@ -1094,18 +1094,30 @@ func ToChannelWithErrors[T any](sb iter.Seq2[T, error]) (<-chan T, <-chan error)
 // FromChannelSafe creates an error-aware iterator from channels
 func FromChannelSafe[T any](itemCh <-chan T, errCh <-chan error) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
+		itemChClosed := false
+		errChClosed := false
+
 		for {
+			// If both channels are closed, we're done
+			if itemChClosed && errChClosed {
+				return
+			}
+
 			select {
 			case item, ok := <-itemCh:
 				if !ok {
-					return // Channel closed
+					itemChClosed = true
+					// Continue to drain error channel if it's still open
+					continue
 				}
 				if !yield(item, nil) {
 					return
 				}
 			case err, ok := <-errCh:
 				if !ok {
-					return // Error channel closed
+					errChClosed = true
+					// Continue to drain item channel if it's still open
+					continue
 				}
 				var zero T
 				if !yield(zero, err) {
