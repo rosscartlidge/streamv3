@@ -186,6 +186,8 @@ See streamv3-reference.md in this directory for complete API documentation.
 ## Project Guidelines
 
 - Use `streamv3.ReadCSV(filename)` to read CSV files (panics on error)
+  - **⚠️ CSV Auto-Parsing**: Numeric strings become `int64`/`float64`!
+  - Use `GetOr(r, "age", int64(0))` not `GetOr(r, "age", "")` for numeric CSV fields
 - Use SQL-style names: `Select`, `Where`, `Limit` (not Map, Filter, Take)
 - Access records safely with `streamv3.GetOr(record, "field", defaultValue)`
 - Group with `GroupByFields("groupName", "field1", "field2")`

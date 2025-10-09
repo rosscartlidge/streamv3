@@ -46,6 +46,8 @@ import (
 - `Record` - Map-based data: `map[string]any`
 - `slices.Values([]T)` - Create iterator from slice
 - `streamv3.ReadCSV("file.csv")` - Read CSV (returns `iter.Seq[Record]` - panics on file errors)
+  - **⚠️ CSV Auto-Parsing**: Numeric strings become `int64`/`float64`, not strings!
+  - Example: CSV value `"25"` → `int64(25)`, so use `GetOr(r, "age", int64(0))` not `GetOr(r, "age", "")`
 - `streamv3.NewRecord().String("key", "val").Int("num", 42).Build()` - Build records
 
 ### Core Operations (SQL-style naming)
@@ -132,6 +134,35 @@ top10Regions := streamv3.Limit[streamv3.Record](10)(sortedByRevenue)
 ```
 
 ## Common Patterns
+
+### CSV Auto-Parsing Example
+```go
+// CSV file contents:
+// name,age,salary,active
+// Alice,30,75000.50,true
+// Bob,25,65000.00,false
+
+data := streamv3.ReadCSV("employees.csv")
+
+for record := range data {
+    // ✅ CORRECT - CSV parses numbers as int64/float64
+    name := streamv3.GetOr(record, "name", "")           // string
+    age := streamv3.GetOr(record, "age", int64(0))      // int64 (not string!)
+    salary := streamv3.GetOr(record, "salary", 0.0)     // float64
+    active := streamv3.GetOr(record, "active", false)   // bool
+
+    // ❌ WRONG - this will get default value because type mismatch
+    wrongAge := streamv3.GetOr(record, "age", "")  // age is int64, not string!
+
+    fmt.Printf("%s: age=%d, salary=%.2f\n", name, age, salary)
+}
+
+// Filtering CSV data with correct types
+adults := streamv3.Where(func(r streamv3.Record) bool {
+    age := streamv3.GetOr(r, "age", int64(0))
+    return age >= 18  // Compare as int64, not string
+})(data)
+```
 
 ### CSV Analysis with Filtering on Aggregated Results
 ```go
