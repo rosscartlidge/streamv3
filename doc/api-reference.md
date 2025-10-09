@@ -151,11 +151,25 @@ type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
 
 ## Creating Iterators
 
-### From Slices
+### From[T]
+```go
+func From[T any](slice []T) iter.Seq[T]
+```
+Creates an iterator from a slice - convenience wrapper providing a more discoverable API.
+
+**Example:**
+```go
+numbers := streamv3.From([]int{1, 2, 3, 4, 5})
+records := streamv3.From([]streamv3.Record{...})
+```
+
+**Note:** This is equivalent to `slices.Values()` from the standard library, but provides a more intuitive name for users familiar with other streaming libraries.
+
+### From Slices (Standard Library)
 ```go
 slices.Values([]T) iter.Seq[T]
 ```
-Creates an iterator from a slice (standard library function).
+Creates an iterator from a slice (standard library function). You can use either this or `streamv3.From()`.
 
 **Example:**
 ```go

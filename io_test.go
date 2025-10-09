@@ -769,3 +769,327 @@ func TestWriteEmptySequence(t *testing.T) {
 		t.Errorf("WriteCSV should handle empty sequence: %v", err)
 	}
 }
+
+// ============================================================================
+// ADVANCED INTEGRATION TESTS
+// ============================================================================
+
+// TestJSONComplexTypesRoundTrip tests JSON round-trip with complex types
+// including iter.Seq fields, nested Records, and JSONString fields
+func TestJSONComplexTypesRoundTrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	filename := filepath.Join(tmpDir, "complex_roundtrip.json")
+
+	// Create complex records with various types
+	tags := slices.Values([]string{"urgent", "security"})
+	scores := slices.Values([]int{95, 88, 92})
+	weights := slices.Values([]float64{1.5, 2.3, 0.8})
+
+	metadata := NewRecord().
+		String("priority", "high").
+		Int("version", 2).
+		Build()
+
+	// Create JSONString field
+	configJSON, err := NewJSONString(map[string]any{
+		"timeout": 30,
+		"retries": 3,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create JSONString: %v", err)
+	}
+
+	originalRecords := []Record{
+		NewRecord().
+			String("id", "TASK-001").
+			String("title", "Security Update").
+			Int("priority_num", 1).
+			Float("score", 95.5).
+			Bool("completed", false).
+			StringSeq("tags", tags).
+			IntSeq("scores", scores).
+			Float64Seq("weights", weights).
+			Record("metadata", metadata).
+			JSONString("config", configJSON).
+			Build(),
+		NewRecord().
+			String("id", "TASK-002").
+			String("title", "Feature Request").
+			Int("priority_num", 2).
+			Float("score", 87.2).
+			Bool("completed", true).
+			Build(),
+	}
+
+	// Write to JSON
+	originalStream := slices.Values(originalRecords)
+	err = WriteJSON(originalStream, filename)
+	if err != nil {
+		t.Fatalf("WriteJSON failed: %v", err)
+	}
+
+	// Read back from JSON
+	reconstructedStream := ReadJSON(filename)
+	reconstructedRecords := slices.Collect(reconstructedStream)
+
+	if len(reconstructedRecords) != 2 {
+		t.Fatalf("Expected 2 records, got %d", len(reconstructedRecords))
+	}
+
+	// Verify basic fields are preserved
+	if reconstructedRecords[0]["id"] != "TASK-001" {
+		t.Errorf("ID should be TASK-001, got %v", reconstructedRecords[0]["id"])
+	}
+
+	if reconstructedRecords[0]["title"] != "Security Update" {
+		t.Errorf("Title should be 'Security Update', got %v", reconstructedRecords[0]["title"])
+	}
+
+	// Verify numeric fields (JSON converts to float64)
+	scoreValue, ok := reconstructedRecords[0]["score"].(float64)
+	if !ok || scoreValue != 95.5 {
+		t.Errorf("Score should be 95.5 (float64), got %v (%T)", reconstructedRecords[0]["score"], reconstructedRecords[0]["score"])
+	}
+
+	// Verify boolean field
+	completed, ok := reconstructedRecords[0]["completed"].(bool)
+	if !ok || completed != false {
+		t.Errorf("Completed should be false (bool), got %v (%T)", reconstructedRecords[0]["completed"], reconstructedRecords[0]["completed"])
+	}
+
+	// Verify iter.Seq fields become arrays
+	tagsValue, ok := reconstructedRecords[0]["tags"].([]any)
+	if !ok {
+		t.Errorf("Tags should be array after round-trip, got %T", reconstructedRecords[0]["tags"])
+	} else {
+		if len(tagsValue) != 2 {
+			t.Errorf("Tags should have 2 elements, got %d", len(tagsValue))
+		}
+		if tagsValue[0] != "urgent" || tagsValue[1] != "security" {
+			t.Errorf("Tags data not preserved correctly: %v", tagsValue)
+		}
+	}
+
+	// Verify Record fields become map[string]any
+	metadataValue, ok := reconstructedRecords[0]["metadata"].(map[string]any)
+	if !ok {
+		t.Errorf("Metadata should be map after round-trip, got %T", reconstructedRecords[0]["metadata"])
+	} else {
+		if metadataValue["priority"] != "high" {
+			t.Errorf("Metadata priority should be 'high', got %v", metadataValue["priority"])
+		}
+	}
+
+	// Verify JSONString is parsed (not double-encoded)
+	configValue, ok := reconstructedRecords[0]["config"].(map[string]any)
+	if !ok {
+		t.Errorf("Config should be parsed map, got %T", reconstructedRecords[0]["config"])
+	} else {
+		// JSON converts all numbers to float64
+		if timeout, ok := configValue["timeout"].(float64); !ok || timeout != 30 {
+			t.Errorf("Config timeout should be 30, got %v (%T)", configValue["timeout"], configValue["timeout"])
+		}
+	}
+}
+
+// TestJSONStreamProcessing tests process chaining via readers/writers
+// simulating stdin/stdout processing
+func TestJSONStreamProcessing(t *testing.T) {
+	// Step 1: Create sample data
+	salesData := []Record{
+		NewRecord().
+			String("product", "Laptop").
+			Float("price", 1999.99).
+			Int("quantity", 1).
+			String("region", "North").
+			Build(),
+		NewRecord().
+			String("product", "Phone").
+			Float("price", 899.99).
+			Int("quantity", 2).
+			String("region", "South").
+			Build(),
+		NewRecord().
+			String("product", "Tablet").
+			Float("price", 399.99).
+			Int("quantity", 1).
+			String("region", "North").
+			Build(),
+	}
+
+	// Step 2: Write to buffer (simulating first process output)
+	var step1Output bytes.Buffer
+	err := WriteJSONToWriter(slices.Values(salesData), &step1Output)
+	if err != nil {
+		t.Fatalf("Step 1 WriteJSONToWriter failed: %v", err)
+	}
+
+	// Step 3: Read from buffer and filter (simulating second process)
+	step2Input := bytes.NewReader(step1Output.Bytes())
+	inputStream := ReadJSONFromReader(step2Input)
+
+	var filteredRecords []Record
+	for record := range inputStream {
+		price := GetOr(record, "price", float64(0))
+		if price >= 500.0 {
+			// Add calculated field
+			quantity, _ := Get[float64](record, "quantity")
+			record["total_value"] = price * quantity
+			filteredRecords = append(filteredRecords, record)
+		}
+	}
+
+	// Step 4: Write filtered output (simulating third process input)
+	var step2Output bytes.Buffer
+	err = WriteJSONToWriter(slices.Values(filteredRecords), &step2Output)
+	if err != nil {
+		t.Fatalf("Step 2 WriteJSONToWriter failed: %v", err)
+	}
+
+	// Step 5: Read and verify final output
+	step3Input := bytes.NewReader(step2Output.Bytes())
+	finalStream := ReadJSONFromReader(step3Input)
+	finalRecords := slices.Collect(finalStream)
+
+	// Should have Laptop and Phone (filtered out Tablet with price < 500)
+	if len(finalRecords) != 2 {
+		t.Fatalf("Expected 2 filtered records, got %d", len(finalRecords))
+	}
+
+	// Verify calculated field exists
+	if _, ok := finalRecords[0]["total_value"]; !ok {
+		t.Error("total_value field should be added during filtering")
+	}
+
+	// Verify data integrity through pipeline
+	foundLaptop := false
+	foundPhone := false
+	for _, record := range finalRecords {
+		product := GetOr(record, "product", "")
+		if product == "Laptop" {
+			foundLaptop = true
+			totalValue := GetOr(record, "total_value", float64(0))
+			if totalValue < 1999 { // Should be 1999.99 * 1
+				t.Errorf("Laptop total_value incorrect: %v", totalValue)
+			}
+		}
+		if product == "Phone" {
+			foundPhone = true
+		}
+		if product == "Tablet" {
+			t.Error("Tablet should have been filtered out")
+		}
+	}
+
+	if !foundLaptop || !foundPhone {
+		t.Error("Expected both Laptop and Phone in results")
+	}
+}
+
+// TestFunctionalPipelineComposition tests complex functional composition
+// with Chain, GroupBy, and Aggregate
+func TestFunctionalPipelineComposition(t *testing.T) {
+	// Create test data
+	sales := []Record{
+		NewRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Build(),
+		NewRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Build(),
+		NewRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Build(),
+		NewRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Build(),
+		NewRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Build(),
+		NewRecord().String("region", "North").String("product", "Tablet").Float("amount", 400).Build(),
+	}
+
+	// Test 1: Chain multiple Where filters
+	chained := Chain(
+		Where(func(r Record) bool {
+			amount := GetOr(r, "amount", 0.0)
+			return amount >= 800 // Filter high-value sales
+		}),
+		Where(func(r Record) bool {
+			product := GetOr(r, "product", "")
+			return product != "Tablet" // Exclude tablets
+		}),
+	)(slices.Values(sales))
+
+	filteredCount := 0
+	var filtered []Record
+	for record := range chained {
+		filteredCount++
+		filtered = append(filtered, record)
+	}
+
+	// Should have 5 records (all except Tablet with 400, which is both < 800 and is Tablet)
+	if filteredCount != 5 {
+		t.Errorf("Expected 5 filtered records, got %d", filteredCount)
+	}
+
+	// Test 2: GroupBy and Aggregate composition
+	grouped := GroupByFields("sales_data", "region")(slices.Values(filtered))
+
+	aggregated := Aggregate("sales_data", map[string]AggregateFunc{
+		"total_revenue": Sum("amount"),
+		"avg_amount":    Avg("amount"),
+		"count":         Count(),
+	})(grouped)
+
+	results := slices.Collect(aggregated)
+
+	// Should have 3 regions (North, South, East)
+	if len(results) != 3 {
+		t.Errorf("Expected 3 regional summaries, got %d", len(results))
+	}
+
+	// Verify aggregation worked correctly
+	regionTotals := make(map[string]float64)
+	for _, result := range results {
+		region := GetOr(result, "region", "")
+		total := GetOr(result, "total_revenue", 0.0)
+		count := GetOr(result, "count", int64(0))
+
+		regionTotals[region] = total
+
+		// Verify count is reasonable
+		if count < 1 {
+			t.Errorf("Region %s should have at least 1 sale, got %d", region, count)
+		}
+
+		// Verify average was calculated
+		if _, ok := result["avg_amount"]; !ok {
+			t.Errorf("avg_amount should be present for region %s", region)
+		}
+	}
+
+	// Test 3: Step-by-step functional composition (same result)
+	filtered2 := Where(func(r Record) bool {
+		amount := GetOr(r, "amount", 0.0)
+		product := GetOr(r, "product", "")
+		return amount >= 800 && product != "Tablet"
+	})(slices.Values(sales))
+
+	grouped2 := GroupByFields("sales_data", "region")(filtered2)
+
+	aggregated2 := Aggregate("sales_data", map[string]AggregateFunc{
+		"total_revenue": Sum("amount"),
+	})(grouped2)
+
+	results2 := slices.Collect(aggregated2)
+
+	// Should produce same results as chained version
+	if len(results2) != len(results) {
+		t.Errorf("Step-by-step composition should produce same number of results: expected %d, got %d", len(results), len(results2))
+	}
+
+	// Verify totals match between both approaches
+	regionTotals2 := make(map[string]float64)
+	for _, result := range results2 {
+		region := GetOr(result, "region", "")
+		total := GetOr(result, "total_revenue", 0.0)
+		regionTotals2[region] = total
+	}
+
+	for region, total := range regionTotals {
+		if regionTotals2[region] != total {
+			t.Errorf("Region %s totals don't match: chained=%v, step-by-step=%v", region, total, regionTotals2[region])
+		}
+	}
+}

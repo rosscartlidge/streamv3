@@ -1,6 +1,7 @@
 package main
 
 import (
+	"iter"
 	"fmt"
 	"os"
 	"strings"
@@ -86,7 +87,7 @@ func analyzeSalesData() {
 	stream := streamv3.ReadJSONFromReader(os.Stdin)
 
 	// Use Tee to split into 4 parallel analysis streams
-	streams := stream.Tee(4)
+	streams := streamv3.Tee(stream, 4)
 
 	fmt.Println("🔀 TEE PARALLEL ANALYSIS RESULTS")
 	fmt.Println("=================================")
@@ -114,10 +115,10 @@ func analyzeSalesData() {
 	fmt.Fprintln(os.Stderr, "\n✅ Completed all 4 analyses in parallel")
 }
 
-func revenueByRegion(stream *streamv3.Stream[streamv3.Record]) {
+func revenueByRegion(stream iter.Seq[streamv3.Record]) {
 	regionRevenue := make(map[string]float64)
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		region := streamv3.GetOr(record, "region", "Unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 		regionRevenue[region] += amount
@@ -128,10 +129,10 @@ func revenueByRegion(stream *streamv3.Stream[streamv3.Record]) {
 	}
 }
 
-func topPerformers(stream *streamv3.Stream[streamv3.Record]) {
+func topPerformers(stream iter.Seq[streamv3.Record]) {
 	salesPersonRevenue := make(map[string]float64)
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		salesperson := streamv3.GetOr(record, "salesperson", "Unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 		salesPersonRevenue[salesperson] += amount
@@ -158,13 +159,13 @@ func topPerformers(stream *streamv3.Stream[streamv3.Record]) {
 	}
 }
 
-func customerSegmentAnalysis(stream *streamv3.Stream[streamv3.Record]) {
+func customerSegmentAnalysis(stream iter.Seq[streamv3.Record]) {
 	segmentStats := make(map[string]struct {
 		count   int
 		revenue float64
 	})
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		customerType := streamv3.GetOr(record, "customer_type", "unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 
@@ -181,11 +182,11 @@ func customerSegmentAnalysis(stream *streamv3.Stream[streamv3.Record]) {
 	}
 }
 
-func dailyTrends(stream *streamv3.Stream[streamv3.Record]) {
+func dailyTrends(stream iter.Seq[streamv3.Record]) {
 	dailyRevenue := make(map[string]float64)
 	dailyCount := make(map[string]int)
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		date := streamv3.GetOr(record, "date", "unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 
@@ -227,7 +228,7 @@ func runFullDemo() {
 
 	// Create stream and use Tee for parallel analysis
 	stream := streamv3.From(salesData)
-	streams := stream.Tee(4)
+	streams := streamv3.Tee(stream, 4)
 
 	fmt.Println("📊 PARALLEL ANALYSIS RESULTS:")
 	fmt.Println("=============================")

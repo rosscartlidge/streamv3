@@ -686,6 +686,50 @@ func TestField(t *testing.T) {
 // CONVERSION UTILITIES TESTS
 // ============================================================================
 
+func TestFrom(t *testing.T) {
+	// Test creating iterator from slice
+	data := []int{1, 2, 3, 4, 5}
+	seq := From(data)
+
+	result := slices.Collect(seq)
+	expected := []int{1, 2, 3, 4, 5}
+
+	if !slices.Equal(result, expected) {
+		t.Errorf("From failed: expected %v, got %v", expected, result)
+	}
+}
+
+func TestFromEmptySlice(t *testing.T) {
+	// Test with empty slice
+	data := []string{}
+	seq := From(data)
+
+	result := slices.Collect(seq)
+
+	if len(result) != 0 {
+		t.Errorf("From with empty slice should return empty iterator, got %d items", len(result))
+	}
+}
+
+func TestFromRecords(t *testing.T) {
+	// Test with Records
+	records := []Record{
+		{"name": "Alice", "age": int64(30)},
+		{"name": "Bob", "age": int64(25)},
+	}
+
+	seq := From(records)
+	result := slices.Collect(seq)
+
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 records, got %d", len(result))
+	}
+
+	if result[0]["name"] != "Alice" {
+		t.Errorf("First record name should be Alice, got %v", result[0]["name"])
+	}
+}
+
 func TestSafe(t *testing.T) {
 	input := slices.Values([]int{1, 2, 3})
 	safe := Safe(input)

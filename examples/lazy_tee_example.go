@@ -56,17 +56,17 @@ func testFiniteStream() {
 
 	// Test regular Tee
 	fmt.Println("Regular Tee:")
-	regularStreams := stream.Tee(2)
+	regularStreams := streamv3.Tee(stream, 2)
 
 	// Consumer 1: Count
 	count1 := 0
-	for range regularStreams[0].Iter() {
+	for range regularStreams[0] {
 		count1++
 	}
 
 	// Consumer 2: Sum
 	sum1 := 0.0
-	for record := range regularStreams[1].Iter() {
+	for record := range regularStreams[1] {
 		sum1 += streamv3.GetOr(record, "value", 0.0)
 	}
 
@@ -76,17 +76,17 @@ func testFiniteStream() {
 	// Test LazyTee
 	fmt.Println("LazyTee:")
 	stream2 := streamv3.From(data) // Create fresh stream
-	lazyStreams := stream2.LazyTee(2)
+	lazyStreams := streamv3.LazyTee(stream2, 2)
 
 	// Consumer 1: Count
 	count2 := 0
-	for range lazyStreams[0].Iter() {
+	for range lazyStreams[0] {
 		count2++
 	}
 
 	// Consumer 2: Sum
 	sum2 := 0.0
-	for record := range lazyStreams[1].Iter() {
+	for record := range lazyStreams[1] {
 		sum2 += streamv3.GetOr(record, "value", 0.0)
 	}
 

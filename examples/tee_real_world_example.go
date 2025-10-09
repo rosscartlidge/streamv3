@@ -1,6 +1,7 @@
 package main
 
 import (
+	"iter"
 	"fmt"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ func main() {
 
 	// Create a stream and split it into multiple analysis pipelines
 	stream := streamv3.From(transactions)
-	streams := stream.Tee(4) // Split into 4 parallel analysis streams
+	streams := streamv3.Tee(stream, 4) // Split into 4 parallel analysis streams
 
 	fmt.Println("🚀 Running parallel analytics...")
 	fmt.Println("==============================")
@@ -95,14 +96,14 @@ func getCategory(product string) string {
 	}
 }
 
-func revenueAnalysis(stream *streamv3.Stream[streamv3.Record]) {
+func revenueAnalysis(stream iter.Seq[streamv3.Record]) {
 	// Calculate total revenue, average order value, and transaction count
 	var totalRevenue float64
 	var transactionCount int64
 	maxAmount := 0.0
 	minAmount := float64(^uint(0) >> 1) // Max float64
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		amount := streamv3.GetOr(record, "amount", 0.0)
 		totalRevenue += amount
 		transactionCount++
@@ -123,14 +124,14 @@ func revenueAnalysis(stream *streamv3.Stream[streamv3.Record]) {
 	fmt.Printf("  📊 Range: $%.2f - $%.2f\n", minAmount, maxAmount)
 }
 
-func customerSegmentation(stream *streamv3.Stream[streamv3.Record]) {
+func customerSegmentation(stream iter.Seq[streamv3.Record]) {
 	// Analyze customer tiers and their spending patterns
 	tierStats := make(map[string]struct {
 		count   int
 		revenue float64
 	})
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		tier := streamv3.GetOr(record, "customer_tier", "unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 
@@ -147,7 +148,7 @@ func customerSegmentation(stream *streamv3.Stream[streamv3.Record]) {
 	}
 }
 
-func productPerformance(stream *streamv3.Stream[streamv3.Record]) {
+func productPerformance(stream iter.Seq[streamv3.Record]) {
 	// Analyze top-selling products by revenue and quantity
 	productStats := make(map[string]struct {
 		revenue  float64
@@ -155,7 +156,7 @@ func productPerformance(stream *streamv3.Stream[streamv3.Record]) {
 		count    int
 	})
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		product := streamv3.GetOr(record, "product", "unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 		quantity := streamv3.GetOr(record, "quantity", int64(0))
@@ -183,7 +184,7 @@ func productPerformance(stream *streamv3.Stream[streamv3.Record]) {
 	fmt.Printf("  🏆 Top Performer: %s ($%.2f)\n", topProduct, topRevenue)
 }
 
-func geographicAnalysis(stream *streamv3.Stream[streamv3.Record]) {
+func geographicAnalysis(stream iter.Seq[streamv3.Record]) {
 	// Analyze sales distribution by region
 	regionStats := make(map[string]struct {
 		revenue float64
@@ -192,7 +193,7 @@ func geographicAnalysis(stream *streamv3.Stream[streamv3.Record]) {
 
 	totalRevenue := 0.0
 
-	for record := range stream.Iter() {
+	for record := range stream {
 		region := streamv3.GetOr(record, "region", "unknown")
 		amount := streamv3.GetOr(record, "amount", 0.0)
 
