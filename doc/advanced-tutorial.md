@@ -35,6 +35,7 @@
   - [Robust Data Processing](#robust-data-processing)
   - [Fault-Tolerant Pipelines](#fault-tolerant-pipelines)
   - [Data Validation](#data-validation)
+  - [Mixing Safe and Unsafe Filters](#mixing-safe-and-unsafe-filters)
 - [Production Patterns](#production-patterns)
   - [Configuration Management](#configuration-management)
   - [Monitoring and Observability](#monitoring-and-observability)
@@ -1411,6 +1412,223 @@ func isValidEmail(email string) bool {
            strings.Contains(email, ".")
 }
 ```
+
+### Mixing Safe and Unsafe Filters
+
+StreamV3 provides three conversion utilities to seamlessly bridge between error-aware (`iter.Seq2[T, error]`) and simple (`iter.Seq[T]`) iterators:
+
+#### Conversion Utilities
+
+```go
+// Safe - Convert simple to error-aware (never errors)
+func Safe[T any](seq iter.Seq[T]) iter.Seq2[T, error]
+
+// Unsafe - Convert error-aware to simple (panics on errors)
+func Unsafe[T any](seq iter.Seq2[T, error]) iter.Seq[T]
+
+// IgnoreErrors - Convert error-aware to simple (skips errors)
+func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T]
+```
+
+#### Pattern 1: Start Normal, Add Error Handling, Continue Normal
+
+Use `Safe()` to enter error-aware processing and `IgnoreErrors()` to exit gracefully:
+
+```go
+func demonstrateMixedPipeline() {
+    // Start with normal data
+    transactions := streamv3.From([]streamv3.Record{
+        streamv3.NewRecord().String("id", "TX001").String("amount_str", "100.50").Build(),
+        streamv3.NewRecord().String("id", "TX002").String("amount_str", "invalid").Build(),
+        streamv3.NewRecord().String("id", "TX003").String("amount_str", "250.75").Build(),
+    })
+
+    // Apply normal filter
+    filtered := streamv3.Where(func(r streamv3.Record) bool {
+        return streamv3.GetOr(r, "id", "") != ""
+    })(transactions)
+
+    // Convert to Safe for error-prone parsing
+    safeStream := streamv3.Safe(filtered)
+
+    // Use Safe filter for parsing
+    parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+        amountStr := streamv3.GetOr(r, "amount_str", "")
+        amount, err := strconv.ParseFloat(amountStr, 64)
+        if err != nil {
+            return streamv3.Record{}, fmt.Errorf("invalid amount: %s", amountStr)
+        }
+
+        return streamv3.NewRecord().
+            String("id", streamv3.GetOr(r, "id", "")).
+            Float("amount", amount).
+            Build(), nil
+    })(safeStream)
+
+    // Convert back to normal, ignoring errors
+    cleanData := streamv3.IgnoreErrors(parsed)
+
+    // Continue with normal filters
+    final := streamv3.Chain(
+        streamv3.Where(func(r streamv3.Record) bool {
+            amount := streamv3.GetOr(r, "amount", 0.0)
+            return amount > 100.0
+        }),
+        streamv3.Limit[streamv3.Record](10),
+    )(cleanData)
+
+    fmt.Println("Mixed pipeline results:")
+    for record := range final {
+        id := streamv3.GetOr(record, "id", "")
+        amount := streamv3.GetOr(record, "amount", 0.0)
+        fmt.Printf("  %s: $%.2f\n", id, amount)
+    }
+}
+```
+
+#### Pattern 2: I/O with Safe, Processing with Normal
+
+Read data with error handling, then process confidently:
+
+```go
+func demonstrateIOProcessing() {
+    // Read CSV with error awareness
+    safeData := streamv3.ReadCSVSafe("transactions.csv")
+
+    // Validate data with Safe filter
+    validated := streamv3.WhereSafe(func(r streamv3.Record) (bool, error) {
+        amount := streamv3.GetOr(r, "amount", 0.0)
+        if amount < 0 {
+            return false, fmt.Errorf("negative amount: %.2f", amount)
+        }
+        return true, nil
+    })(safeData)
+
+    // Convert to normal - we're confident after validation
+    cleanData := streamv3.IgnoreErrors(validated)
+
+    // Process with normal filters (faster, no error checking)
+    processed := streamv3.Chain(
+        streamv3.Select(func(r streamv3.Record) streamv3.Record {
+            amount := streamv3.GetOr(r, "amount", 0.0)
+            return r.Set("tax", amount*0.08)
+        }),
+        streamv3.Where(func(r streamv3.Record) bool {
+            return streamv3.GetOr(r, "tax", 0.0) > 10.0
+        }),
+    )(cleanData)
+
+    count := 0
+    for record := range processed {
+        count++
+        amount := streamv3.GetOr(record, "amount", 0.0)
+        tax := streamv3.GetOr(record, "tax", 0.0)
+        fmt.Printf("  Amount: $%.2f, Tax: $%.2f\n", amount, tax)
+    }
+    fmt.Printf("Processed %d valid transactions\n", count)
+}
+```
+
+#### Pattern 3: Fail-Fast with Unsafe
+
+Use `Unsafe()` when errors should halt processing:
+
+```go
+func demonstrateFailFast() {
+    // Read data with error awareness
+    safeData := streamv3.ReadCSVSafe("critical_data.csv")
+
+    // Validate strictly
+    validated := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+        // Strict validation - any error is critical
+        id := streamv3.GetOr(r, "id", "")
+        if id == "" {
+            return streamv3.Record{}, fmt.Errorf("missing required field: id")
+        }
+
+        amount := streamv3.GetOr(r, "amount", 0.0)
+        if amount <= 0 {
+            return streamv3.Record{}, fmt.Errorf("invalid amount: %.2f", amount)
+        }
+
+        return r, nil
+    })(safeData)
+
+    // Convert to Unsafe - panic on any error (fail-fast)
+    criticalData := streamv3.Unsafe(validated)
+
+    // Process normally - we know data is valid or we've panicked
+    final := streamv3.Limit[streamv3.Record](100)(criticalData)
+
+    fmt.Println("Critical data processing (fail-fast mode):")
+    for record := range final {
+        id := streamv3.GetOr(record, "id", "")
+        amount := streamv3.GetOr(record, "amount", 0.0)
+        fmt.Printf("  %s: $%.2f\n", id, amount)
+    }
+}
+```
+
+#### Pattern 4: Best-Effort Processing
+
+Use `IgnoreErrors()` for resilient pipelines that process what they can:
+
+```go
+func demonstrateBestEffort() {
+    // Multiple data sources with varying quality
+    sources := []string{"data1.csv", "data2.csv", "data3.csv"}
+
+    var allRecords []streamv3.Record
+
+    for _, source := range sources {
+        // Read with error handling
+        safeData := streamv3.ReadCSVSafe(source)
+
+        // Parse and validate - may have errors
+        processed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+            // Attempt to parse and enrich
+            value := streamv3.GetOr(r, "value", "")
+            parsed, err := strconv.ParseFloat(value, 64)
+            if err != nil {
+                return streamv3.Record{}, fmt.Errorf("parse error: %v", err)
+            }
+
+            return r.Set("parsed_value", parsed), nil
+        })(safeData)
+
+        // Ignore errors - process what we can
+        validData := streamv3.IgnoreErrors(processed)
+
+        // Collect valid records
+        for record := range validData {
+            allRecords = append(allRecords, record)
+        }
+    }
+
+    fmt.Printf("Best-effort processing: collected %d valid records from %d sources\n",
+        len(allRecords), len(sources))
+}
+```
+
+#### When to Use Each Conversion
+
+**Use `Safe()`:**
+- When entering error-aware processing from normal data
+- Before I/O operations that might fail
+- When starting validation pipelines
+
+**Use `Unsafe()`:**
+- After validation when errors shouldn't occur
+- In fail-fast scenarios where errors are critical
+- When you want the process to terminate on any error
+
+**Use `IgnoreErrors()`:**
+- For best-effort processing of messy data
+- When you want to continue despite errors
+- For resilient ETL pipelines that skip bad records
+- When collecting statistics (e.g., "processed 900 of 1000 records")
+
+> 💡 **Pro Tip**: Mix freely! Normal → Safe → Normal → Safe is perfectly valid. The conversions are zero-cost wrappers.
 
 > 📚 **Reference**: See [Error Handling](api-reference.md#error-handling) for safe operation patterns.
 
