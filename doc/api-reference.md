@@ -612,17 +612,55 @@ result := pipeline(numbers)
 
 ### CSV Operations
 
+**⚠️ Important: CSV Auto-Parsing Behavior**
+
+CSV operations automatically parse string values into appropriate Go types:
+- Numeric strings → `int64` or `float64` (e.g., `"25"` becomes `int64(25)`)
+- Boolean strings → `bool` (e.g., `"true"` becomes `true`)
+- Other values → `string`
+
+This means when reading CSV data, you must use the correct type when accessing fields:
+
+```go
+// CSV file: name,age,score
+//           Alice,30,95.5
+
+data := streamv3.ReadCSV("data.csv")
+for record := range data {
+    // ❌ WRONG - age is int64, not string
+    age := streamv3.GetOr(record, "age", "")
+
+    // ✅ CORRECT - use int64 for numeric CSV values
+    age := streamv3.GetOr(record, "age", int64(0))
+
+    // ✅ CORRECT - use float64 for decimal CSV values
+    score := streamv3.GetOr(record, "score", 0.0)
+
+    // ✅ CORRECT - strings remain strings
+    name := streamv3.GetOr(record, "name", "")
+}
+```
+
+When filtering CSV data, use the parsed types:
+```go
+// Filter for ages greater than 25
+filtered := streamv3.Where(func(r streamv3.Record) bool {
+    age := streamv3.GetOr(r, "age", int64(0))
+    return age > 25  // Compare as int64
+})(data)
+```
+
 #### ReadCSV
 ```go
 func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record]
 ```
-Reads CSV file into Record iterator. Panics on file errors.
+Reads CSV file into Record iterator. Panics on file errors. **Values are auto-parsed** to appropriate types.
 
 #### ReadCSVFromReader
 ```go
 func ReadCSVFromReader(reader io.Reader, config ...CSVConfig) iter.Seq[Record]
 ```
-Reads CSV from any io.Reader.
+Reads CSV from any io.Reader. **Values are auto-parsed** to appropriate types.
 
 #### WriteCSV
 ```go

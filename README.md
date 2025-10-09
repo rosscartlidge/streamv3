@@ -123,6 +123,7 @@ func main() {
 *Learn the fundamentals with hands-on examples*
 - Basic operations (Select, Where, Limit)
 - Working with CSV/JSON data
+  - **⚠️ Note**: CSV auto-parses `"25"` → `int64(25)`, use correct types with `GetOr()`
 - Creating your first visualizations
 - Real-world examples
 
