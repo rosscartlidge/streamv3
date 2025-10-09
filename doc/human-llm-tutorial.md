@@ -151,14 +151,59 @@ For the most powerful StreamV3 development experience, use LLM CLI tools that ca
 npm install -g @anthropic-ai/claude-code
 ```
 
-**Usage for StreamV3**:
+**Setting Up StreamV3 Knowledge**:
+
+Before using Claude Code with StreamV3, you need to give it knowledge about the library. You have two options:
+
+**Option 1: Quick Setup (Copy prompt each session)**
 ```bash
-# Start Claude Code in your project directory
 cd my-streamv3-project
 claude-code
 
-# The assistant already knows about StreamV3 if it's in your project!
+# First message: Copy and paste the entire contents of
+# https://github.com/rosscartlidge/streamv3/blob/main/doc/streamv3-ai-prompt.md
 ```
+
+**Option 2: Project Setup (Persistent knowledge - Recommended)**
+```bash
+# In your project directory, create a .claude directory
+mkdir -p .claude
+
+# Download the StreamV3 prompt
+curl -o .claude/streamv3-reference.md \
+  https://raw.githubusercontent.com/rosscartlidge/streamv3/main/doc/streamv3-ai-prompt.md
+
+# Create a project-specific CLAUDE.md
+cat > .claude/CLAUDE.md << 'EOF'
+# StreamV3 Project
+
+This project uses StreamV3 for stream processing and data analysis.
+
+## StreamV3 Reference
+
+See streamv3-reference.md in this directory for complete API documentation.
+
+## Project Guidelines
+
+- Use `streamv3.ReadCSV(filename)` to read CSV files (panics on error)
+- Use SQL-style names: `Select`, `Where`, `Limit` (not Map, Filter, Take)
+- Access records safely with `streamv3.GetOr(record, "field", defaultValue)`
+- Group with `GroupByFields("groupName", "field1", "field2")`
+- Aggregate with `Aggregate("groupName", map[string]AggregateFunc{...})`
+- Create charts with `QuickChart(data, "output.html")`
+
+## Important
+- Always include `package main` and `func main()`
+- Only import packages actually used (don't import "slices" unless using slices.Values())
+- Write human-readable code with descriptive variable names
+- Break complex operations into clear steps
+EOF
+
+# Now start Claude Code - it will automatically read .claude/CLAUDE.md
+claude-code
+```
+
+Now Claude Code will know about StreamV3 every time you work in this directory!
 
 **Example Interactive Session**:
 ```
@@ -210,18 +255,21 @@ Claude Code:
 npm install -g @google/generative-ai-cli
 ```
 
-**Usage**:
+**Setting Up StreamV3 Knowledge**:
 ```bash
 gemini-cli
 
-# Copy the StreamV3 prompt as your first message
-# Then start requesting code
+# First message: Copy and paste the entire contents of
+# https://github.com/rosscartlidge/streamv3/blob/main/doc/streamv3-ai-prompt.md
+
+# Then start requesting StreamV3 code
 ```
 
 **Advantages**:
 - Good for quick iterations
 - Fast response times
 - Multi-modal capabilities (can read images if you have chart screenshots)
+- Tested and works well with StreamV3
 
 ### GitHub Copilot CLI
 
@@ -249,12 +297,22 @@ gh copilot suggest "create streamv3 pipeline to analyze sales data"
 pip install aider-chat
 ```
 
-**Usage**:
+**Setting Up StreamV3 Knowledge**:
 ```bash
 cd my-streamv3-project
+
+# Download the StreamV3 reference
+curl -o streamv3-reference.md \
+  https://raw.githubusercontent.com/rosscartlidge/streamv3/main/doc/streamv3-ai-prompt.md
+
+# Start aider and add the reference
 aider
 
-# In aider:
+# In aider, first message:
+/add streamv3-reference.md
+"Read this StreamV3 reference. I'll be asking you to generate StreamV3 code."
+
+# Then start coding:
 /add main.go
 "Create a StreamV3 pipeline to process sales data"
 ```
@@ -263,6 +321,7 @@ aider
 - Works with multiple LLM backends (GPT-4, Claude, local models)
 - Git integration - automatically commits working code
 - Can edit existing files intelligently
+- Great for iterative development
 
 ### Interactive Development Workflow
 
@@ -444,36 +503,6 @@ Claude Code:
 
 "Analysis complete! All files are in the current directory."
 ```
-
-### Setting Up Claude Code for StreamV3
-
-Create a `.claude/CLAUDE.md` file in your project to give Claude Code StreamV3 knowledge:
-
-```bash
-mkdir -p .claude
-cat > .claude/CLAUDE.md << 'EOF'
-# StreamV3 Project
-
-This project uses StreamV3 for data processing.
-
-## Quick Reference
-
-- Use `streamv3.ReadCSV(filename)` to read CSV files (panics on error)
-- Use SQL-style names: `Select`, `Where`, `Limit` (not Map, Filter, Take)
-- Access records safely with `streamv3.GetOr(record, "field", defaultValue)`
-- Group with `GroupByFields("groupName", "field1", "field2")`
-- Aggregate with `Aggregate("groupName", map[string]AggregateFunc{...})`
-- Create charts with `QuickChart(data, "output.html")`
-
-## Important
-- Always include `package main` and `func main()`
-- Only import packages actually used (don't import "slices" unless using slices.Values())
-- Write human-readable code with descriptive variable names
-- Break complex operations into clear steps
-EOF
-```
-
-Now Claude Code will automatically know StreamV3 conventions when working in this directory!
 
 ---
 
