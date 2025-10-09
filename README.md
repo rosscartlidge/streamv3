@@ -70,6 +70,7 @@ package main
 
 import (
     "fmt"
+    "slices"
     "github.com/rosscartlidge/streamv3"
 )
 
@@ -91,18 +92,27 @@ func main() {
 
 ### Your First Chart
 ```go
-// Create sample data
-monthlyRevenue := []streamv3.Record{
-    streamv3.NewRecord().String("month", "Jan").Float("revenue", 120000).Build(),
-    streamv3.NewRecord().String("month", "Feb").Float("revenue", 135000).Build(),
-    streamv3.NewRecord().String("month", "Mar").Float("revenue", 118000).Build(),
+package main
+
+import (
+    "slices"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Create sample data
+    monthlyRevenue := []streamv3.Record{
+        streamv3.NewRecord().String("month", "Jan").Float("revenue", 120000).Build(),
+        streamv3.NewRecord().String("month", "Feb").Float("revenue", 135000).Build(),
+        streamv3.NewRecord().String("month", "Mar").Float("revenue", 118000).Build(),
+    }
+
+    data := slices.Values(monthlyRevenue)
+
+    // Generate interactive chart
+    streamv3.QuickChart(data, "month", "revenue", "revenue_chart.html")
+    // Opens in browser with zoom, pan, and export features
 }
-
-data := slices.Values(monthlyRevenue)
-
-// Generate interactive chart
-streamv3.QuickChart(data, "month", "revenue", "revenue_chart.html")
-// Opens in browser with zoom, pan, and export features
 ```
 
 ## 🎓 Learning Path
