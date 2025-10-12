@@ -143,14 +143,11 @@ func NewJSONString(value any) (JSONString, error) {
 	return JSONString(bytes), nil
 }
 
-// Value constraint for type-safe record values - matches StreamV2
+// Value constraint for type-safe record values
+// Hybrid approach: Canonical scalars (int64/float64), flexible sequences (any numeric type)
 type Value interface {
-	// Integer types
-	~int | ~int8 | ~int16 | ~int32 | ~int64 |
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
-
-		// Float types
-		~float32 | ~float64 |
+	// Canonical scalar types only
+	~int64 | ~float64 |
 
 		// Other basic types
 		~bool | string | time.Time |
@@ -158,7 +155,7 @@ type Value interface {
 		// JSON and Record types for structured data
 		JSONString | Record |
 
-		// Iterator types for streams
+		// Iterator types - allow all numeric variants for ergonomics with slices.Values()
 		iter.Seq[int] | iter.Seq[int8] | iter.Seq[int16] | iter.Seq[int32] | iter.Seq[int64] |
 		iter.Seq[uint] | iter.Seq[uint8] | iter.Seq[uint16] | iter.Seq[uint32] | iter.Seq[uint64] |
 		iter.Seq[float32] | iter.Seq[float64] |
@@ -433,64 +430,39 @@ func convertTo[T any](val any) (T, bool) {
 	}
 }
 
+// convertToInt64 only handles conversions TO canonical int64 type
+// From: float64, string, bool (canonical sources only)
+// Users must explicitly convert from int/int32/uint/etc to int64
 func convertToInt64(val any) (int64, bool) {
 	switch v := val.(type) {
 	case int64:
 		return v, true
-	case int:
-		return int64(v), true
-	case int32:
-		return int64(v), true
-	case int16:
-		return int64(v), true
-	case int8:
-		return int64(v), true
-	case uint64:
-		return int64(v), true
-	case uint32:
-		return int64(v), true
-	case uint16:
-		return int64(v), true
-	case uint8:
-		return int64(v), true
 	case float64:
-		return int64(v), true
-	case float32:
-		return int64(v), true
+		return int64(v), true // Allow float64 -> int64 truncation
 	case string:
 		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
 			return parsed, true
 		}
 		return 0, false
+	case bool:
+		if v {
+			return 1, true
+		}
+		return 0, true
 	default:
 		return 0, false
 	}
 }
 
+// convertToFloat64 only handles conversions TO canonical float64 type
+// From: int64, string (canonical sources only)
+// Users must explicitly convert from float32/int/int32/etc to float64
 func convertToFloat64(val any) (float64, bool) {
 	switch v := val.(type) {
 	case float64:
 		return v, true
-	case float32:
-		return float64(v), true
 	case int64:
-		return float64(v), true
-	case int:
-		return float64(v), true
-	case int32:
-		return float64(v), true
-	case int16:
-		return float64(v), true
-	case int8:
-		return float64(v), true
-	case uint64:
-		return float64(v), true
-	case uint32:
-		return float64(v), true
-	case uint16:
-		return float64(v), true
-	case uint8:
-		return float64(v), true
+		return float64(v), true // Allow int64 -> float64 widening
 	case string:
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
 			return parsed, true
@@ -512,13 +484,12 @@ func convertToString(val any) (string, bool) {
 	}
 }
 
+// convertToBool only handles conversions from canonical types
 func convertToBool(val any) (bool, bool) {
 	switch v := val.(type) {
 	case bool:
 		return v, true
 	case int64:
-		return v != 0, true
-	case int:
 		return v != 0, true
 	case float64:
 		return v != 0, true
@@ -570,25 +541,23 @@ func ValidateRecord(r Record) error {
 }
 
 // IsValueType checks if a value conforms to the Value interface using type assertions
+// Hybrid approach: Only canonical scalars (int64, float64), but all sequence variants allowed
 func isValueType(value any) bool {
 	switch value.(type) {
-	// Integer types
-	case int, int8, int16, int32, int64:
-		return true
-	case uint, uint8, uint16, uint32, uint64:
-		return true
-	// Float types
-	case float32, float64:
+	// Canonical scalar types only
+	case int64, float64:
 		return true
 	// Other basic types
 	case bool, string:
 		return true
 	case time.Time:
 		return true
+	case JSONString:
+		return true
 	// Record type
 	case Record:
 		return true
-	// Iterator types for streams
+	// Iterator types - all numeric variants allowed for ergonomics
 	case iter.Seq[int], iter.Seq[int8], iter.Seq[int16], iter.Seq[int32], iter.Seq[int64]:
 		return true
 	case iter.Seq[uint], iter.Seq[uint8], iter.Seq[uint16], iter.Seq[uint32], iter.Seq[uint64]:
@@ -610,21 +579,19 @@ func Field[V Value](key string, value V) Record {
 }
 
 // ============================================================================
-// NUMERIC AND COMPARABLE CONSTRAINTS - MATCHES STREAMV2
+// NUMERIC AND COMPARABLE CONSTRAINTS - CANONICAL TYPES ONLY
 // ============================================================================
 
-// Numeric represents types that support arithmetic operations
+// Numeric represents canonical types that support arithmetic operations
+// Only int64 and float64 - users must convert from other numeric types
 type Numeric interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 |
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
-		~float32 | ~float64
+	~int64 | ~float64
 }
 
-// Comparable represents types that can be compared and sorted
+// Comparable represents canonical types that can be compared and sorted
+// Only int64, float64, and string - users must convert from other numeric types
 type Comparable interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 |
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
-		~float32 | ~float64 | ~string
+	~int64 | ~float64 | ~string
 }
 
 // ============================================================================
@@ -1047,21 +1014,19 @@ func isIterSeq(value any) bool {
 }
 
 // isSimpleValue checks if a value is a simple type suitable for grouping
+// Only canonical scalar types allowed
 func isSimpleValue(value any) bool {
 	if value == nil {
 		return true // nil is simple
 	}
 	switch value.(type) {
-	// Integer types
-	case int, int8, int16, int32, int64:
-		return true
-	case uint, uint8, uint16, uint32, uint64:
-		return true
-	// Float types
-	case float32, float64:
+	// Canonical scalar types only
+	case int64, float64:
 		return true
 	// Other basic types
 	case bool, string, time.Time:
+		return true
+	case JSONString:
 		return true
 	// Complex types not allowed for grouping
 	case Record:

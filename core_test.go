@@ -522,10 +522,14 @@ func TestConvertToInt64(t *testing.T) {
 		ok       bool
 	}{
 		{"int64", int64(42), 42, true},
-		{"int", 42, 42, true},
 		{"float64", 42.0, 42, true},
 		{"string", "42", 42, true},
+		{"bool true", true, 1, true},
+		{"bool false", false, 0, true},
 		{"invalid string", "abc", 0, false},
+		// Non-canonical types should NOT convert
+		{"int (non-canonical)", 42, 0, false},
+		{"int32 (non-canonical)", int32(42), 0, false},
 	}
 
 	for _, tt := range tests {
@@ -549,9 +553,12 @@ func TestConvertToFloat64(t *testing.T) {
 		ok       bool
 	}{
 		{"float64", 42.5, 42.5, true},
-		{"int", 42, 42.0, true},
+		{"int64", int64(42), 42.0, true},
 		{"string", "42.5", 42.5, true},
 		{"invalid string", "abc", 0, false},
+		// Non-canonical types should NOT convert
+		{"int (non-canonical)", 42, 0, false},
+		{"float32 (non-canonical)", float32(42.5), 0, false},
 	}
 
 	for _, tt := range tests {
@@ -602,10 +609,15 @@ func TestConvertToBool(t *testing.T) {
 	}{
 		{"bool true", true, true, true},
 		{"bool false", false, false, true},
-		{"int zero", 0, false, true},
-		{"int nonzero", 42, true, true},
+		{"int64 zero", int64(0), false, true},
+		{"int64 nonzero", int64(42), true, true},
+		{"float64 zero", 0.0, false, true},
+		{"float64 nonzero", 42.5, true, true},
 		{"string empty", "", false, true},
 		{"string nonempty", "hello", true, true},
+		// Non-canonical types should NOT convert
+		{"int (non-canonical)", 0, false, false},
+		{"int (non-canonical)", 42, false, false},
 	}
 
 	for _, tt := range tests {
