@@ -50,6 +50,10 @@ func (c *whereCommand) Description() string {
 	return "Filter records based on field conditions"
 }
 
+func (c *whereCommand) GetGSCommand() *gs.GSCommand {
+	return c.cmd
+}
+
 func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {

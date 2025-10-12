@@ -48,6 +48,10 @@ func (c *selectCommand) Description() string {
 	return "Select and optionally rename fields"
 }
 
+func (c *selectCommand) GetGSCommand() *gs.GSCommand {
+	return c.cmd
+}
+
 func (c *selectCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {

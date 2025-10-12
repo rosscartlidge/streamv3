@@ -46,6 +46,10 @@ func (c *writeCSVCommand) Description() string {
 	return "Read JSONL stream and write as CSV file"
 }
 
+func (c *writeCSVCommand) GetGSCommand() *gs.GSCommand {
+	return c.cmd
+}
+
 func (c *writeCSVCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
