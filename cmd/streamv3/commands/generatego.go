@@ -50,7 +50,7 @@ func (c *generateGoCommand) GetGSCommand() *gs.GSCommand {
 }
 
 func (c *generateGoCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag
+	// Handle -help flag before gs framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("generate-go - Generate Go code from StreamV3 CLI pipeline")
 		fmt.Println()
@@ -67,7 +67,7 @@ func (c *generateGoCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println("  streamv3 generate-go < pipeline.sh > main.go")
 		fmt.Println()
 		fmt.Println("  # Generate inline")
-		fmt.Println("  echo 'streamv3 read-csv data.csv | streamv3 where -field age -op gt -value 18' | \\")
+		fmt.Println("  echo 'streamv3 read-csv data.csv | streamv3 where -match age gt 18' | \\")
 		fmt.Println("    streamv3 generate-go > main.go")
 		fmt.Println()
 		fmt.Println("  # Compile and run")
@@ -86,17 +86,28 @@ func (c *generateGoCommand) Execute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	// Parse arguments using gs framework
-	clauses, err := c.cmd.Parse(args)
-	if err != nil {
-		return fmt.Errorf("parsing arguments: %w", err)
-	}
+	// Delegate to gs framework which will call Config.Execute
+	return c.cmd.Execute(ctx, args)
+}
 
-	// Get output file from config or first clause
-	outputFile := c.config.Output
+// Validate implements gs.Commander interface
+func (c *GenerateGoConfig) Validate() error {
+	return nil
+}
+
+// Execute implements gs.Commander interface
+// This is called by the gs framework after parsing arguments into clauses
+func (c *GenerateGoConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
+	// Get output file from Output field or from bare arguments in clauses
+	outputFile := c.Output
 	if outputFile == "" && len(clauses) > 0 {
-		if argv, ok := clauses[0].Fields["Output"].(string); ok {
-			outputFile = argv
+		if output, ok := clauses[0].Fields["Output"].(string); ok && output != "" {
+			outputFile = output
+		}
+		if outputFile == "" {
+			if args, ok := clauses[0].Fields["_args"].([]string); ok && len(args) > 0 {
+				outputFile = args[0]
+			}
 		}
 	}
 
@@ -122,15 +133,5 @@ func (c *generateGoCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Print(code)
 	}
 
-	return nil
-}
-
-// Validate implements gs.Commander interface
-func (c *GenerateGoConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface (not used, we use command.Execute)
-func (c *GenerateGoConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
 	return nil
 }
