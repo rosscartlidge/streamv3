@@ -104,6 +104,94 @@ record := streamv3.NewRecord().
 This hybrid approach balances ergonomics (flexible sequences) with consistency (canonical scalars).
 
 This library emphasizes functional composition with Go 1.23+ iterators while providing comprehensive data visualization capabilities.
+
+## CLI Tools Architecture
+
+StreamV3 includes a CLI tool (`cmd/streamv3`) with a self-generating code architecture.
+
+**Self-Generating Commands:**
+- Each CLI command has a `-generate` flag that emits Go code instead of executing
+- Commands communicate via JSONL code fragments on stdin/stdout
+- The `generate-go` command assembles all fragments into a complete Go program
+- This eliminates the need for a separate parser and keeps generated code in sync with implementations
+
+**Code Fragment System (`cmd/streamv3/lib/codefragment.go`):**
+- `CodeFragment` struct with Type/Var/Input/Code/Imports fields
+- `ReadAllCodeFragments()` - Read all previous fragments from stdin
+- `WriteCodeFragment()` - Write fragment to stdout
+- Commands pass through all previous fragments, then append their own
+
+**Adding New Commands - REQUIRED STEPS:**
+1. Add `Generate bool` flag to config struct with `gs:"flag,global,last,help=Generate Go code instead of executing"`
+2. Add branch in Execute() method: `if c.Generate { return c.generateCode(...) }`
+3. Implement `generateCode()` method:
+   - Call `lib.ReadAllCodeFragments()` to read all previous fragments from stdin
+   - Pass through all previous fragments with `lib.WriteCodeFragment(frag)`
+   - Get input variable from last fragment: `fragments[len(fragments)-1].Var`
+   - Generate your command's Go code
+   - Create fragment with `lib.NewStmtFragment()` (or NewInitFragment/NewFinalFragment)
+   - Write your fragment with `lib.WriteCodeFragment()`
+
+**Fragment Types:**
+- `init` - First command in pipeline (e.g., read-csv), creates initial variable
+- `stmt` - Middle command (e.g., where, select), has input and output variable
+- `final` - Last command (e.g., write-csv), has input but no output variable
+
+**Example Implementation Pattern:**
+```go
+type MyCommandConfig struct {
+    Generate bool   `gs:"flag,global,last,help=Generate Go code instead of executing"`
+    // ... other fields
+}
+
+func (c *MyCommandConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
+    if c.Generate {
+        return c.generateCode(clauses)
+    }
+    // ... normal execution
+}
+
+func (c *MyCommandConfig) generateCode(clauses []gs.ClauseSet) error {
+    // Read all previous fragments
+    fragments, err := lib.ReadAllCodeFragments()
+    if err != nil {
+        return fmt.Errorf("reading code fragments: %w", err)
+    }
+
+    // Pass through all previous fragments
+    for _, frag := range fragments {
+        if err := lib.WriteCodeFragment(frag); err != nil {
+            return fmt.Errorf("writing previous fragment: %w", err)
+        }
+    }
+
+    // Get input variable from last fragment
+    var inputVar string
+    if len(fragments) > 0 {
+        inputVar = fragments[len(fragments)-1].Var
+    } else {
+        inputVar = "records"
+    }
+
+    // Generate your code
+    code := fmt.Sprintf("output := myFunc(%s)", inputVar)
+
+    // Create and write your fragment
+    frag := lib.NewStmtFragment("output", inputVar, code, []string{"import1", "import2"})
+    return lib.WriteCodeFragment(frag)
+}
+```
+
+**Testing Code Generation:**
+```bash
+# Test your command's generation
+streamv3 read-csv -generate data.csv | streamv3 mycommand -generate | streamv3 generate-go
+
+# The output should be valid Go code that compiles
+```
+
+**⚠️ CRITICAL: Every new CLI command MUST implement -generate support, or code generation pipelines will break!**
+
 - ai_generation
 - doc_improvement
 - llm_test
