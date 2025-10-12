@@ -8,9 +8,9 @@ This document outlines the design and implementation of command-line tools for S
 ```bash
 cat data.csv |
   streamv3 read-csv |
-  streamv3 where - age '>' 18 - status '=' active |
-  streamv3 group-by - fields age + aggregate 'count=count()' + aggregate 'avg_score=avg(score)' |
-  streamv3 sort - field count - desc |
+  streamv3 where -match age gt 18 -match status eq active |
+  streamv3 group-by -fields age + -aggregate 'count=count()' + -aggregate 'avg_score=avg(score)' |
+  streamv3 sort -field count -desc |
   streamv3 write-csv > output.csv
 ```
 
@@ -117,25 +117,25 @@ type WriteCSVConfig struct {
 **Usage:**
 ```bash
 # Single condition
-streamv3 where - field age - op '>' - value 18
+streamv3 where -match age gt 18
 
-# Multiple AND conditions (multiple clauses)
-streamv3 where - field age - op '>' - value 18 - field status - op '=' - value active
+# Multiple AND conditions (multiple -match in same command)
+streamv3 where -match age gt 18 -match status eq active
 
 # OR conditions (+ separator starts new clause)
-streamv3 where - field age - op '>' - value 65 + field age - op '<' - value 18
+streamv3 where -match age gt 65 + -match age lt 18
 
-# NOT conditions (+ prefix on field)
-streamv3 where - field age - op '>' - value 18 + field status - op '=' - value banned
+# Complex: (A AND B) OR C
+streamv3 where -match age gt 18 -match status eq active + -match department eq Engineering
 ```
 
 **Config:**
 ```go
 type WhereConfig struct {
-    Field    string `gs:"field,local,last,help=Field to filter on"`
-    Op       string `gs:"string,local,last,help=Comparison operator,enum=eq:ne:gt:ge:lt:le:contains:startswith:endswith"`
-    Value    string `gs:"content,local,last,help=Value to compare against"`
-    Argv     string `gs:"file,global,last,help=Input JSONL file,suffix=.jsonl"`
+    // Match uses multi-argument pattern: -match field op value
+    // Multiple -match in same clause are ANDed, separate clauses (+) are ORed
+    Match []map[string]interface{} `gs:"multi,local,list,args=field:op:value,help=Filter condition: field operator value"`
+    Argv  string                   `gs:"file,global,last,help=Input JSONL file (or stdin if not specified),suffix=.jsonl"`
 }
 ```
 
@@ -154,14 +154,14 @@ type WhereConfig struct {
 
 **Usage:**
 ```bash
-# Select specific fields
-streamv3 select - field name - field age
+# Select specific fields (use + to separate multiple fields)
+streamv3 select -field name + -field age
 
 # Rename fields
-streamv3 select - field name - as fullname - field age
+streamv3 select -field name -as fullname + -field age
 
-# Computed fields (future: expression evaluation)
-streamv3 select - field name - field age - expr 'age + 10' - as age_plus_ten
+# Multiple field selection
+streamv3 select -field name + -field age + -field department
 ```
 
 **Config:**
@@ -218,13 +218,13 @@ type GroupByConfig struct {
 **Usage:**
 ```bash
 # Sort ascending
-streamv3 sort - field age
+streamv3 sort -field age
 
 # Sort descending
-streamv3 sort - field age - desc
+streamv3 sort -field age -desc
 
-# Multi-field sort
-streamv3 sort - field department - field age - desc
+# Multi-field sort (future enhancement)
+streamv3 sort -field department + -field age -desc
 ```
 
 **Config:**
@@ -245,7 +245,7 @@ type SortConfig struct {
 
 **Usage:**
 ```bash
-streamv3 limit - n 100
+streamv3 limit -n 100
 ```
 
 **Config:**
@@ -493,41 +493,40 @@ func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Fi
 # Remove invalid records, select relevant fields, deduplicate
 cat users.csv |
   streamv3 read-csv |
-  streamv3 where - field age - op '>' - value 0 - field email - op 'contains' - value '@' |
-  streamv3 select - field name - field email - field age |
-  streamv3 distinct - field email |
+  streamv3 where -match age gt 0 -match email contains '@' |
+  streamv3 select -field name + -field email + -field age |
+  streamv3 distinct -field email |
   streamv3 write-csv > clean_users.csv
 ```
 
 ### Use Case 2: Analytics
 ```bash
-# Sales analysis by region and product
-cat sales.csv |
+# Find top Engineering employees by salary
+cat employees.csv |
   streamv3 read-csv |
-  streamv3 where - field date - op '>=' - value '2024-01-01' |
-  streamv3 group-by - fields region - fields product - agg 'total=sum(amount)' - agg 'count=count()' |
-  streamv3 sort - field total - desc |
-  streamv3 limit - n 10 |
-  streamv3 write-csv > top_sales.csv
+  streamv3 where -match department eq Engineering |
+  streamv3 select -field name + -field salary + -field age |
+  streamv3 sort -field salary -desc |
+  streamv3 limit -n 10 |
+  streamv3 write-csv > top_engineers.csv
 ```
 
-### Use Case 3: Log Processing
+### Use Case 3: Complex Filtering
 ```bash
-# Parse logs, filter errors, aggregate by hour
-streamv3 read-csv server.log |
-  streamv3 where - field level - op '=' - value ERROR + field level - op '=' - value CRITICAL |
-  streamv3 group-by - fields hour - agg 'error_count=count()' |
-  streamv3 sort - field hour |
-  streamv3 write-csv > error_summary.csv
+# Find employees who are either senior (age > 40) or high earners (salary > 100k)
+streamv3 read-csv employees.csv |
+  streamv3 where -match age gt 40 + -match salary gt 100000 |
+  streamv3 sort -field salary -desc |
+  streamv3 write-csv > senior_or_high_earners.csv
 ```
 
-### Use Case 4: Data Transformation
+### Use Case 4: Multi-criteria Filtering
 ```bash
-# Join-like operation using multiple pipelines
-streamv3 read-csv users.csv > /tmp/users.jsonl
-streamv3 read-csv orders.csv |
-  streamv3 where - field user_id - op '=' - value 12345 |
-  streamv3 write-csv > user_orders.csv
+# Find young Engineering employees OR any Sales employees
+streamv3 read-csv employees.csv |
+  streamv3 where -match age lt 30 -match department eq Engineering + -match department eq Sales |
+  streamv3 select -field name + -field department + -field age |
+  streamv3 write-csv > filtered_employees.csv
 ```
 
 ## Design Decisions
