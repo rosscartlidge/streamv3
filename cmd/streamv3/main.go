@@ -30,10 +30,6 @@ func main() {
 	case "-bash-completion":
 		printBashCompletion()
 		os.Exit(0)
-	case "-complete":
-		// Handle completion requests
-		handleCompletion(os.Args[2:])
-		os.Exit(0)
 	}
 
 	// Find and execute subcommand
@@ -43,7 +39,9 @@ func main() {
 	allCommands := commands.GetCommands()
 	for _, cmd := range allCommands {
 		if cmd.Name() == subcommand {
-			if err := cmd.Execute(ctx, args); err != nil {
+			// Use gs framework's Execute to handle -complete automatically
+			gsCmd := cmd.GetGSCommand()
+			if err := gsCmd.Execute(ctx, args); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				os.Exit(1)
 			}
@@ -108,11 +106,9 @@ _streamv3_completion() {
     local subcommand="${words[1]}"
 
     # For subcommands, delegate to gs framework completion
-    local line="${COMP_LINE}"
-    local point="${COMP_POINT}"
-
-    # Call streamv3 with -complete flag
-    local completions=$(streamv3 -complete "$subcommand" "${words[@]:2}" 2>/dev/null)
+    # The subcommand itself handles -complete via gs framework
+    # Pass position and all arguments after the subcommand name
+    local completions=$(streamv3 "$subcommand" -complete $((cword-2)) "${words[@]:2}" 2>/dev/null)
 
     if [ -n "$completions" ]; then
         COMPREPLY=( $(compgen -W "$completions" -- "$cur") )
@@ -124,26 +120,4 @@ _streamv3_completion() {
 
 complete -F _streamv3_completion streamv3
 `)
-}
-
-// handleCompletion handles -complete flag for bash completion
-func handleCompletion(args []string) {
-	if len(args) == 0 {
-		return
-	}
-
-	subcommand := args[0]
-	_ = args[1:] // cmdArgs - reserved for future gs framework integration
-
-	// Find the command and let it handle completion via gs framework
-	allCommands := commands.GetCommands()
-	for _, cmd := range allCommands {
-		if cmd.Name() == subcommand {
-			// The gs framework will handle completion internally
-			// For now, just print available flags for the command
-			fmt.Println("-help")
-			// TODO: Add proper gs framework completion integration
-			return
-		}
-	}
 }

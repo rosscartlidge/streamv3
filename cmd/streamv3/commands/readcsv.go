@@ -46,6 +46,10 @@ func (c *readCSVCommand) Description() string {
 	return "Read CSV file and output JSONL stream"
 }
 
+func (c *readCSVCommand) GetGSCommand() *gs.GSCommand {
+	return c.cmd
+}
+
 func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {

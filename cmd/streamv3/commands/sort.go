@@ -49,6 +49,10 @@ func (c *sortCommand) Description() string {
 	return "Sort records by field"
 }
 
+func (c *sortCommand) GetGSCommand() *gs.GSCommand {
+	return c.cmd
+}
+
 func (c *sortCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {

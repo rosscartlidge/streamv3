@@ -1,12 +1,17 @@
 package commands
 
-import "context"
+import (
+	"context"
+
+	"github.com/rosscartlidge/gogstools/gs"
+)
 
 // Command represents a subcommand
 type Command interface {
 	Name() string
 	Description() string
 	Execute(ctx context.Context, args []string) error
+	GetGSCommand() *gs.GSCommand  // Expose gs command for completion
 }
 
 var commands []Command

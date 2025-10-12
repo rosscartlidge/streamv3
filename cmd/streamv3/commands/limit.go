@@ -47,6 +47,10 @@ func (c *limitCommand) Description() string {
 	return "Take first N records"
 }
 
+func (c *limitCommand) GetGSCommand() *gs.GSCommand {
+	return c.cmd
+}
+
 func (c *limitCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
