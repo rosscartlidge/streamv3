@@ -12,7 +12,8 @@ import (
 
 // WriteCSVConfig holds configuration for write-csv command
 type WriteCSVConfig struct {
-	Argv string `gs:"file,global,last,help=Output CSV file (or stdout if not specified),suffix=.csv"`
+	Generate bool   `gs:"flag,global,last,help=Generate Go code instead of executing"`
+	Argv     string `gs:"file,global,last,help=Output CSV file (or stdout if not specified),suffix=.csv"`
 }
 
 // writeCSVCommand implements the write-csv command
@@ -159,7 +160,12 @@ func (c *WriteCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) er
 		}
 	}
 
-	// Read JSONL from stdin
+	// If -generate flag is set, generate Go code instead of executing
+	if c.Generate {
+		return c.generateCode(outputFile)
+	}
+
+	// Normal execution: Read JSONL from stdin
 	input, err := lib.OpenInput("-")
 	if err != nil {
 		return err
@@ -217,4 +223,42 @@ func (c *WriteCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) er
 	}
 
 	return nil
+}
+
+// generateCode generates Go code for the write-csv command
+func (c *WriteCSVConfig) generateCode(filename string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable name from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate WriteCSV call
+	var code string
+	if filename == "" {
+		code = fmt.Sprintf(`streamv3.WriteCSV("", %s)`, inputVar)
+	} else {
+		code = fmt.Sprintf(`streamv3.WriteCSV(%q, %s)`, filename, inputVar)
+	}
+
+	// Create final fragment (no output variable)
+	frag := lib.NewFinalFragment(inputVar, code, nil)
+
+	// Write to stdout
+	return lib.WriteCodeFragment(frag)
 }

@@ -12,7 +12,8 @@ import (
 
 // ReadCSVConfig holds configuration for read-csv command
 type ReadCSVConfig struct {
-	Argv string `gs:"file,global,last,help=Input CSV file (or stdin if not specified),suffix=.csv"`
+	Generate bool   `gs:"flag,global,last,help=Generate Go code instead of executing"`
+	Argv     string `gs:"file,global,last,help=Input CSV file (or stdin if not specified),suffix=.csv"`
 }
 
 // readCSVCommand implements the read-csv command
@@ -96,7 +97,12 @@ func (c *ReadCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) err
 		}
 	}
 
-	// Read CSV file (empty string means stdin)
+	// If -generate flag is set, generate Go code instead of executing
+	if c.Generate {
+		return c.generateCode(inputFile)
+	}
+
+	// Normal execution: Read CSV file (empty string means stdin)
 	records := streamv3.ReadCSV(inputFile)
 
 	// Write as JSONL to stdout
@@ -105,4 +111,21 @@ func (c *ReadCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) err
 	}
 
 	return nil
+}
+
+// generateCode generates Go code for the read-csv command
+func (c *ReadCSVConfig) generateCode(filename string) error {
+	// Generate ReadCSV call
+	var code string
+	if filename == "" {
+		code = `records := streamv3.ReadCSV("")`
+	} else {
+		code = fmt.Sprintf(`records := streamv3.ReadCSV(%q)`, filename)
+	}
+
+	// Create init fragment (first in pipeline)
+	frag := lib.NewInitFragment("records", code, nil)
+
+	// Write to stdout
+	return lib.WriteCodeFragment(frag)
 }

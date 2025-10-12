@@ -111,16 +111,10 @@ func (c *GenerateGoConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) 
 		}
 	}
 
-	// Parse pipeline from stdin
-	pipeline, err := lib.ParsePipeline(os.Stdin)
+	// Assemble code fragments from stdin
+	code, err := lib.AssembleCodeFragments(os.Stdin)
 	if err != nil {
-		return fmt.Errorf("parsing pipeline: %w", err)
-	}
-
-	// Generate Go code
-	code, err := lib.GenerateGoCode(pipeline)
-	if err != nil {
-		return fmt.Errorf("generating code: %w", err)
+		return fmt.Errorf("assembling code fragments: %w", err)
 	}
 
 	// Write to output
