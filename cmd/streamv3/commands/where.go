@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
@@ -15,8 +16,9 @@ import (
 type WhereConfig struct {
 	// Match uses multi-argument pattern: -match field op value
 	// Multiple -match in same clause are ANDed, separate clauses (+) are ORed
-	Match []map[string]interface{} `gs:"multi,local,list,args=field:op:value,help=Filter condition: field operator value"`
-	Argv  string                   `gs:"file,global,last,help=Input JSONL file (or stdin if not specified),suffix=.jsonl"`
+	Match    []map[string]interface{} `gs:"multi,local,list,args=field:op:value,help=Filter condition: field operator value"`
+	Generate bool                     `gs:"flag,global,last,help=Generate Go code instead of executing"`
+	Argv     string                   `gs:"file,global,last,help=Input JSONL file (or stdin if not specified),suffix=.jsonl"`
 }
 
 // whereCommand implements the where command
@@ -285,6 +287,12 @@ func (c *WhereConfig) Validate() error {
 // Execute implements gs.Commander interface
 // This is called by the gs framework after parsing arguments into clauses
 func (c *WhereConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
+	// If -generate flag is set, generate Go code instead of executing
+	if c.Generate {
+		return c.generateCode(clauses)
+	}
+
+	// Normal execution: filter records
 	// Read JSONL from stdin or file
 	input, err := lib.OpenInput(c.Argv)
 	if err != nil {
@@ -306,4 +314,183 @@ func (c *WhereConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error
 	}
 
 	return nil
+}
+
+// generateCode generates Go code for the where command
+func (c *WhereConfig) generateCode(clauses []gs.ClauseSet) error {
+	// Read all previous code fragments from stdin (if any)
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable name from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate filter code from clauses
+	filterCode, imports := generateWhereCode(clauses)
+
+	// Build complete statement
+	outputVar := "filtered"
+	code := fmt.Sprintf("%s := streamv3.Where(%s)(%s)", outputVar, filterCode, inputVar)
+
+	// Create code fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports)
+
+	// Write to stdout
+	return lib.WriteCodeFragment(frag)
+}
+
+// generateWhereCode generates the filter function code
+func generateWhereCode(clauses []gs.ClauseSet) (string, []string) {
+	var imports []string
+	var conditions []string
+
+	// Build conditions for each clause (OR logic between clauses)
+	for clauseIdx, clause := range clauses {
+		matchList, ok := clause.Fields["Match"].([]interface{})
+		if !ok || len(matchList) == 0 {
+			continue
+		}
+
+		var clauseConditions []string
+
+		// Each match within a clause (AND logic)
+		for _, matchInterface := range matchList {
+			match, ok := matchInterface.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			field, _ := match["field"].(string)
+			op, _ := match["op"].(string)
+			value, _ := match["value"].(string)
+
+			if field == "" || op == "" {
+				continue
+			}
+
+			// Generate condition code
+			cond, imp := generateCondition(field, op, value)
+			clauseConditions = append(clauseConditions, cond)
+			imports = append(imports, imp...)
+		}
+
+		// Combine conditions in clause with AND
+		if len(clauseConditions) > 0 {
+			if len(clauseConditions) == 1 {
+				conditions = append(conditions, clauseConditions[0])
+			} else {
+				combined := "(" + joinWithAnd(clauseConditions) + ")"
+				conditions = append(conditions, combined)
+			}
+		}
+
+		_ = clauseIdx // Suppress unused warning
+	}
+
+	// Combine clauses with OR
+	var finalCondition string
+	if len(conditions) == 0 {
+		finalCondition = "return true"
+	} else if len(conditions) == 1 {
+		finalCondition = "return " + conditions[0]
+	} else {
+		finalCondition = "return " + joinWithOr(conditions)
+	}
+
+	// Build function
+	code := fmt.Sprintf("func(r streamv3.Record) bool {\n\t\t%s\n\t}", finalCondition)
+
+	return code, dedupeImports(imports)
+}
+
+// generateCondition generates code for a single condition
+func generateCondition(field, op, value string) (string, []string) {
+	var imports []string
+
+	// Detect if value is numeric
+	isNum := isNumeric(value)
+
+	switch op {
+	case "eq":
+		if isNum {
+			return fmt.Sprintf("r[%q].(float64) == %s", field, value), nil
+		}
+		return fmt.Sprintf("r[%q] == %q", field, value), nil
+
+	case "ne":
+		if isNum {
+			return fmt.Sprintf("r[%q].(float64) != %s", field, value), nil
+		}
+		return fmt.Sprintf("r[%q] != %q", field, value), nil
+
+	case "gt":
+		return fmt.Sprintf("r[%q].(float64) > %s", field, value), nil
+
+	case "ge":
+		return fmt.Sprintf("r[%q].(float64) >= %s", field, value), nil
+
+	case "lt":
+		return fmt.Sprintf("r[%q].(float64) < %s", field, value), nil
+
+	case "le":
+		return fmt.Sprintf("r[%q].(float64) <= %s", field, value), nil
+
+	case "contains":
+		imports = append(imports, "strings")
+		return fmt.Sprintf("strings.Contains(r[%q].(string), %q)", field, value), imports
+
+	case "startswith":
+		imports = append(imports, "strings")
+		return fmt.Sprintf("strings.HasPrefix(r[%q].(string), %q)", field, value), imports
+
+	case "endswith":
+		imports = append(imports, "strings")
+		return fmt.Sprintf("strings.HasSuffix(r[%q].(string), %q)", field, value), imports
+
+	default:
+		return "false", nil
+	}
+}
+
+// joinWithAnd joins conditions with &&
+func joinWithAnd(conditions []string) string {
+	return strings.Join(conditions, " && ")
+}
+
+// joinWithOr joins conditions with ||
+func joinWithOr(conditions []string) string {
+	return strings.Join(conditions, " || ")
+}
+
+// isNumeric checks if a string is a number
+func isNumeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
+}
+
+// dedupeImports removes duplicate imports
+func dedupeImports(imports []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+	for _, imp := range imports {
+		if imp != "" && !seen[imp] {
+			seen[imp] = true
+			result = append(result, imp)
+		}
+	}
+	return result
 }
