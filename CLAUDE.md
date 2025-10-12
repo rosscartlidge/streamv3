@@ -110,3 +110,4 @@ This library emphasizes functional composition with Go 1.23+ iterators while pro
 - llm_eval
 - gemini_works
 - llm_cli
+- cli-gs-tools
