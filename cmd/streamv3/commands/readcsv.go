@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
@@ -80,7 +81,7 @@ func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
 	records := streamv3.ReadCSV(inputFile)
 
 	// Write as JSONL to stdout
-	if err := lib.WriteJSONL(lib.Stdout, records); err != nil {
+	if err := lib.WriteJSONL(os.Stdout, records); err != nil {
 		return fmt.Errorf("writing JSONL: %w", err)
 	}
 

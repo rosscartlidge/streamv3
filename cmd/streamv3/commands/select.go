@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"os"
 	"context"
 	"fmt"
 
@@ -113,7 +114,7 @@ func (c *selectCommand) Execute(ctx context.Context, args []string) error {
 	selected := streamv3.Select(selector)(records)
 
 	// Write output as JSONL
-	if err := lib.WriteJSONL(lib.Stdout, selected); err != nil {
+	if err := lib.WriteJSONL(os.Stdout, selected); err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
