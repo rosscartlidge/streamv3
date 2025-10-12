@@ -69,12 +69,16 @@ func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
 		return fmt.Errorf("parsing arguments: %w", err)
 	}
 
-	// Get input file from config or first clause
+	// Get input file from config, first clause, or first positional arg
 	inputFile := c.config.Argv
 	if inputFile == "" && len(clauses) > 0 {
 		if argv, ok := clauses[0].Fields["Argv"].(string); ok {
 			inputFile = argv
 		}
+	}
+	// If still empty, check for positional file argument (bare filename)
+	if inputFile == "" && len(args) > 0 && args[0] != "-help" && args[0] != "--help" {
+		inputFile = args[0]
 	}
 
 	// Read CSV file

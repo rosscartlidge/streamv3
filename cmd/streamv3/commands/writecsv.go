@@ -70,6 +70,10 @@ func (c *writeCSVCommand) Execute(ctx context.Context, args []string) error {
 
 	// Get output file from config (set by gs framework)
 	outputFile := c.config.Argv
+	// If empty, check for positional file argument (bare filename)
+	if outputFile == "" && len(args) > 0 && args[0] != "-help" && args[0] != "--help" {
+		outputFile = args[0]
+	}
 
 	// Read JSONL from stdin
 	input, err := lib.OpenInput("-")
