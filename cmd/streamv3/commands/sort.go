@@ -54,27 +54,48 @@ func (c *sortCommand) GetGSCommand() *gs.GSCommand {
 }
 
 func (c *sortCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag
+	// Handle -help flag before gs framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("sort - Sort records by field")
 		fmt.Println()
-		fmt.Println("Usage: streamv3 sort - field <name> [- desc]")
+		fmt.Println("Usage: streamv3 sort -field <name> [-desc]")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  # Sort ascending")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 sort - field age")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 sort -field age")
 		fmt.Println()
 		fmt.Println("  # Sort descending")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 sort - field age - desc")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 sort -field age -desc")
 		return nil
 	}
 
-	// Parse arguments using gs framework
-	clauses, err := c.cmd.Parse(args)
-	if err != nil {
-		return fmt.Errorf("parsing arguments: %w", err)
-	}
+	// Delegate to gs framework which will call Config.Execute
+	return c.cmd.Execute(ctx, args)
+}
 
+// extractNumeric extracts a numeric value for sorting
+func extractNumeric(val any) float64 {
+	switch v := val.(type) {
+	case int64:
+		return float64(v)
+	case float64:
+		return v
+	case string:
+		// For strings, use 0 (they'll maintain relative order)
+		return 0
+	default:
+		return 0
+	}
+}
+
+// Validate implements gs.Commander interface
+func (c *SortConfig) Validate() error {
+	return nil
+}
+
+// Execute implements gs.Commander interface
+// This is called by the gs framework after parsing arguments into clauses
+func (c *SortConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
 	// Get sort field from first clause
 	var sortField string
 	var descending bool
@@ -87,8 +108,21 @@ func (c *sortCommand) Execute(ctx context.Context, args []string) error {
 		return fmt.Errorf("no sort field specified")
 	}
 
+	// Get input file from Argv field or from bare arguments in clauses
+	inputFile := c.Argv
+	if inputFile == "" && len(clauses) > 0 {
+		if argv, ok := clauses[0].Fields["Argv"].(string); ok && argv != "" {
+			inputFile = argv
+		}
+		if inputFile == "" {
+			if args, ok := clauses[0].Fields["_args"].([]string); ok && len(args) > 0 {
+				inputFile = args[0]
+			}
+		}
+	}
+
 	// Read JSONL from stdin
-	input, err := lib.OpenInput(c.config.Argv)
+	input, err := lib.OpenInput(inputFile)
 	if err != nil {
 		return err
 	}
@@ -119,30 +153,5 @@ func (c *sortCommand) Execute(ctx context.Context, args []string) error {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
-	return nil
-}
-
-// extractNumeric extracts a numeric value for sorting
-func extractNumeric(val any) float64 {
-	switch v := val.(type) {
-	case int64:
-		return float64(v)
-	case float64:
-		return v
-	case string:
-		// For strings, use 0 (they'll maintain relative order)
-		return 0
-	default:
-		return 0
-	}
-}
-
-// Validate implements gs.Commander interface
-func (c *SortConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface (not used, we use command.Execute)
-func (c *SortConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
 	return nil
 }

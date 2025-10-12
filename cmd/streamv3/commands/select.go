@@ -53,27 +53,38 @@ func (c *selectCommand) GetGSCommand() *gs.GSCommand {
 }
 
 func (c *selectCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag
+	// Handle -help flag before gs framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("select - Select and optionally rename fields")
 		fmt.Println()
-		fmt.Println("Usage: streamv3 select - field <name> [- as <newname>]")
+		fmt.Println("Usage: streamv3 select -field <name> [-as <newname>]")
+		fmt.Println()
+		fmt.Println("Note: Use + to separate multiple field selections")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  # Select specific fields")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 select - field name - field age")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 select -field name + -field age")
 		fmt.Println()
 		fmt.Println("  # Select and rename")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 select - field name - as fullname - field age")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 select -field name -as fullname + -field age")
+		fmt.Println()
+		fmt.Println("  # Select three fields")
+		fmt.Println("  streamv3 select -field name + -field age + -field department")
 		return nil
 	}
 
-	// Parse arguments using gs framework
-	clauses, err := c.cmd.Parse(args)
-	if err != nil {
-		return fmt.Errorf("parsing arguments: %w", err)
-	}
+	// Delegate to gs framework which will call Config.Execute
+	return c.cmd.Execute(ctx, args)
+}
 
+// Validate implements gs.Commander interface
+func (c *SelectConfig) Validate() error {
+	return nil
+}
+
+// Execute implements gs.Commander interface
+// This is called by the gs framework after parsing arguments into clauses
+func (c *SelectConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
 	// Build field mapping from clauses
 	fieldMap := make(map[string]string) // original -> new name
 	for _, clause := range clauses {
@@ -94,8 +105,21 @@ func (c *selectCommand) Execute(ctx context.Context, args []string) error {
 		return fmt.Errorf("no fields specified")
 	}
 
+	// Get input file from Argv field or from bare arguments in clauses
+	inputFile := c.Argv
+	if inputFile == "" && len(clauses) > 0 {
+		if argv, ok := clauses[0].Fields["Argv"].(string); ok && argv != "" {
+			inputFile = argv
+		}
+		if inputFile == "" {
+			if args, ok := clauses[0].Fields["_args"].([]string); ok && len(args) > 0 {
+				inputFile = args[0]
+			}
+		}
+	}
+
 	// Read JSONL from stdin
-	input, err := lib.OpenInput(c.config.Argv)
+	input, err := lib.OpenInput(inputFile)
 	if err != nil {
 		return err
 	}
@@ -122,15 +146,5 @@ func (c *selectCommand) Execute(ctx context.Context, args []string) error {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
-	return nil
-}
-
-// Validate implements gs.Commander interface
-func (c *SelectConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface (not used, we use command.Execute)
-func (c *SelectConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
 	return nil
 }

@@ -39,9 +39,8 @@ func main() {
 	allCommands := commands.GetCommands()
 	for _, cmd := range allCommands {
 		if cmd.Name() == subcommand {
-			// Use gs framework's Execute to handle -complete automatically
-			gsCmd := cmd.GetGSCommand()
-			if err := gsCmd.Execute(ctx, args); err != nil {
+			// Call our custom Execute which handles -help and delegates to gs framework
+			if err := cmd.Execute(ctx, args); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				os.Exit(1)
 			}
@@ -79,8 +78,14 @@ func printUsage() {
 	fmt.Println("  streamv3 -bash-completion > ~/.local/share/bash-completion/completions/streamv3  # Persistent")
 	fmt.Println()
 	fmt.Println("Example pipelines:")
-	fmt.Println("  cat data.csv | streamv3 read-csv | streamv3 where - field age - op gt - value 18 | streamv3 write-csv")
-	fmt.Println("  streamv3 read-csv data.csv | streamv3 group-by - fields dept - agg 'count=count()' | streamv3 write-csv")
+	fmt.Println("  # Filter by age and export")
+	fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 18 | streamv3 write-csv output.csv")
+	fmt.Println()
+	fmt.Println("  # Select fields, sort, and limit")
+	fmt.Println("  streamv3 read-csv data.csv | streamv3 select -field name + -field salary | streamv3 sort -field salary -desc | streamv3 limit -n 10")
+	fmt.Println()
+	fmt.Println("  # Complex filter with AND/OR")
+	fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 30 -match dept eq Engineering + -match salary gt 100000")
 }
 
 // FormatPipelineExample formats a multi-line pipeline for display

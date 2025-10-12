@@ -52,26 +52,32 @@ func (c *limitCommand) GetGSCommand() *gs.GSCommand {
 }
 
 func (c *limitCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag
+	// Handle -help flag before gs framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("limit - Take first N records")
 		fmt.Println()
-		fmt.Println("Usage: streamv3 limit - n <count>")
+		fmt.Println("Usage: streamv3 limit -n <count>")
 		fmt.Println()
 		fmt.Println("Examples:")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 limit - n 10")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 where - field age - op gt - value 18 | streamv3 limit - n 5")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 limit -n 10")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 18 | streamv3 limit -n 5")
 		return nil
 	}
 
-	// Parse arguments using gs framework
-	clauses, err := c.cmd.Parse(args)
-	if err != nil {
-		return fmt.Errorf("parsing arguments: %w", err)
-	}
+	// Delegate to gs framework which will call Config.Execute
+	return c.cmd.Execute(ctx, args)
+}
 
+// Validate implements gs.Commander interface
+func (c *LimitConfig) Validate() error {
+	return nil
+}
+
+// Execute implements gs.Commander interface
+// This is called by the gs framework after parsing arguments into clauses
+func (c *LimitConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
 	// Get N from config or first clause
-	n := int(c.config.N)
+	n := int(c.N)
 	if n == 0 && len(clauses) > 0 {
 		if nVal, ok := clauses[0].Fields["N"].(float64); ok {
 			n = int(nVal)
@@ -82,8 +88,21 @@ func (c *limitCommand) Execute(ctx context.Context, args []string) error {
 		return fmt.Errorf("limit must be positive, got %d", n)
 	}
 
+	// Get input file from Argv field or from bare arguments in clauses
+	inputFile := c.Argv
+	if inputFile == "" && len(clauses) > 0 {
+		if argv, ok := clauses[0].Fields["Argv"].(string); ok && argv != "" {
+			inputFile = argv
+		}
+		if inputFile == "" {
+			if args, ok := clauses[0].Fields["_args"].([]string); ok && len(args) > 0 {
+				inputFile = args[0]
+			}
+		}
+	}
+
 	// Read JSONL from stdin
-	input, err := lib.OpenInput(c.config.Argv)
+	input, err := lib.OpenInput(inputFile)
 	if err != nil {
 		return err
 	}
@@ -99,15 +118,5 @@ func (c *limitCommand) Execute(ctx context.Context, args []string) error {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
-	return nil
-}
-
-// Validate implements gs.Commander interface
-func (c *LimitConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface (not used, we use command.Execute)
-func (c *LimitConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
 	return nil
 }

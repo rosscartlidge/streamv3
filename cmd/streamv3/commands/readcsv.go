@@ -51,7 +51,7 @@ func (c *readCSVCommand) GetGSCommand() *gs.GSCommand {
 }
 
 func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag
+	// Handle -help flag before gs framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("read-csv - Read CSV file and output JSONL stream")
 		fmt.Println()
@@ -63,40 +63,12 @@ func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println("Examples:")
 		fmt.Println("  streamv3 read-csv data.csv")
 		fmt.Println("  cat data.csv | streamv3 read-csv")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 where - field age - op gt - value 18")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 where - match age gt 18")
 		return nil
 	}
 
-	// Parse arguments using gs framework
-	clauses, err := c.cmd.Parse(args)
-	if err != nil {
-		return fmt.Errorf("parsing arguments: %w", err)
-	}
-
-	// Get input file from config, first clause, or first positional arg
-	inputFile := c.config.Argv
-	if inputFile == "" && len(clauses) > 0 {
-		if argv, ok := clauses[0].Fields["Argv"].(string); ok {
-			inputFile = argv
-		}
-	}
-	// If still empty, check for positional file argument (bare filename)
-	if inputFile == "" && len(args) > 0 && args[0] != "-help" && args[0] != "--help" {
-		inputFile = args[0]
-	}
-
-	// Read CSV file
-	records := streamv3.ReadCSV(inputFile)
-
-	// Write as JSONL to stdout
-	if err := lib.WriteJSONL(os.Stdout, records); err != nil {
-		return fmt.Errorf("writing JSONL: %w", err)
-	}
-
-	// Suppress unused warning for clauses
-	_ = clauses
-
-	return nil
+	// Delegate to gs framework which will call Config.Execute
+	return c.cmd.Execute(ctx, args)
 }
 
 // Validate implements gs.Commander interface
@@ -104,7 +76,33 @@ func (c *ReadCSVConfig) Validate() error {
 	return nil
 }
 
-// Execute implements gs.Commander interface (not used, we use command.Execute)
+// Execute implements gs.Commander interface
+// This is called by the gs framework after parsing arguments into clauses
 func (c *ReadCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
+	// Get input file from Argv field or from bare arguments in clauses
+	inputFile := c.Argv
+
+	// If Argv not set, check for bare arguments in _args field
+	if inputFile == "" && len(clauses) > 0 {
+		// Check for Argv in the clause (might be set by -argv flag)
+		if argv, ok := clauses[0].Fields["Argv"].(string); ok && argv != "" {
+			inputFile = argv
+		}
+		// Check for bare arguments in _args
+		if inputFile == "" {
+			if args, ok := clauses[0].Fields["_args"].([]string); ok && len(args) > 0 {
+				inputFile = args[0]
+			}
+		}
+	}
+
+	// Read CSV file (empty string means stdin)
+	records := streamv3.ReadCSV(inputFile)
+
+	// Write as JSONL to stdout
+	if err := lib.WriteJSONL(os.Stdout, records); err != nil {
+		return fmt.Errorf("writing JSONL: %w", err)
+	}
+
 	return nil
 }
