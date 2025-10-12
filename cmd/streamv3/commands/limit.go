@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"os"
 	"context"
 	"fmt"
 
@@ -90,7 +91,7 @@ func (c *limitCommand) Execute(ctx context.Context, args []string) error {
 	limited := streamv3.Limit[streamv3.Record](n)(records)
 
 	// Write output as JSONL
-	if err := lib.WriteJSONL(lib.Stdout, limited); err != nil {
+	if err := lib.WriteJSONL(os.Stdout, limited); err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 

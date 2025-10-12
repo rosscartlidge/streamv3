@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"os"
 	"context"
 	"fmt"
 	"strconv"
@@ -98,7 +99,7 @@ func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 	filtered := streamv3.Where(filter)(records)
 
 	// Write output as JSONL
-	if err := lib.WriteJSONL(lib.Stdout, filtered); err != nil {
+	if err := lib.WriteJSONL(os.Stdout, filtered); err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"os"
 	"context"
 	"fmt"
 	"iter"
@@ -110,7 +111,7 @@ func (c *sortCommand) Execute(ctx context.Context, args []string) error {
 	}
 
 	// Write output as JSONL
-	if err := lib.WriteJSONL(lib.Stdout, result); err != nil {
+	if err := lib.WriteJSONL(os.Stdout, result); err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
