@@ -562,6 +562,325 @@ streamv3 read-csv employees.csv |
 
 One of the most powerful features of the StreamV3 CLI is the ability to **prototype pipelines interactively**, then convert them to **production-quality Go code** for deployment. This workflow combines the rapid iteration of CLI tools with the performance and type safety of compiled Go programs.
 
+### Self-Generating Command Architecture (IMPLEMENTED)
+
+**Status:** ✅ Implemented and deployed
+
+The StreamV3 CLI uses a revolutionary **self-generating command architecture** where each command generates its own Go code. This eliminates the need for a separate parser and ensures generated code always stays in sync with command implementations.
+
+#### Architecture Design
+
+**Core Concept:** Each CLI command has dual modes:
+1. **Execution Mode** (default): Processes data through the pipeline
+2. **Generation Mode** (`-generate` flag): Emits Go code fragments
+
+**Data Flow:**
+```
+┌─────────────┐  fragment  ┌─────────────┐  fragment  ┌─────────────┐  fragments  ┌──────────────┐
+│  read-csv   │────JSON───>│    where    │────JSON───>│  write-csv  │─────JSON───>│ generate-go  │
+│  -generate  │   Line     │  -generate  │   Line     │  -generate  │    Lines    │              │
+└─────────────┘            └─────────────┘            └─────────────┘             └──────────────┘
+     init                       stmt                       final                    assembles to
+   fragment                   fragment                   fragment                   complete Go
+```
+
+**Fragment Types:**
+- **init**: First command (e.g., read-csv), creates initial variable
+- **stmt**: Middle command (e.g., where, select), has input and output variable
+- **final**: Last command (e.g., write-csv), has input but no output variable
+
+#### Code Fragment Protocol
+
+**Format:** JSONL (JSON Lines) for inter-command communication
+
+**Fragment Structure:**
+```go
+type CodeFragment struct {
+    Type    string   `json:"type"`    // "init", "stmt", "final"
+    Var     string   `json:"var"`     // Output variable name (e.g., "filtered")
+    Input   string   `json:"input"`   // Input variable name from previous command
+    Code    string   `json:"code"`    // Go code for this operation
+    Imports []string `json:"imports"` // Required imports (e.g., ["strings"])
+}
+```
+
+**Example Fragment Flow:**
+
+1. **read-csv -generate data.csv** outputs:
+```json
+{"type":"init","var":"records","input":"","code":"records := streamv3.ReadCSV(\"data.csv\")","imports":null}
+```
+
+2. **where -generate -match age gt 30** outputs:
+```json
+{"type":"init","var":"records","input":"","code":"records := streamv3.ReadCSV(\"data.csv\")","imports":null}
+{"type":"stmt","var":"filtered","input":"records","code":"filtered := streamv3.Where(func(r streamv3.Record) bool {\n\t\treturn r[\"age\"].(float64) > 30\n\t})(records)","imports":null}
+```
+
+3. **write-csv -generate** outputs:
+```json
+{"type":"init","var":"records","input":"","code":"records := streamv3.ReadCSV(\"data.csv\")","imports":null}
+{"type":"stmt","var":"filtered","input":"records","code":"filtered := streamv3.Where(func(r streamv3.Record) bool {\n\t\treturn r[\"age\"].(float64) > 30\n\t})(records)","imports":null}
+{"type":"final","var":"","input":"filtered","code":"streamv3.WriteCSV(\"\", filtered)","imports":null}
+```
+
+4. **generate-go** assembles all fragments:
+```go
+package main
+
+import (
+	"github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+	records := streamv3.ReadCSV("data.csv")
+	filtered := streamv3.Where(func(r streamv3.Record) bool {
+		return r["age"].(float64) > 30
+	})(records)
+	streamv3.WriteCSV("", filtered)
+}
+```
+
+#### Implementation Details
+
+**File Structure:**
+- `cmd/streamv3/lib/codefragment.go` - Fragment utilities
+- Each command implements `generateCode()` method
+- Commands use `ReadAllCodeFragments()` and `WriteCodeFragment()`
+
+**Fragment Pass-Through Pattern:**
+```go
+func (c *WhereConfig) generateCode(clauses []gs.ClauseSet) error {
+    // 1. Read ALL previous fragments from stdin
+    fragments, err := lib.ReadAllCodeFragments()
+    if err != nil {
+        return fmt.Errorf("reading code fragments: %w", err)
+    }
+
+    // 2. Pass through all previous fragments unchanged
+    for _, frag := range fragments {
+        if err := lib.WriteCodeFragment(frag); err != nil {
+            return fmt.Errorf("writing previous fragment: %w", err)
+        }
+    }
+
+    // 3. Get input variable from last fragment
+    var inputVar string
+    if len(fragments) > 0 {
+        inputVar = fragments[len(fragments)-1].Var
+    } else {
+        inputVar = "records"
+    }
+
+    // 4. Generate this command's code
+    filterCode, imports := generateWhereCode(clauses)
+    code := fmt.Sprintf("filtered := streamv3.Where(%s)(%s)", filterCode, inputVar)
+
+    // 5. Write this command's fragment
+    frag := lib.NewStmtFragment("filtered", inputVar, code, imports)
+    return lib.WriteCodeFragment(frag)
+}
+```
+
+**Variable Chaining:**
+- Each fragment specifies its input and output variables
+- Variables chain through pipeline: `records → filtered → selected → limited`
+- Final command uses last variable but produces no output variable
+
+**Import Tracking:**
+- Each fragment specifies required imports
+- `generate-go` deduplicates and sorts imports
+- Example: `where -match name contains Alice` adds `"strings"` import
+
+#### Implementation Example: where Command
+
+**Command with AND/OR Logic:**
+```bash
+streamv3 where -match age gt 30 -match department eq Engineering + -match salary gt 100000
+# Means: (age > 30 AND department = Engineering) OR (salary > 100000)
+```
+
+**Generated Code:**
+```go
+filtered := streamv3.Where(func(r streamv3.Record) bool {
+    return (r["age"].(float64) > 30 && r["department"] == "Engineering") ||
+           r["salary"].(float64) > 100000
+})(records)
+```
+
+**Key Features:**
+- Multiple `-match` in same clause = AND logic
+- `+` separator starts new clause = OR logic
+- Type detection for numeric vs string comparisons
+- Import tracking (e.g., `strings` for `contains` operator)
+- Proper parenthesization of complex expressions
+
+#### Benefits of Self-Generating Architecture
+
+**1. Self-Describing**
+- Each command knows how to generate its own code
+- No separate parser that can get out of sync
+- Command behavior and code generation always match
+
+**2. Maintainable**
+- Adding new command: just implement `generateCode()`
+- Changing command: update both execution and generation together
+- No fragile regex-based shell parsing
+
+**3. Composable**
+- Fragments chain naturally through pipeline
+- Each command only knows about itself
+- Clean separation of concerns
+
+**4. Correct**
+- Generated code uses same logic as CLI execution
+- Type handling (int64, float64) matches library
+- Import requirements automatically tracked
+
+**5. Testable**
+- Can test code generation independently
+- Each command's generation can be unit tested
+- End-to-end pipeline tests verify complete flow
+
+#### Required Pattern for New Commands
+
+**⚠️ CRITICAL:** Every new CLI command MUST implement `-generate` support or code generation pipelines will break.
+
+**Checklist for Adding New Command:**
+
+1. **Add Generate flag to config:**
+```go
+type MyCommandConfig struct {
+    Generate bool   `gs:"flag,global,last,help=Generate Go code instead of executing"`
+    // ... other fields
+}
+```
+
+2. **Branch in Execute():**
+```go
+func (c *MyCommandConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
+    if c.Generate {
+        return c.generateCode(clauses)
+    }
+    // ... normal execution
+}
+```
+
+3. **Implement generateCode():**
+```go
+func (c *MyCommandConfig) generateCode(clauses []gs.ClauseSet) error {
+    // Read all previous fragments
+    fragments, err := lib.ReadAllCodeFragments()
+    if err != nil {
+        return fmt.Errorf("reading code fragments: %w", err)
+    }
+
+    // Pass through all previous fragments
+    for _, frag := range fragments {
+        if err := lib.WriteCodeFragment(frag); err != nil {
+            return fmt.Errorf("writing previous fragment: %w", err)
+        }
+    }
+
+    // Get input variable from last fragment
+    var inputVar string
+    if len(fragments) > 0 {
+        inputVar = fragments[len(fragments)-1].Var
+    } else {
+        inputVar = "records"
+    }
+
+    // Generate your code
+    code := fmt.Sprintf("output := myFunc(%s)", inputVar)
+
+    // Create and write your fragment
+    frag := lib.NewStmtFragment("output", inputVar, code, []string{"import1"})
+    return lib.WriteCodeFragment(frag)
+}
+```
+
+#### Usage Examples
+
+**Simple Pipeline:**
+```bash
+streamv3 read-csv -generate data.csv | \
+  streamv3 where -generate -match age gt 18 | \
+  streamv3 write-csv -generate output.csv | \
+  streamv3 generate-go > main.go
+```
+
+**Complex Filtering:**
+```bash
+# (age > 30 AND status = active) OR (department = Engineering)
+streamv3 read-csv -generate employees.csv | \
+  streamv3 where -generate \
+    -match age gt 30 -match status eq active + \
+    -match department eq Engineering | \
+  streamv3 write-csv -generate filtered.csv | \
+  streamv3 generate-go > main.go
+```
+
+**Build and Run:**
+```bash
+# Compile generated code
+go mod init myproject
+go get github.com/rosscartlidge/streamv3@latest
+go build -o myproject main.go
+
+# Run compiled binary (10-100x faster than CLI)
+./myproject
+```
+
+#### Comparison: Old vs New Architecture
+
+**Old Approach (Removed):**
+- Separate shell pipeline parser (`lib/pipeline.go`)
+- Separate code generator (`lib/codegen.go`)
+- Fragile regex-based command parsing
+- Easy to get out of sync with implementations
+- ~540 lines of complex code
+
+**New Approach (Current):**
+- Each command generates its own code
+- Fragment-based communication protocol
+- No parsing - commands know themselves
+- Always in sync by design
+- Simpler, more maintainable
+
+#### Testing Code Generation
+
+**Test Fragment Output:**
+```bash
+# Test individual command generation
+streamv3 where -generate -match age gt 30 < input_fragment.json
+
+# Verify output is valid JSON
+streamv3 where -generate -match age gt 30 < input_fragment.json | jq .
+```
+
+**Test Complete Pipeline:**
+```bash
+# Generate code
+streamv3 read-csv -generate data.csv | \
+  streamv3 where -generate -match age gt 30 | \
+  streamv3 generate-go > test.go
+
+# Verify it compiles
+go build test.go
+
+# Verify it produces correct output
+./test
+```
+
+#### Future Enhancements
+
+**Potential improvements:**
+1. Optimize variable naming (avoid `filtered0`, `filtered1`)
+2. Add comments to generated code explaining each step
+3. Support for custom variable names via `-as` flag
+4. Generate with or without error handling based on flag
+5. Output format options (compact vs readable)
+
 **Workflow:**
 1. **Prototype**: Use CLI to explore data and build pipeline interactively
 2. **Test**: Verify pipeline produces correct results with real data
