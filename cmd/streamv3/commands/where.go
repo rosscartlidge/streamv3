@@ -4,6 +4,7 @@ import (
 	"os"
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -74,6 +75,7 @@ func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println("  contains     String contains")
 		fmt.Println("  startswith   String starts with")
 		fmt.Println("  endswith     String ends with")
+		fmt.Println("  pattern      Regexp pattern match")
 		fmt.Println()
 		fmt.Println("Clause Logic:")
 		fmt.Println("  Multiple -match in same command: AND (all must match)")
@@ -91,6 +93,9 @@ func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println()
 		fmt.Println("  # Complex: (age > 18 AND status = active) OR (department = Engineering)")
 		fmt.Println("  streamv3 where -match age gt 18 -match status eq active + -match department eq Engineering")
+		fmt.Println()
+		fmt.Println("  # Pattern matching: department contains 'fred'")
+		fmt.Println("  streamv3 where -match department pattern \".*fred\"")
 		return nil
 	}
 
@@ -185,6 +190,8 @@ func applyOperator(fieldValue any, op string, compareValue string) bool {
 		return compareStartsWith(fieldValue, compareValue)
 	case "endswith":
 		return compareEndsWith(fieldValue, compareValue)
+	case "pattern":
+		return comparePattern(fieldValue, compareValue)
 	default:
 		return false
 	}
@@ -265,6 +272,18 @@ func compareStartsWith(fieldValue any, compareValue string) bool {
 func compareEndsWith(fieldValue any, compareValue string) bool {
 	if str, ok := fieldValue.(string); ok {
 		return len(str) >= len(compareValue) && str[len(str)-len(compareValue):] == compareValue
+	}
+	return false
+}
+
+// comparePattern checks if string matches regexp pattern
+func comparePattern(fieldValue any, pattern string) bool {
+	if str, ok := fieldValue.(string); ok {
+		matched, err := regexp.MatchString(pattern, str)
+		if err != nil {
+			return false // Invalid pattern
+		}
+		return matched
 	}
 	return false
 }
@@ -460,6 +479,10 @@ func generateCondition(field, op, value string) (string, []string) {
 	case "endswith":
 		imports = append(imports, "strings")
 		return fmt.Sprintf("strings.HasSuffix(r[%q].(string), %q)", field, value), imports
+
+	case "pattern":
+		imports = append(imports, "regexp")
+		return fmt.Sprintf("regexp.MustCompile(%q).MatchString(r[%q].(string))", value, field), imports
 
 	default:
 		return "false", nil
