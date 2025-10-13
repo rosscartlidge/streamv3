@@ -7,6 +7,8 @@ Built on Go 1.23+ with first-class support for iterators, generics, and function
 ## ✨ What Makes StreamV3 Special
 
 ### 🎯 **Simple Yet Powerful**
+
+**Go Library:**
 ```go
 // Read data, filter, group, and visualize - all type-safe
 sales := streamv3.ReadCSV("sales.csv")
@@ -21,6 +23,16 @@ topRegions := streamv3.Limit[streamv3.Record](5)(
 
 streamv3.QuickChart(topRegions, "region", "total_revenue", "top_regions.html")
 ```
+
+**Or use the CLI:**
+```bash
+# Prototype with Unix-style pipelines, then generate production Go code
+streamv3 exec -- ps -efl | \
+  streamv3 group-by -by UID -function count -result process_count | \
+  streamv3 chart -x UID -y process_count -output chart.html
+```
+
+[**Try the CLI →**](doc/codelab-cli.md)
 
 ### 🤖 **AI-Powered Code Generation**
 Describe what you want in plain English, get working StreamV3 code:
@@ -51,6 +63,25 @@ streamv3.QuickChart(data, "month", "revenue", "chart.html")  // One line = full 
 - Verify: `go version` (should show 1.23+)
 
 ### Installation
+
+#### Option 1: CLI Tool (for rapid prototyping)
+
+```bash
+# Install the command-line tool
+go install github.com/rosscartlidge/streamv3/cmd/streamv3@latest
+
+# Verify installation
+streamv3 -version
+
+# Try it out
+echo "name,age,salary
+Alice,30,95000
+Bob,25,65000" | streamv3 read-csv | streamv3 where -match age gt 28
+```
+
+[**See CLI Tutorial →**](doc/codelab-cli.md)
+
+#### Option 2: Go Library (for application development)
 
 **Step 1: Create a new project**
 ```bash
@@ -119,29 +150,37 @@ func main() {
 
 **New to StreamV3?** We've got you covered with step-by-step guides:
 
-### 1. 📚 **[Getting Started Guide](doc/codelab-intro.md)**
-*Learn the fundamentals with hands-on examples*
+### 1. ⚡ **[CLI Tutorial](doc/codelab-cli.md)** *(In Development)*
+*Prototype fast with Unix-style pipelines, generate production code*
+- Quick data exploration with command-line tools
+- Process system commands (ps, df, etc.)
+- Create visualizations with one command
+- Generate Go code from CLI pipelines
+- **Perfect for rapid prototyping!**
+
+### 2. 📚 **[Getting Started Guide](doc/codelab-intro.md)**
+*Learn the Go library fundamentals with hands-on examples*
 - Basic operations (Select, Where, Limit)
 - Working with CSV/JSON data
   - **⚠️ Note**: CSV auto-parses `"25"` → `int64(25)`, use correct types with `GetOr()`
 - Creating your first visualizations
 - Real-world examples
 
-### 2. 📖 **[API Reference](doc/api-reference.md)**
+### 3. 📖 **[API Reference](doc/api-reference.md)**
 *Complete function documentation with examples*
 - All operations organized by category
 - Transform, Filter, Aggregate, Join operations
 - Window processing for real-time data
 - Chart and visualization options
 
-### 3. 🎯 **[Advanced Tutorial](doc/advanced-tutorial.md)**
+### 4. 🎯 **[Advanced Tutorial](doc/advanced-tutorial.md)**
 *Master complex patterns and production techniques*
 - Stream joins and complex aggregations
 - Real-time processing with windowing
 - Infinite stream handling
 - Performance optimization
 
-### 4. 🤖 **[AI Code Generation](doc/human-llm-tutorial.md)**
+### 5. 🤖 **[AI Code Generation](doc/human-llm-tutorial.md)**
 *Generate StreamV3 code from natural language*
 - Use any AI assistant (Claude, ChatGPT, Gemini)
 - Describe what you want, get working code
@@ -220,9 +259,10 @@ go run examples/early_termination_example.go
 ## 🚀 What's Next?
 
 1. **[Install StreamV3](#installation)** and try the quick start
-2. **[Follow the Getting Started Guide](doc/codelab-intro.md)** for fundamentals
-3. **[Try the AI Assistant](doc/human-llm-tutorial.md)** for rapid development
-4. **[Explore Advanced Patterns](doc/advanced-tutorial.md)** for production use
+2. **[Try the CLI](doc/codelab-cli.md)** for rapid prototyping *(in development)*
+3. **[Follow the Getting Started Guide](doc/codelab-intro.md)** for library fundamentals
+4. **[Try the AI Assistant](doc/human-llm-tutorial.md)** for code generation
+5. **[Explore Advanced Patterns](doc/advanced-tutorial.md)** for production use
 
 ## 🤝 Community
 
