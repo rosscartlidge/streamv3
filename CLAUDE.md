@@ -199,3 +199,4 @@ streamv3 read-csv -generate data.csv | streamv3 mycommand -generate | streamv3 g
 - gemini_works
 - llm_cli
 - cli-gs-tools
+- code_generation
