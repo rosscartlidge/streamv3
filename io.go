@@ -926,67 +926,59 @@ type ColumnInfo struct {
 	End   int // -1 for last column (extends to end of line)
 }
 
-// parseHeaderLine analyzes the header line to determine column positions
+// parseHeaderLine extracts field names by splitting on whitespace
 func parseHeaderLine(line string) []ColumnInfo {
 	if strings.TrimSpace(line) == "" {
 		return nil
 	}
 
-	var columns []ColumnInfo
-	var currentCol ColumnInfo
-	inField := false
-
-	for i, char := range line {
-		if char != ' ' && char != '\t' {
-			if !inField {
-				// Start of new field
-				currentCol = ColumnInfo{Start: i}
-				inField = true
-			}
-		} else {
-			if inField {
-				// End of current field
-				currentCol.Name = strings.TrimSpace(line[currentCol.Start:i])
-				currentCol.End = i
-				columns = append(columns, currentCol)
-				inField = false
-			}
-		}
+	// Split header on whitespace to get field names
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return nil
 	}
 
-	// Handle last column
-	if inField {
-		currentCol.Name = strings.TrimSpace(line[currentCol.Start:])
-		currentCol.End = -1 // Last column extends to end of line
-		columns = append(columns, currentCol)
+	// Create ColumnInfo entries (positions not used in new whitespace-based parsing)
+	var columns []ColumnInfo
+	for _, field := range fields {
+		columns = append(columns, ColumnInfo{
+			Name:  field,
+			Start: -1, // Not used in whitespace-based parsing
+			End:   -1, // Not used in whitespace-based parsing
+		})
 	}
 
 	return columns
 }
 
-// parseDataLine extracts field values from a data line using column positions
+// parseDataLine extracts field values by splitting on whitespace
+// Assigns 1:1 with header fields, with remaining tokens going to last field
 func parseDataLine(line string, columns []ColumnInfo, trimSpaces bool) Record {
 	record := make(Record)
 
+	if len(columns) == 0 {
+		return record
+	}
+
+	// Split data line on whitespace
+	tokens := strings.Fields(line)
+
+	// Assign tokens to header fields
 	for i, col := range columns {
-		var value string
-
-		if col.Start >= len(line) {
-			value = ""
-		} else if col.End == -1 || i == len(columns)-1 {
-			// Last column - take everything from start to end of line
-			value = line[col.Start:]
-		} else if col.End <= len(line) {
-			value = line[col.Start:col.End]
+		if i < len(tokens) {
+			if i == len(columns)-1 {
+				// Last field gets all remaining tokens joined with spaces
+				remainingTokens := tokens[i:]
+				value := strings.Join(remainingTokens, " ")
+				record[col.Name] = parseCommandValue(value)
+			} else {
+				// Regular field gets single token
+				record[col.Name] = parseCommandValue(tokens[i])
+			}
 		} else {
-			value = line[col.Start:]
+			// No more tokens, use empty string
+			record[col.Name] = ""
 		}
-
-		if trimSpaces {
-			value = strings.TrimSpace(value)
-		}
-
-		record[col.Name] = parseCommandValue(value)
 	}
 
 	return record
@@ -1000,25 +992,25 @@ func parseDataLineSafe(line string, columns []ColumnInfo, trimSpaces bool) (Reco
 
 	record := make(Record)
 
+	// Split data line on whitespace
+	tokens := strings.Fields(line)
+
+	// Assign tokens to header fields
 	for i, col := range columns {
-		var value string
-
-		if col.Start >= len(line) {
-			value = ""
-		} else if col.End == -1 || i == len(columns)-1 {
-			// Last column - take everything from start to end of line
-			value = line[col.Start:]
-		} else if col.End <= len(line) {
-			value = line[col.Start:col.End]
+		if i < len(tokens) {
+			if i == len(columns)-1 {
+				// Last field gets all remaining tokens joined with spaces
+				remainingTokens := tokens[i:]
+				value := strings.Join(remainingTokens, " ")
+				record[col.Name] = parseCommandValue(value)
+			} else {
+				// Regular field gets single token
+				record[col.Name] = parseCommandValue(tokens[i])
+			}
 		} else {
-			value = line[col.Start:]
+			// No more tokens, use empty string
+			record[col.Name] = ""
 		}
-
-		if trimSpaces {
-			value = strings.TrimSpace(value)
-		}
-
-		record[col.Name] = parseCommandValue(value)
 	}
 
 	return record, nil
