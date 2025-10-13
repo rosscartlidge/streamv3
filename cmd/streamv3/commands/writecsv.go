@@ -248,16 +248,19 @@ func (c *WriteCSVConfig) generateCode(filename string) error {
 		inputVar = "records"
 	}
 
-	// Generate WriteCSV call
+	// Generate WriteCSV call (signature: WriteCSV(stream, filename))
+	// Use WriteCSVToWriter for stdout, WriteCSV for files
 	var code string
+	var imports []string
 	if filename == "" {
-		code = fmt.Sprintf(`streamv3.WriteCSV("", %s)`, inputVar)
+		code = fmt.Sprintf(`streamv3.WriteCSVToWriter(%s, os.Stdout)`, inputVar)
+		imports = append(imports, "os")
 	} else {
-		code = fmt.Sprintf(`streamv3.WriteCSV(%q, %s)`, filename, inputVar)
+		code = fmt.Sprintf(`streamv3.WriteCSV(%s, %q)`, inputVar, filename)
 	}
 
 	// Create final fragment (no output variable)
-	frag := lib.NewFinalFragment(inputVar, code, nil)
+	frag := lib.NewFinalFragment(inputVar, code, imports)
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)
