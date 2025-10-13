@@ -9,7 +9,7 @@ This document outlines the design and implementation of command-line tools for S
 cat data.csv |
   streamv3 read-csv |
   streamv3 where -match age gt 18 -match status eq active |
-  streamv3 group-by -fields age + -aggregate 'count=count()' + -aggregate 'avg_score=avg(score)' |
+  streamv3 group-by -by age -function count -result count + -function avg -field score -result avg_score |
   streamv3 sort -field count -desc |
   streamv3 write-csv > output.csv
 ```
