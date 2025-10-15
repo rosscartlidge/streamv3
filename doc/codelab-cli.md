@@ -8,6 +8,8 @@
 - **[API Reference](api-reference.md)** - Complete function reference
 - **[Getting Started Guide](codelab-intro.md)** - Learn the library fundamentals
 - **[Advanced Tutorial](advanced-tutorial.md)** - Complex patterns and optimization
+- **[Debugging Pipelines](debugging_pipelines.md)** - Debug with jq, inspect data, profile performance
+- **[Troubleshooting Guide](troubleshooting.md)** - Common issues and quick solutions
 
 ### Learning Path
 - [Quick Start](#quick-start)
@@ -85,6 +87,15 @@ streamv3 read-csv -generate data.csv | streamv3 generate-go
 
 **Universal Data Format**
 All commands use JSONL (JSON Lines) for inter-command communication, enabling complex pipelines.
+
+**Debugging with jq**
+Since all commands communicate via JSONL, you can inspect data at any stage with `jq`:
+```bash
+streamv3 read-csv data.csv | jq '.' | head -5          # Pretty-print data
+streamv3 read-csv data.csv | jq '.age | type' | head   # Check field types
+streamv3 ... | streamv3 where ... | jq -s 'length'      # Count results
+```
+[**See full debugging guide →**](debugging_pipelines.md)
 
 > ⚠️ **Development Status**: The CLI is under active development. Commands and flags may change. Use `-help` on any command to see current options.
 
@@ -524,9 +535,11 @@ The CLI is actively being developed. Upcoming features:
 
 ### Need Help?
 
-- Report issues: [GitHub Issues](https://github.com/rosscartlidge/streamv3/issues)
-- Check examples in `examples/` directory
-- Read the full API reference for library features
+- **[Debugging Guide](debugging_pipelines.md)** - Learn to debug pipelines with jq
+- **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+- **[GitHub Issues](https://github.com/rosscartlidge/streamv3/issues)** - Report bugs
+- **Examples** - Check `examples/` directory
+- **API Reference** - Full library documentation
 
 ---
 

@@ -30,9 +30,13 @@ streamv3.QuickChart(topRegions, "region", "total_revenue", "top_regions.html")
 streamv3 exec -- ps -efl | \
   streamv3 group-by -by UID -function count -result process_count | \
   streamv3 chart -x UID -y process_count -output chart.html
+
+# Debug pipelines with jq (JSONL streaming format)
+streamv3 read-csv data.csv | jq '.' | head -5  # Inspect data
+streamv3 read-csv data.csv | streamv3 where -match age gt 30 | jq -s 'length'  # Count results
 ```
 
-[**Try the CLI →**](doc/codelab-cli.md)
+[**Try the CLI →**](doc/codelab-cli.md) | [**Debug with jq →**](doc/debugging_pipelines.md)
 
 ### 🤖 **AI-Powered Code Generation**
 Describe what you want in plain English, get working StreamV3 code:
@@ -156,6 +160,7 @@ func main() {
 - Process system commands (ps, df, etc.)
 - Create visualizations with one command
 - Generate Go code from CLI pipelines
+- **Debug pipelines with jq** - [See debugging guide →](doc/debugging_pipelines.md)
 - **Perfect for rapid prototyping!**
 
 ### 2. 📚 **[Getting Started Guide](doc/codelab-intro.md)**
@@ -247,6 +252,7 @@ go run examples/early_termination_example.go
 - **🤖 AI Ready** - Generate code from descriptions
 - **⚡ Performance** - Lazy evaluation and memory efficiency
 - **🔄 Composable** - Build complex pipelines from simple operations
+- **🔍 Debuggable** - JSONL streaming works with jq and Unix tools
 
 ## 🎯 Perfect For
 
@@ -264,6 +270,14 @@ go run examples/early_termination_example.go
 4. **[Try the AI Assistant](doc/human-llm-tutorial.md)** for code generation
 5. **[Explore Advanced Patterns](doc/advanced-tutorial.md)** for production use
 
+## 📚 Documentation
+
+- **[Debugging Pipelines](doc/debugging_pipelines.md)** - Debug with jq, inspect data, profile performance
+- **[Troubleshooting Guide](doc/troubleshooting.md)** - Common issues and quick solutions
+- **[API Reference](doc/api-reference.md)** - Complete function documentation
+- **[CLI Tutorial](doc/codelab-cli.md)** - Command-line tool guide
+- **[AI Code Generation](doc/human-llm-tutorial.md)** - Natural language to code
+
 ## 🤝 Community
 
 StreamV3 is production-ready and actively maintained. Questions, issues, and contributions are welcome!
@@ -272,6 +286,7 @@ StreamV3 is production-ready and actively maintained. Questions, issues, and con
 - 🤖 **AI Integration**: Generate code from natural language
 - 📊 **Visualization**: Interactive charts and dashboards
 - 🔧 **Examples**: Real-world usage patterns
+- 🔍 **Debugging**: jq integration for pipeline inspection
 
 ---
 
