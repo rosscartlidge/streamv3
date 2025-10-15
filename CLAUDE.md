@@ -58,6 +58,32 @@ StreamV3 is a modern Go library built on three core abstractions:
 - `ExecCommand(cmd, args...)` - Parse command output returning `iter.Seq[Record]`
 - `QuickChart(data, x, y, filename)` - Generate interactive charts
 
+## API Naming Conventions (SQL-Style)
+
+StreamV3 uses SQL-like naming instead of functional programming conventions. **Always use these canonical names:**
+
+**Stream Operations (operations.go):**
+- **`SelectMany`** - Flattens nested sequences (NOT FlatMap)
+  - `SelectMany[T, U any](fn func(T) iter.Seq[U]) Filter[T, U]`
+  - Use for one-to-many transformations (e.g., splitting records)
+- **`Where`** - Filters records based on predicate (NOT Filter)
+  - Note: `Filter[T,U]` is the type name for transformations
+- **`Select`** - Projects/transforms fields (similar to Map, but SQL-style)
+- **`Reduce`** - Aggregates sequence to single value
+- **`Take`** - Limits number of records (like SQL LIMIT)
+- **`Skip`** - Skips first N records (like SQL OFFSET)
+
+**Aggregation Operations (sql.go):**
+- **`GroupByFields`** - Groups and aggregates (SQL GROUP BY)
+- **`Aggregate`** - Applies aggregation functions (Count, Sum, Avg, etc.)
+
+**Common Mistakes:**
+- ❌ Looking for `FlatMap` → ✅ Use `SelectMany`
+- ❌ Using `Filter` as function → ✅ Use `Where` (Filter is a type)
+- ❌ Looking for LINQ-style names → ✅ Check operations.go for SQL-style names
+
+When in doubt, check `operations.go` for the canonical API - don't assume LINQ or functional programming naming conventions.
+
 ## Canonical Numeric Types (Hybrid Approach)
 
 StreamV3 enforces a **hybrid type system** for clarity and consistency:
@@ -200,3 +226,4 @@ streamv3 read-csv -generate data.csv | streamv3 mycommand -generate | streamv3 g
 - llm_cli
 - cli-gs-tools
 - code_generation
+- pattern

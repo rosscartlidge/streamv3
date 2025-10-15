@@ -51,15 +51,24 @@ import (
 - `streamv3.NewRecord().String("key", "val").Int("num", 42).Build()` - Build records
 
 ### Core Operations (SQL-style naming)
-- **Transform**: `Select(func(T) U)`, `SelectMany(func(T) iter.Seq[U])`
-- **Filter**: `Where(func(T) bool)`, `Distinct()`, `DistinctBy(func(T) K)`
-- **Limit**: `Limit(n)`, `Offset(n)`
+
+**⚠️ CRITICAL: StreamV3 uses SQL-style naming, NOT LINQ/functional programming names!**
+- **Transform**: `Select(func(T) U)`, `SelectMany(func(T) iter.Seq[U])` ← NOT Map or FlatMap!
+- **Filter**: `Where(func(T) bool)` ← NOT Filter (Filter is the type name)
+- **Limit**: `Limit(n)`, `Offset(n)` ← NOT Take/Skip
 - **Sort**: `Sort()`, `SortBy(func(T) K)`, `SortDesc()`, `Reverse()`
 - **Group**: `GroupByFields("groupName", "field1", "field2", ...)`
 - **Aggregate**: `Aggregate("groupName", map[string]AggregateFunc{...})`
 - **Join**: `InnerJoin(rightSeq, predicate)`, `LeftJoin()`, `RightJoin()`, `FullJoin()`
 - **Window**: `CountWindow[T](size)`, `TimeWindow[T](duration, "timeField")`, `SlidingCountWindow[T](size, step)`
 - **Early Stop**: `TakeWhile(predicate)`, `TakeUntil(predicate)`, `Timeout[T](duration)`
+- **Other**: `Distinct()`, `DistinctBy(func(T) K)`, `Reduce()`
+
+**Common Naming Mistakes:**
+- ❌ `FlatMap` → ✅ `SelectMany` - for one-to-many transformations
+- ❌ `Map` → ✅ `Select` - for transforming records
+- ❌ `Filter(predicate)` → ✅ `Where(predicate)` - for filtering records
+- ❌ `Take(n)` → ✅ `Limit(n)` - for limiting results
 
 ### Record Access
 - `streamv3.Get[T](record, "key")` → `(T, bool)`
