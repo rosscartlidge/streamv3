@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"sort"
@@ -206,8 +207,12 @@ func (c *WriteCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) er
 	}
 	defer output.Close()
 
+	// Wrap in buffered writer for performance
+	writer := bufio.NewWriter(output)
+	defer writer.Flush()
+
 	// Write header
-	fmt.Fprintf(output, "%s\n", formatCSVRow(fieldOrder))
+	fmt.Fprintf(writer, "%s\n", formatCSVRow(fieldOrder))
 
 	// Write data rows
 	for _, record := range recordSlice {
@@ -219,7 +224,7 @@ func (c *WriteCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) er
 				values[i] = ""
 			}
 		}
-		fmt.Fprintf(output, "%s\n", formatCSVRow(values))
+		fmt.Fprintf(writer, "%s\n", formatCSVRow(values))
 	}
 
 	return nil

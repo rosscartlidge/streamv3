@@ -294,8 +294,16 @@ func WriteCSV(sb iter.Seq[Record], filename string, config ...CSVConfig) error {
 	}
 	defer file.Close()
 
+	// Wrap in buffered writer for performance
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
 	// Use the io.Writer version
-	return WriteCSVToWriter(sb, file, config...)
+	if err := WriteCSVToWriter(sb, writer, config...); err != nil {
+		return err
+	}
+
+	return writer.Flush()
 }
 
 // ============================================================================
@@ -477,8 +485,16 @@ func WriteJSON(sb iter.Seq[Record], filename string) error {
 	}
 	defer file.Close()
 
+	// Wrap in buffered writer for performance
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
 	// Use the io.Writer version
-	return WriteJSONToWriter(sb, file)
+	if err := WriteJSONToWriter(sb, writer); err != nil {
+		return err
+	}
+
+	return writer.Flush()
 }
 
 // ============================================================================
