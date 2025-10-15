@@ -64,7 +64,17 @@ func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println("Examples:")
 		fmt.Println("  streamv3 read-csv data.csv")
 		fmt.Println("  cat data.csv | streamv3 read-csv")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 where - match age gt 18")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 18")
+		fmt.Println()
+		fmt.Println("Debugging with jq:")
+		fmt.Println("  # Inspect parsed CSV data")
+		fmt.Println("  streamv3 read-csv data.csv | jq '.' | head -5")
+		fmt.Println()
+		fmt.Println("  # Check field names")
+		fmt.Println("  streamv3 read-csv data.csv | head -1 | jq 'keys'")
+		fmt.Println()
+		fmt.Println("  # Verify field types")
+		fmt.Println("  streamv3 read-csv data.csv | head -1 | jq 'to_entries | map({key, type: .value | type})'")
 		return nil
 	}
 
