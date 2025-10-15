@@ -70,6 +70,13 @@ func (c *selectCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println()
 		fmt.Println("  # Select three fields")
 		fmt.Println("  streamv3 select -field name + -field age + -field department")
+		fmt.Println()
+		fmt.Println("Debugging with jq:")
+		fmt.Println("  # Inspect selected fields")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 select -field name + -field age | jq '.'")
+		fmt.Println()
+		fmt.Println("  # Extract single field values")
+		fmt.Println("  streamv3 read-csv data.csv | jq -r '.name'")
 		return nil
 	}
 

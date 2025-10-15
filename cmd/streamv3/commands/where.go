@@ -96,6 +96,17 @@ func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println()
 		fmt.Println("  # Pattern matching: department contains 'fred'")
 		fmt.Println("  streamv3 where -match department pattern \".*fred\"")
+		fmt.Println()
+		fmt.Println("Debugging with jq:")
+		fmt.Println("  # Inspect records before/after filtering")
+		fmt.Println("  streamv3 read-csv data.csv | jq '.' | head -5")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 30 | jq '.'")
+		fmt.Println()
+		fmt.Println("  # Check field types")
+		fmt.Println("  streamv3 read-csv data.csv | jq '.age | type' | head -5")
+		fmt.Println()
+		fmt.Println("  # Count matching records")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match status eq active | jq -s 'length'")
 		return nil
 	}
 

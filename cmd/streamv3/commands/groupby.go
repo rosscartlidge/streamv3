@@ -94,6 +94,16 @@ func (c *groupByCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println("  # Group by multiple fields")
 		fmt.Println("  streamv3 group-by -by department -by state \\")
 		fmt.Println("    -function count -result count")
+		fmt.Println()
+		fmt.Println("Debugging with jq:")
+		fmt.Println("  # Inspect GROUP BY results")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 group-by -by dept -function count -result n | jq '.'")
+		fmt.Println()
+		fmt.Println("  # Verify grouping keys")
+		fmt.Println("  streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c")
+		fmt.Println()
+		fmt.Println("  # Check specific group")
+		fmt.Println("  streamv3 ... | streamv3 group-by ... | jq 'select(.department == \"Engineering\")'")
 		return nil
 	}
 
