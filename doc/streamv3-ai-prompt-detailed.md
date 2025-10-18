@@ -245,7 +245,7 @@ words := streamv3.SelectMany(func(line string) iter.Seq[string] {
 
 ### Where[T]
 ```go
-func Where[T any](predicate func(T) bool) FilterSameType[T]
+func Where[T any](predicate func(T) bool) Filter[T, T]
 ```
 Filters elements based on a predicate (SQL WHERE equivalent).
 
@@ -256,13 +256,13 @@ evens := streamv3.Where(func(x int) bool { return x%2 == 0 })(numbers)
 
 ### Distinct[T]
 ```go
-func Distinct[T comparable]() FilterSameType[T]
+func Distinct[T comparable]() Filter[T, T]
 ```
 Removes duplicate elements.
 
 ### DistinctBy[T, K]
 ```go
-func DistinctBy[T any, K comparable](keyFn func(T) K) FilterSameType[T]
+func DistinctBy[T any, K comparable](keyFn func(T) K) Filter[T, T]
 ```
 Removes duplicates based on a key function.
 
@@ -281,7 +281,7 @@ first5 := streamv3.Limit[int](5)(numbers)
 
 ### Offset[T]
 ```go
-func Offset[T any](n int) FilterSameType[T]
+func Offset[T any](n int) Filter[T, T]
 ```
 Skips the first n elements (SQL OFFSET equivalent).
 
@@ -289,25 +289,25 @@ Skips the first n elements (SQL OFFSET equivalent).
 
 ### Sort[T]
 ```go
-func Sort[T cmp.Ordered]() FilterSameType[T]
+func Sort[T cmp.Ordered]() Filter[T, T]
 ```
 Sorts elements in ascending order.
 
 ### SortBy[T, K]
 ```go
-func SortBy[T any, K cmp.Ordered](keyFn func(T) K) FilterSameType[T]
+func SortBy[T any, K cmp.Ordered](keyFn func(T) K) Filter[T, T]
 ```
 Sorts elements by a key function.
 
 ### SortDesc[T]
 ```go
-func SortDesc[T cmp.Ordered]() FilterSameType[T]
+func SortDesc[T cmp.Ordered]() Filter[T, T]
 ```
 Sorts elements in descending order.
 
 ### Reverse[T]
 ```go
-func Reverse[T any]() FilterSameType[T]
+func Reverse[T any]() Filter[T, T]
 ```
 Reverses the order of elements.
 
@@ -392,25 +392,25 @@ Terminates stream after specified duration.
 
 ### InnerJoin
 ```go
-func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs inner join between two record streams.
 
 ### LeftJoin
 ```go
-func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs left outer join.
 
 ### RightJoin
 ```go
-func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs right outer join.
 
 ### FullJoin
 ```go
-func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs full outer join.
 
@@ -424,7 +424,7 @@ joined := streamv3.InnerJoin(
 
 ### GroupByFields
 ```go
-func GroupByFields(sequenceField string, fields ...string) FilterSameType[Record]
+func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record]
 ```
 Groups records by field values.
 
@@ -435,7 +435,7 @@ grouped := streamv3.GroupByFields("sales_data", "region", "product")(records)
 
 ### Aggregate
 ```go
-func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) FilterSameType[Record]
+func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filter[Record, Record]
 ```
 Applies multiple aggregations to grouped data.
 
@@ -505,7 +505,7 @@ err := streamv3.InteractiveChart(
 
 ### Chain[T]
 ```go
-func Chain[T any](filters ...FilterSameType[T]) FilterSameType[T]
+func Chain[T any](filters ...Filter[T, T]) Filter[T, T]
 ```
 Chains multiple same-type filters together.
 

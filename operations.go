@@ -71,7 +71,7 @@ func SelectMany[T, U any](fn func(T) iter.Seq[U]) Filter[T, U] {
 // ============================================================================
 
 // Where filters elements based on a predicate (equivalent to SQL WHERE)
-func Where[T any](predicate func(T) bool) FilterSameType[T] {
+func Where[T any](predicate func(T) bool) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return func(yield func(T) bool) {
 			for v := range input {
@@ -84,7 +84,7 @@ func Where[T any](predicate func(T) bool) FilterSameType[T] {
 }
 
 // WhereSafe filters elements with error handling
-func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrorsSameType[T] {
+func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrors[T, T] {
 	return func(input iter.Seq2[T, error]) iter.Seq2[T, error] {
 		return func(yield func(T, error) bool) {
 			for v, err := range input {
@@ -116,7 +116,7 @@ func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrorsSameType[
 // Limit restricts iterator to first N elements (equivalent to SQL LIMIT)
 
 // LimitSafe restricts iterator with error handling
-func LimitSafe[T any](n int) FilterWithErrorsSameType[T] {
+func LimitSafe[T any](n int) FilterWithErrors[T, T] {
 	return func(input iter.Seq2[T, error]) iter.Seq2[T, error] {
 		return func(yield func(T, error) bool) {
 			count := 0
@@ -136,7 +136,7 @@ func LimitSafe[T any](n int) FilterWithErrorsSameType[T] {
 }
 
 // Offset skips first N elements (equivalent to SQL OFFSET)
-func Offset[T any](n int) FilterSameType[T] {
+func Offset[T any](n int) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return func(yield func(T) bool) {
 			skipped := 0
@@ -154,7 +154,7 @@ func Offset[T any](n int) FilterSameType[T] {
 }
 
 // OffsetSafe skips first N elements with error handling
-func OffsetSafe[T any](n int) FilterWithErrorsSameType[T] {
+func OffsetSafe[T any](n int) FilterWithErrors[T, T] {
 	return func(input iter.Seq2[T, error]) iter.Seq2[T, error] {
 		return func(yield func(T, error) bool) {
 			skipped := 0
@@ -182,14 +182,14 @@ func OffsetSafe[T any](n int) FilterWithErrorsSameType[T] {
 // ============================================================================
 
 // Sort sorts elements in ascending order using standard library
-func Sort[T cmp.Ordered]() FilterSameType[T] {
+func Sort[T cmp.Ordered]() Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return slices.Values(slices.Sorted(input))
 	}
 }
 
 // SortBy sorts elements using a key extraction function
-func SortBy[T any, K cmp.Ordered](keyFn func(T) K) FilterSameType[T] {
+func SortBy[T any, K cmp.Ordered](keyFn func(T) K) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return slices.Values(slices.SortedFunc(input, func(a, b T) int {
 			return cmp.Compare(keyFn(a), keyFn(b))
@@ -198,7 +198,7 @@ func SortBy[T any, K cmp.Ordered](keyFn func(T) K) FilterSameType[T] {
 }
 
 // SortDesc sorts elements in descending order
-func SortDesc[T cmp.Ordered]() FilterSameType[T] {
+func SortDesc[T cmp.Ordered]() Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return slices.Values(slices.SortedFunc(input, func(a, b T) int {
 			return cmp.Compare(b, a) // Reverse comparison
@@ -211,7 +211,7 @@ func SortDesc[T cmp.Ordered]() FilterSameType[T] {
 // ============================================================================
 
 // Distinct removes duplicate elements (requires comparable type)
-func Distinct[T comparable]() FilterSameType[T] {
+func Distinct[T comparable]() Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return func(yield func(T) bool) {
 			seen := make(map[T]bool)
@@ -228,7 +228,7 @@ func Distinct[T comparable]() FilterSameType[T] {
 }
 
 // DistinctBy removes duplicates based on a key extraction function
-func DistinctBy[T any, K comparable](keyFn func(T) K) FilterSameType[T] {
+func DistinctBy[T any, K comparable](keyFn func(T) K) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return func(yield func(T) bool) {
 			seen := make(map[K]bool)
@@ -246,7 +246,7 @@ func DistinctBy[T any, K comparable](keyFn func(T) K) FilterSameType[T] {
 }
 
 // Reverse reverses the order of elements
-func Reverse[T any]() FilterSameType[T] {
+func Reverse[T any]() Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return func(yield func(T) bool) {
 			collected := slices.Collect(input)
