@@ -19,7 +19,7 @@ import (
 type JoinPredicate func(left, right Record) bool
 
 // InnerJoin performs an inner join between two record streams
-func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record] {
+func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record] {
 	return func(leftSeq iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			// Materialize right side for multiple iterations
@@ -51,7 +51,7 @@ func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameTyp
 }
 
 // LeftJoin performs a left join between two record streams
-func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record] {
+func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record] {
 	return func(leftSeq iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			// Materialize right side for multiple iterations
@@ -91,7 +91,7 @@ func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType
 }
 
 // RightJoin performs a right join between two record streams
-func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record] {
+func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record] {
 	return func(leftSeq iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			// Materialize both sides
@@ -141,7 +141,7 @@ func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameTyp
 }
 
 // FullJoin performs a full outer join between two record streams
-func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record] {
+func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record] {
 	return func(leftSeq iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			// Materialize both sides
@@ -229,7 +229,7 @@ func OnCondition(condition func(left, right Record) bool) JoinPredicate {
 // ============================================================================
 
 // GroupBy groups records by a key extraction function
-func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) FilterSameType[Record] {
+func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			groups := make(map[K][]Record)
@@ -273,7 +273,7 @@ func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Rec
 
 // GroupByFields groups records by specified field values
 // Returns Records with grouping fields + a sequence field containing group members
-func GroupByFields(sequenceField string, fields ...string) FilterSameType[Record] {
+func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			groups := make(map[string][]Record)
@@ -352,7 +352,7 @@ func GroupByFields(sequenceField string, fields ...string) FilterSameType[Record
 type AggregateFunc func([]Record) any
 
 // Aggregate applies aggregation functions to records containing sequence fields
-func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) FilterSameType[Record] {
+func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			for record := range input {

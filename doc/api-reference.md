@@ -143,7 +143,6 @@ Function types for stream transformations:
 
 ```go
 type Filter[T, U any] func(iter.Seq[T]) iter.Seq[U]
-type FilterSameType[T any] func(iter.Seq[T]) iter.Seq[T]
 type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
 ```
 
@@ -249,7 +248,7 @@ words := streamv3.SelectMany(func(line string) iter.Seq[string] {
 
 ### Where[T]
 ```go
-func Where[T any](predicate func(T) bool) FilterSameType[T]
+func Where[T any](predicate func(T) bool) Filter[T, T]
 ```
 Filters elements based on a predicate (SQL WHERE equivalent).
 
@@ -260,19 +259,19 @@ evens := streamv3.Where(func(x int) bool { return x%2 == 0 })(numbers)
 
 ### WhereSafe[T]
 ```go
-func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrorsSameType[T]
+func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrors[T, T]
 ```
 Safe version of Where that handles errors.
 
 ### Distinct[T]
 ```go
-func Distinct[T comparable]() FilterSameType[T]
+func Distinct[T comparable]() Filter[T, T]
 ```
 Removes duplicate elements.
 
 ### DistinctBy[T, K]
 ```go
-func DistinctBy[T any, K comparable](keyFn func(T) K) FilterSameType[T]
+func DistinctBy[T any, K comparable](keyFn func(T) K) Filter[T, T]
 ```
 Removes duplicates based on a key function.
 
@@ -295,19 +294,19 @@ first5 := streamv3.Limit[int](5)(numbers)
 
 ### LimitSafe[T]
 ```go
-func LimitSafe[T any](n int) FilterWithErrorsSameType[T]
+func LimitSafe[T any](n int) FilterWithErrors[T, T]
 ```
 Safe version of Limit that handles errors.
 
 ### Offset[T]
 ```go
-func Offset[T any](n int) FilterSameType[T]
+func Offset[T any](n int) Filter[T, T]
 ```
 Skips the first n elements (SQL OFFSET equivalent).
 
 ### OffsetSafe[T]
 ```go
-func OffsetSafe[T any](n int) FilterWithErrorsSameType[T]
+func OffsetSafe[T any](n int) FilterWithErrors[T, T]
 ```
 Safe version of Offset that handles errors.
 
@@ -319,25 +318,25 @@ Safe version of Offset that handles errors.
 
 ### Sort[T]
 ```go
-func Sort[T cmp.Ordered]() FilterSameType[T]
+func Sort[T cmp.Ordered]() Filter[T, T]
 ```
 Sorts elements in ascending order.
 
 ### SortBy[T, K]
 ```go
-func SortBy[T any, K cmp.Ordered](keyFn func(T) K) FilterSameType[T]
+func SortBy[T any, K cmp.Ordered](keyFn func(T) K) Filter[T, T]
 ```
 Sorts elements by a key function.
 
 ### SortDesc[T]
 ```go
-func SortDesc[T cmp.Ordered]() FilterSameType[T]
+func SortDesc[T cmp.Ordered]() Filter[T, T]
 ```
 Sorts elements in descending order.
 
 ### Reverse[T]
 ```go
-func Reverse[T any]() FilterSameType[T]
+func Reverse[T any]() Filter[T, T]
 ```
 Reverses the order of elements.
 
@@ -468,25 +467,25 @@ Terminates based on time field values in records.
 
 #### InnerJoin
 ```go
-func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs inner join between two record streams.
 
 #### LeftJoin
 ```go
-func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs left outer join.
 
 #### RightJoin
 ```go
-func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs right outer join.
 
 #### FullJoin
 ```go
-func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) FilterSameType[Record]
+func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
 ```
 Performs full outer join.
 
@@ -516,13 +515,13 @@ joined := streamv3.InnerJoin(
 
 #### GroupBy[K]
 ```go
-func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) FilterSameType[Record]
+func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) Filter[Record, Record]
 ```
 Groups records by a key function.
 
 #### GroupByFields
 ```go
-func GroupByFields(sequenceField string, fields ...string) FilterSameType[Record]
+func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record]
 ```
 Groups records by field values.
 
@@ -573,7 +572,7 @@ Collects all field values into an array.
 
 #### Aggregate
 ```go
-func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) FilterSameType[Record]
+func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filter[Record, Record]
 ```
 Applies multiple aggregations to grouped data.
 
@@ -604,7 +603,7 @@ Lazy version of Tee for memory efficiency.
 
 ### Chain[T]
 ```go
-func Chain[T any](filters ...FilterSameType[T]) FilterSameType[T]
+func Chain[T any](filters ...Filter[T, T]) Filter[T, T]
 ```
 Chains multiple same-type filters together.
 

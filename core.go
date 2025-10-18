@@ -22,12 +22,8 @@ import (
 // This is the heart of StreamV3 - same concept as StreamV2 but iter.Seq based
 type Filter[T, U any] func(iter.Seq[T]) iter.Seq[U]
 
-// FilterSameType is a convenience alias for same-type transformations
-type FilterSameType[T any] func(iter.Seq[T]) iter.Seq[T]
-
 // Error-aware filter variants for robust error handling
 type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
-type FilterWithErrorsSameType[T any] func(iter.Seq2[T, error]) iter.Seq2[T, error]
 
 // ============================================================================
 // COMPOSITION FUNCTIONS - IDENTICAL TO STREAMV2 PATTERNS
@@ -48,7 +44,7 @@ func Pipe3[T, U, V, W any](f1 Filter[T, U], f2 Filter[U, V], f3 Filter[V, W]) Fi
 }
 
 // Chain applies multiple same-type filters in sequence
-func Chain[T any](filters ...FilterSameType[T]) FilterSameType[T] {
+func Chain[T any](filters ...Filter[T, T]) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		if len(filters) == 0 {
 			return input // Identity function for no filters
@@ -68,7 +64,7 @@ func PipeWithErrors[T, U, V any](f1 FilterWithErrors[T, U], f2 FilterWithErrors[
 	}
 }
 
-func ChainWithErrors[T any](filters ...FilterWithErrorsSameType[T]) FilterWithErrorsSameType[T] {
+func ChainWithErrors[T any](filters ...FilterWithErrors[T, T]) FilterWithErrors[T, T] {
 	return func(input iter.Seq2[T, error]) iter.Seq2[T, error] {
 		if len(filters) == 0 {
 			return input
@@ -662,7 +658,7 @@ func From[T any](slice []T) iter.Seq[T] {
 // to group by sequence content, not expand records.
 //
 // Example: {"tags": iter.Seq["urgent", "work"]} → {"tags": iter.Seq[...], "tags_key": "urgent,work"}
-func Materialize(sourceField, targetField, separator string) FilterSameType[Record] {
+func Materialize(sourceField, targetField, separator string) Filter[Record, Record] {
 	if separator == "" {
 		separator = ","
 	}
@@ -702,7 +698,7 @@ func Materialize(sourceField, targetField, separator string) FilterSameType[Reco
 // MaterializeJSON converts complex fields (iter.Seq, Record, etc.) to JSON strings for grouping.
 // This provides better type preservation and handles any JSON-serializable data structure.
 // Unlike Materialize(), this works with Records, nested structures, and preserves type information.
-func MaterializeJSON(sourceField, targetField string) FilterSameType[Record] {
+func MaterializeJSON(sourceField, targetField string) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			for record := range input {
@@ -746,7 +742,7 @@ func MaterializeJSON(sourceField, targetField string) FilterSameType[Record] {
 //   [{"id": 1, "tags": "a", "scores": 10}, {"id": 1, "tags": "b", "scores": 20}]
 // Example with different lengths: {"short": iter.Seq["a", "b"], "long": iter.Seq[1, 2, 3, 4]} →
 //   [{"short": "a", "long": 1}, {"short": "b", "long": 2}] (elements 3, 4 discarded)
-func DotFlatten(separator string, fields ...string) FilterSameType[Record] {
+func DotFlatten(separator string, fields ...string) Filter[Record, Record] {
 	if separator == "" {
 		separator = "."
 	}
@@ -771,7 +767,7 @@ func DotFlatten(separator string, fields ...string) FilterSameType[Record] {
 // CrossFlatten expands iter.Seq fields using cross product (cartesian product) expansion.
 // Creates multiple output records from each input record containing sequence fields.
 // Example: {"id": 1, "tags": iter.Seq["a", "b"]} → [{"id": 1, "tags": "a"}, {"id": 1, "tags": "b"}]
-func CrossFlatten(separator string, fields ...string) FilterSameType[Record] {
+func CrossFlatten(separator string, fields ...string) Filter[Record, Record] {
 	if separator == "" {
 		separator = "."
 	}
