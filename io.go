@@ -241,8 +241,37 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig
 // CSV FILE CONVENIENCE FUNCTIONS
 // ============================================================================
 
-// ReadCSV reads CSV from a file and returns an iterator
-// Returns error if file cannot be opened (Sources always return errors)
+// ReadCSV reads CSV from a file and returns an iterator of Records.
+// This is the primary way to load CSV data in StreamV3.
+//
+// CSV values are automatically parsed to appropriate types:
+//   - Numbers become int64 or float64
+//   - "true"/"false" become bool
+//   - Everything else stays as string
+//
+// Returns error if file cannot be opened.
+//
+// Example:
+//
+//	// Read CSV with default settings (has headers, comma delimiter)
+//	data, err := streamv3.ReadCSV("sales.csv")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Process the data
+//	for record := range data {
+//	    region := streamv3.GetOr(record, "region", "")
+//	    amount := streamv3.GetOr(record, "amount", float64(0))
+//	    fmt.Printf("%s: %.2f\n", region, amount)
+//	}
+//
+//	// Custom configuration
+//	config := streamv3.CSVConfig{
+//	    HasHeaders: false,
+//	    Delimiter:  '\t',
+//	}
+//	data, err := streamv3.ReadCSV("data.tsv", config)
 func ReadCSV(filename string, config ...CSVConfig) (iter.Seq[Record], error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -284,7 +313,27 @@ func ReadCSVSafe(filename string, config ...CSVConfig) iter.Seq2[Record, error] 
 		}
 }
 
-// WriteCSV writes records to a CSV file
+// WriteCSV writes records to a CSV file.
+// Field names are auto-detected and sorted alphabetically unless specified in config.
+//
+// Example:
+//
+//	// Write processed data to CSV
+//	result := streamv3.Where(func(r streamv3.Record) bool {
+//	    age := streamv3.GetOr(r, "age", int64(0))
+//	    return age > 25
+//	})(data)
+//
+//	err := streamv3.WriteCSV(result, "filtered.csv")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Custom field order
+//	config := streamv3.CSVConfig{
+//	    Fields: []string{"name", "age", "salary"},
+//	}
+//	err := streamv3.WriteCSV(result, "output.csv", config)
 func WriteCSV(sb iter.Seq[Record], filename string, config ...CSVConfig) error {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -414,8 +463,25 @@ func WriteJSONToWriter(sb iter.Seq[Record], writer io.Writer) error {
 // JSON FILE CONVENIENCE FUNCTIONS
 // ============================================================================
 
-// ReadJSON reads JSON records from a file (one JSON object per line)
-// Returns error if file cannot be opened (Sources always return errors)
+// ReadJSON reads JSON records from a file (one JSON object per line - JSONL format).
+// This is useful for working with log files, data exports, and streaming JSON data.
+//
+// Returns error if file cannot be opened.
+//
+// Example:
+//
+//	// Read JSONL file
+//	data, err := streamv3.ReadJSON("events.jsonl")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Process events
+//	for record := range data {
+//	    eventType := streamv3.GetOr(record, "type", "")
+//	    timestamp := streamv3.GetOr(record, "timestamp", "")
+//	    fmt.Printf("%s: %s\n", timestamp, eventType)
+//	}
 func ReadJSON(filename string) (iter.Seq[Record], error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -802,8 +868,29 @@ func ReadCommandOutputSafe(filename string, config ...CommandConfig) iter.Seq2[R
 		}
 }
 
-// ExecCommand executes a command and returns its output as a stream
-// Returns error if command cannot be started (Sources always return errors)
+// ExecCommand executes a command and returns its output as a stream of Records.
+// Parses column-aligned output (like ps, df, ls -l) into structured data.
+//
+// Returns error if command cannot be started.
+//
+// Example:
+//
+//	// Get process information
+//	data, err := streamv3.ExecCommand("ps", []string{"-efl"})
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Find processes using lots of memory
+//	highMem := streamv3.Where(func(r streamv3.Record) bool {
+//	    rss := streamv3.GetOr(r, "RSS", int64(0))
+//	    return rss > 100000  // More than 100MB
+//	})(data)
+//
+//	// Count by user
+//	byUser := streamv3.Aggregate("procs", map[string]streamv3.AggregateFunc{
+//	    "count": streamv3.Count(),
+//	})(streamv3.GroupByFields("procs", "UID")(data))
 func ExecCommand(command string, args []string, config ...CommandConfig) (iter.Seq[Record], error) {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {

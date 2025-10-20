@@ -36,7 +36,7 @@ streamv3 read-csv data.csv | jq '.' | head -5  # Inspect data
 streamv3 read-csv data.csv | streamv3 where -match age gt 30 | jq -s 'length'  # Count results
 ```
 
-[**Try the CLI →**](doc/codelab-cli.md) | [**Debug with jq →**](doc/debugging_pipelines.md)
+[**Try the CLI →**](doc/cli/codelab-cli.md) | [**Debug with jq →**](doc/cli/debugging_pipelines.md)
 
 ### 🤖 **AI-Powered Code Generation**
 Describe what you want in plain English, get working StreamV3 code:
@@ -83,7 +83,7 @@ Alice,30,95000
 Bob,25,65000" | streamv3 read-csv | streamv3 where -match age gt 28
 ```
 
-[**See CLI Tutorial →**](doc/codelab-cli.md)
+[**See CLI Tutorial →**](doc/cli/codelab-cli.md)
 
 #### Option 2: Go Library (for application development)
 
@@ -137,9 +137,9 @@ import (
 func main() {
     // Create sample data
     monthlyRevenue := []streamv3.Record{
-        streamv3.NewRecord().String("month", "Jan").Float("revenue", 120000).Build(),
-        streamv3.NewRecord().String("month", "Feb").Float("revenue", 135000).Build(),
-        streamv3.NewRecord().String("month", "Mar").Float("revenue", 118000).Build(),
+        streamv3.MakeMutableRecord().String("month", "Jan").Float("revenue", 120000).Freeze(),
+        streamv3.MakeMutableRecord().String("month", "Feb").Float("revenue", 135000).Freeze(),
+        streamv3.MakeMutableRecord().String("month", "Mar").Float("revenue", 118000).Freeze(),
     }
 
     data := slices.Values(monthlyRevenue)
@@ -154,13 +154,13 @@ func main() {
 
 **New to StreamV3?** We've got you covered with step-by-step guides:
 
-### 1. ⚡ **[CLI Tutorial](doc/codelab-cli.md)** *(In Development)*
+### 1. ⚡ **[CLI Tutorial](doc/cli/codelab-cli.md)** *(In Development)*
 *Prototype fast with Unix-style pipelines, generate production code*
 - Quick data exploration with command-line tools
 - Process system commands (ps, df, etc.)
 - Create visualizations with one command
 - Generate Go code from CLI pipelines
-- **Debug pipelines with jq** - [See debugging guide →](doc/debugging_pipelines.md)
+- **Debug pipelines with jq** - [See debugging guide →](doc/cli/debugging_pipelines.md)
 - **Perfect for rapid prototyping!**
 
 ### 2. 📚 **[Getting Started Guide](doc/codelab-intro.md)**
@@ -265,17 +265,17 @@ go run examples/early_termination_example.go
 ## 🚀 What's Next?
 
 1. **[Install StreamV3](#installation)** and try the quick start
-2. **[Try the CLI](doc/codelab-cli.md)** for rapid prototyping *(in development)*
+2. **[Try the CLI](doc/cli/codelab-cli.md)** for rapid prototyping *(in development)*
 3. **[Follow the Getting Started Guide](doc/codelab-intro.md)** for library fundamentals
 4. **[Try the AI Assistant](doc/human-llm-tutorial.md)** for code generation
 5. **[Explore Advanced Patterns](doc/advanced-tutorial.md)** for production use
 
 ## 📚 Documentation
 
-- **[Debugging Pipelines](doc/debugging_pipelines.md)** - Debug with jq, inspect data, profile performance
-- **[Troubleshooting Guide](doc/troubleshooting.md)** - Common issues and quick solutions
+- **[Debugging Pipelines](doc/cli/debugging_pipelines.md)** - Debug with jq, inspect data, profile performance
+- **[Troubleshooting Guide](doc/cli/troubleshooting.md)** - Common issues and quick solutions
 - **[API Reference](doc/api-reference.md)** - Complete function documentation
-- **[CLI Tutorial](doc/codelab-cli.md)** - Command-line tool guide
+- **[CLI Tutorial](doc/cli/codelab-cli.md)** - Command-line tool guide
 - **[AI Code Generation](doc/human-llm-tutorial.md)** - Natural language to code
 
 ## 🤝 Community

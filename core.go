@@ -21,32 +21,85 @@ import (
 // CORE FUNCTIONAL TYPES
 // ============================================================================
 
-// Filter transforms one iterator to another with full type flexibility
-// This is the heart of StreamV3 - same concept as StreamV2 but iter.Seq based
+// Filter transforms one iterator to another with full type flexibility.
+// This is the core type for composable stream operations in StreamV3.
+//
+// Example:
+//
+//	// Create a filter that doubles integers
+//	double := func(input iter.Seq[int]) iter.Seq[int] {
+//	    return streamv3.Select(func(x int) int { return x * 2 })(input)
+//	}
+//
+//	// Use it in a pipeline
+//	result := double(slices.Values([]int{1, 2, 3}))
 type Filter[T, U any] func(iter.Seq[T]) iter.Seq[U]
 
-// Error-aware filter variants for robust error handling
+// FilterWithErrors transforms an error-aware iterator to another error-aware iterator.
+// Use this for operations that may fail during processing.
+//
+// Example:
+//
+//	// Create a filter that safely parses strings to integers
+//	parseInt := func(input iter.Seq2[string, error]) iter.Seq2[int, error] {
+//	    return streamv3.SelectSafe(func(s string) (int, error) {
+//	        return strconv.Atoi(s)
+//	    })(input)
+//	}
 type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
 
 // ============================================================================
 // COMPOSITION FUNCTIONS - IDENTICAL TO STREAMV2 PATTERNS
 // ============================================================================
 
-// Pipe composes two filters sequentially (T -> U -> V)
+// Pipe composes two filters sequentially (T -> U -> V).
+// This is the fundamental way to chain operations with type changes in StreamV3.
+//
+// Example:
+//
+//	// Compose a filter that parses strings to ints, then doubles them
+//	parseInt := streamv3.SelectSafe(func(s string) (int, error) {
+//	    return strconv.Atoi(s)
+//	})
+//	double := streamv3.Select(func(x int) int { return x * 2 })
+//	pipeline := streamv3.Pipe(parseInt, double)
+//
+//	// Use the composed filter
+//	result := pipeline(slices.Values([]string{"1", "2", "3"}))
 func Pipe[T, U, V any](f1 Filter[T, U], f2 Filter[U, V]) Filter[T, V] {
 	return func(input iter.Seq[T]) iter.Seq[V] {
 		return f2(f1(input))
 	}
 }
 
-// Pipe3 composes three filters sequentially (T -> U -> V -> W)
+// Pipe3 composes three filters sequentially (T -> U -> V -> W).
+// Use this for longer pipelines with multiple type transformations.
+//
+// Example:
+//
+//	// Parse strings → ints → floats → formatted strings
+//	parseInt := streamv3.Select(strconv.Atoi)
+//	toFloat := streamv3.Select(func(i int) float64 { return float64(i) })
+//	format := streamv3.Select(func(f float64) string { return fmt.Sprintf("%.2f", f) })
+//	pipeline := streamv3.Pipe3(parseInt, toFloat, format)
 func Pipe3[T, U, V, W any](f1 Filter[T, U], f2 Filter[U, V], f3 Filter[V, W]) Filter[T, W] {
 	return func(input iter.Seq[T]) iter.Seq[W] {
 		return f3(f2(f1(input)))
 	}
 }
 
-// Chain applies multiple same-type filters in sequence
+// Chain applies multiple same-type filters in sequence.
+// Use this when all filters maintain the same type (no type transformations).
+//
+// Example:
+//
+//	// Apply multiple filtering operations in sequence
+//	pipeline := streamv3.Chain(
+//	    streamv3.Where(func(x int) bool { return x > 0 }),  // Keep positive
+//	    streamv3.Where(func(x int) bool { return x%2 == 0 }), // Keep even
+//	    streamv3.Take[int](10),                              // Limit to 10
+//	)
+//	result := pipeline(slices.Values([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}))
 func Chain[T any](filters ...Filter[T, T]) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		if len(filters) == 0 {
@@ -84,7 +137,32 @@ func ChainWithErrors[T any](filters ...FilterWithErrors[T, T]) FilterWithErrors[
 // RECORD SYSTEM - COMPATIBLE WITH STREAMV2
 // ============================================================================
 
-// Record represents structured data with native Go types
+// Record represents structured data with native Go types.
+// This is the primary data structure for working with CSV/JSON data and command output.
+// Records are map-based and support flexible field access with type conversion.
+//
+// Key features:
+//   - Type-safe field access with Get/GetOr
+//   - Supports canonical types (int64, float64, string, bool, time.Time)
+//   - Supports nested structures (Record, JSONString)
+//   - Supports sequences (iter.Seq[T])
+//   - Immutable updates via Record methods (creates copies)
+//
+// Example:
+//
+//	// Create a record
+//	record := streamv3.MakeMutableRecord().
+//	    String("name", "Alice").
+//	    Int("age", int64(30)).
+//	    Float("salary", 95000.50).
+//	    Freeze()
+//
+//	// Access fields with type conversion
+//	name := streamv3.GetOr(record, "name", "")
+//	age := streamv3.GetOr(record, "age", int64(0))
+//
+//	// Immutable updates (creates new Record)
+//	updated := record.Int("age", int64(31))
 type Record map[string]any
 
 // JSONString represents a string containing valid JSON data.
@@ -169,9 +247,34 @@ type Value interface {
 // MutableRecord is a Record type optimized for efficient building.
 // Methods mutate in place and return the same instance for chaining.
 // Use .Freeze() to convert to a regular Record when done building.
+//
+// MutableRecord is the recommended way to build new records efficiently.
+// Unlike Record methods which create copies, MutableRecord methods modify
+// the same underlying map, avoiding unnecessary allocations.
+//
+// Example:
+//
+//	// Efficient building with MutableRecord
+//	record := streamv3.MakeMutableRecord().
+//	    String("name", "Alice").
+//	    Int("age", int64(30)).
+//	    Float("salary", 95000.50).
+//	    Bool("active", true).
+//	    Freeze()  // Convert to immutable Record
+//
+//	// Later modifications create new copies (immutable)
+//	updated := record.Int("age", int64(31))  // Creates new Record
 type MutableRecord Record
 
-// MakeMutableRecord creates an empty MutableRecord for efficient building
+// MakeMutableRecord creates an empty MutableRecord for efficient building.
+// This is the recommended way to create new records.
+//
+// Example:
+//
+//	record := streamv3.MakeMutableRecord().
+//	    String("city", "San Francisco").
+//	    Int("population", int64(873965)).
+//	    Freeze()
 func MakeMutableRecord() MutableRecord {
 	return make(MutableRecord)
 }
@@ -193,7 +296,31 @@ func (r Record) ToMutable() MutableRecord {
 // TYPE-SAFE RECORD ACCESS
 // ============================================================================
 
-// Get retrieves a typed value from a record with automatic conversion
+// Get retrieves a typed value from a record with automatic conversion.
+// Returns the value and a boolean indicating whether the field exists.
+//
+// Get performs smart type conversions:
+//   - int64 ↔ float64 (with truncation/widening)
+//   - string → int64/float64 (parsing)
+//   - bool ↔ int64 (0/1)
+//   - string → time.Time (RFC3339, SQL datetime)
+//   - int64 → time.Time (Unix timestamp)
+//
+// Example:
+//
+//	record := streamv3.MakeMutableRecord().
+//	    String("age_str", "30").
+//	    Int("count", int64(42)).
+//	    Freeze()
+//
+//	// Direct type match
+//	count, ok := streamv3.Get[int64](record, "count")  // 42, true
+//
+//	// Smart conversion from string to int64
+//	age, ok := streamv3.Get[int64](record, "age_str")  // 30, true
+//
+//	// Field doesn't exist
+//	missing, ok := streamv3.Get[string](record, "missing")  // "", false
 func Get[T any](r Record, field string) (T, bool) {
 	val, exists := r[field]
 	if !exists {
@@ -215,7 +342,26 @@ func Get[T any](r Record, field string) (T, bool) {
 	return zero, false
 }
 
-// GetOr retrieves a typed value with a default fallback
+// GetOr retrieves a typed value with a default fallback.
+// This is the most common way to access Record fields safely.
+//
+// Always use canonical types for defaults:
+//   - int64(0) not int(0)
+//   - float64(0.0) not float32(0.0)
+//
+// Example:
+//
+//	// CSV data (auto-parsed to int64/float64)
+//	data, _ := streamv3.ReadCSV("people.csv")
+//	for record := range data {
+//	    // Always use int64 with CSV data
+//	    age := streamv3.GetOr(record, "age", int64(0))
+//	    salary := streamv3.GetOr(record, "salary", float64(0.0))
+//	    name := streamv3.GetOr(record, "name", "Unknown")
+//
+//	    // Convert to int if needed
+//	    ageInt := int(age)
+//	}
 func GetOr[T any](r Record, field string, defaultVal T) T {
 	if val, ok := Get[T](r, field); ok {
 		return val
@@ -720,7 +866,24 @@ type Comparable interface {
 // CONVERSION UTILITIES
 // ============================================================================
 
-// Safe converts a simple iterator to an error-aware iterator (never errors)
+// Safe converts a simple iterator to an error-aware iterator (never errors).
+// Use this to bridge between error-unaware and error-aware operations.
+//
+// Example:
+//
+//	// Start with simple data
+//	numbers := slices.Values([]int{1, 2, 3, 4, 5})
+//
+//	// Convert to error-aware for operations that might fail
+//	numbersSafe := streamv3.Safe(numbers)
+//
+//	// Use with error-aware operations
+//	results := streamv3.SelectSafe(func(x int) (string, error) {
+//	    if x == 0 {
+//	        return "", errors.New("cannot process zero")
+//	    }
+//	    return fmt.Sprintf("num_%d", x), nil
+//	})(numbersSafe)
 func Safe[T any](seq iter.Seq[T]) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		for v := range seq {
@@ -731,7 +894,22 @@ func Safe[T any](seq iter.Seq[T]) iter.Seq2[T, error] {
 	}
 }
 
-// Unsafe converts an error-aware iterator to simple iterator (panics on errors)
+// Unsafe converts an error-aware iterator to simple iterator (panics on errors).
+// Use this when you want to fail fast on any error.
+//
+// Example:
+//
+//	// Read CSV data (returns iter.Seq2[Record, error])
+//	data, _ := streamv3.ReadCSV("data.csv")
+//
+//	// Convert to simple iterator - panics if any error occurs
+//	dataUnsafe := streamv3.Unsafe(data)
+//
+//	// Use with simple operations
+//	filtered := streamv3.Where(func(r streamv3.Record) bool {
+//	    age := streamv3.GetOr(r, "age", int64(0))
+//	    return age > 25
+//	})(dataUnsafe)
 func Unsafe[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for v, err := range seq {
@@ -745,7 +923,22 @@ func Unsafe[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
 	}
 }
 
-// IgnoreErrors converts an error-aware iterator to simple iterator (ignores errors)
+// IgnoreErrors converts an error-aware iterator to simple iterator (skips errors).
+// Use this for best-effort processing where you want to skip problematic records.
+//
+// Example:
+//
+//	// Read CSV with some malformed rows
+//	data, _ := streamv3.ReadCSV("messy_data.csv")
+//
+//	// Process valid records, skip errors silently
+//	validData := streamv3.IgnoreErrors(data)
+//
+//	// Continue with normal processing
+//	results := streamv3.Where(func(r streamv3.Record) bool {
+//	    age := streamv3.GetOr(r, "age", int64(0))
+//	    return age > 0
+//	})(validData)
 func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for v, err := range seq {

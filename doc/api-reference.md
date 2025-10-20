@@ -2,6 +2,8 @@
 
 *Complete reference for all StreamV3 types, functions, and methods*
 
+> 📖 **Documentation Note**: This is a learning-focused API reference with examples and best practices. For raw API documentation directly from source code, use `go doc github.com/rosscartlidge/streamv3` or browse specific functions with `go doc github.com/rosscartlidge/streamv3.FunctionName`
+
 ## Table of Contents
 
 ### Documentation Navigation

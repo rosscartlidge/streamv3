@@ -18,7 +18,22 @@ import (
 // TRANSFORM OPERATIONS
 // ============================================================================
 
-// Select transforms each element using the provided function (SQL SELECT)
+// Select transforms each element using the provided function (SQL SELECT).
+// This is the fundamental transformation operation in StreamV3.
+//
+// Example:
+//
+//	// Transform integers to strings
+//	numbers := slices.Values([]int{1, 2, 3, 4, 5})
+//	strings := streamv3.Select(func(n int) string {
+//	    return fmt.Sprintf("Number: %d", n)
+//	})(numbers)
+//
+//	// Transform records
+//	data, _ := streamv3.ReadCSV("people.csv")
+//	names := streamv3.Select(func(r streamv3.Record) string {
+//	    return streamv3.GetOr(r, "name", "")
+//	})(data)
 func Select[T, U any](fn func(T) U) Filter[T, U] {
 	return func(input iter.Seq[T]) iter.Seq[U] {
 		return func(yield func(U) bool) {
@@ -52,7 +67,35 @@ func SelectSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U] {
 	}
 }
 
-// SelectMany flattens nested iterators (SQL SELECT with UNNEST/flattening)
+// SelectMany flattens nested sequences into a single stream (SQL SELECT with UNNEST).
+// This is StreamV3's equivalent to FlatMap in functional programming.
+// Use this for one-to-many transformations where each input produces multiple outputs.
+//
+// Example:
+//
+//	// Split strings into individual words
+//	sentences := slices.Values([]string{"hello world", "foo bar"})
+//	words := streamv3.SelectMany(func(s string) iter.Seq[string] {
+//	    return slices.Values(strings.Fields(s))
+//	})(sentences)
+//	// Result: ["hello", "world", "foo", "bar"]
+//
+//	// Expand records with iter.Seq fields
+//	data := []streamv3.Record{
+//	    streamv3.MakeMutableRecord().
+//	        String("user", "Alice").
+//	        IntSeq("scores", slices.Values([]int{90, 85, 95})).
+//	        Freeze(),
+//	}
+//	expanded := streamv3.SelectMany(func(r streamv3.Record) iter.Seq[streamv3.Record] {
+//	    scores := streamv3.Get[iter.Seq[int]](r, "scores")
+//	    return streamv3.Select(func(score int) streamv3.Record {
+//	        return streamv3.MakeMutableRecord().
+//	            String("user", streamv3.GetOr(r, "user", "")).
+//	            Int("score", int64(score)).
+//	            Freeze()
+//	    })(scores)
+//	})(slices.Values(data))
 func SelectMany[T, U any](fn func(T) iter.Seq[U]) Filter[T, U] {
 	return func(input iter.Seq[T]) iter.Seq[U] {
 		return func(yield func(U) bool) {
@@ -71,7 +114,24 @@ func SelectMany[T, U any](fn func(T) iter.Seq[U]) Filter[T, U] {
 // FILTER OPERATIONS
 // ============================================================================
 
-// Where filters elements based on a predicate (equivalent to SQL WHERE)
+// Where filters elements based on a predicate (equivalent to SQL WHERE).
+// This is the fundamental filtering operation in StreamV3.
+//
+// Example:
+//
+//	// Filter positive integers
+//	numbers := slices.Values([]int{-2, -1, 0, 1, 2, 3})
+//	positive := streamv3.Where(func(n int) bool {
+//	    return n > 0
+//	})(numbers)
+//	// Result: [1, 2, 3]
+//
+//	// Filter CSV data
+//	data, _ := streamv3.ReadCSV("people.csv")
+//	adults := streamv3.Where(func(r streamv3.Record) bool {
+//	    age := streamv3.GetOr(r, "age", int64(0))
+//	    return age >= 18
+//	})(data)
 func Where[T any](predicate func(T) bool) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {
 		return func(yield func(T) bool) {
@@ -114,7 +174,40 @@ func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrors[T, T] {
 // LIMITING OPERATIONS - SQL-STYLE
 // ============================================================================
 
-// Limit restricts iterator to first N elements (equivalent to SQL LIMIT)
+// Limit restricts iterator to first N elements (equivalent to SQL LIMIT).
+// Essential for converting infinite streams to finite ones.
+//
+// Example:
+//
+//	// Get first 10 records
+//	data, _ := streamv3.ReadCSV("large_file.csv")
+//	first10 := streamv3.Limit[streamv3.Record](10)(data)
+//
+//	// Combined with other operations
+//	topCustomers := streamv3.Limit[streamv3.Record](5)(
+//	    streamv3.SortBy(func(r streamv3.Record) float64 {
+//	        return -streamv3.GetOr(r, "revenue", float64(0))
+//	    })(data))
+func Limit[T any](n int) Filter[T, T] {
+	return func(input iter.Seq[T]) iter.Seq[T] {
+		return func(yield func(T) bool) {
+			if n <= 0 {
+				return
+			}
+
+			count := 0
+			for v := range input {
+				if count >= n {
+					return
+				}
+				if !yield(v) {
+					return
+				}
+				count++
+			}
+		}
+	}
+}
 
 // LimitSafe restricts iterator with error handling
 func LimitSafe[T any](n int) FilterWithErrors[T, T] {
@@ -812,29 +905,6 @@ func TakeUntil[T any](predicate func(T) bool) Filter[T, T] {
 				if !yield(v) {
 					return
 				}
-			}
-		}
-	}
-}
-
-// Limit limits the stream to the first n elements (SQL LIMIT)
-// Essential for converting infinite streams to finite ones
-func Limit[T any](n int) Filter[T, T] {
-	return func(input iter.Seq[T]) iter.Seq[T] {
-		return func(yield func(T) bool) {
-			if n <= 0 {
-				return
-			}
-
-			count := 0
-			for v := range input {
-				if count >= n {
-					return
-				}
-				if !yield(v) {
-					return
-				}
-				count++
 			}
 		}
 	}

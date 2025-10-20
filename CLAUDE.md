@@ -228,3 +228,4 @@ streamv3 read-csv -generate data.csv | streamv3 mycommand -generate | streamv3 g
 - code_generation
 - pattern
 - source_sink_consistent
+- main_doco_readcsv
