@@ -19,12 +19,12 @@ func main() {
 	colors := slices.Values([]string{"red", "blue"})
 	sizes := slices.Values([]string{"small", "large"})
 
-	product := streamv3.NewRecord().
+	product := streamv3.MakeMutableRecord().
 		String("name", "T-Shirt").
 		Float("base_price", 19.99).
 		StringSeq("colors", colors).
 		StringSeq("sizes", sizes).
-		Build()
+		Freeze()
 
 	fmt.Printf("Input: %s (base price: $%.2f)\n",
 		streamv3.GetOr(product, "name", ""),
@@ -78,12 +78,12 @@ func main() {
 	shortTags := slices.Values([]string{"urgent", "work"})
 	longScores := slices.Values([]int{85, 92, 78, 95}) // Longer sequence
 
-	task := streamv3.NewRecord().
+	task := streamv3.MakeMutableRecord().
 		String("id", "TASK-456").
 		String("assignee", "Alice").
 		StringSeq("tags", shortTags).      // 2 elements
 		IntSeq("scores", longScores).      // 4 elements
-		Build()
+		Freeze()
 
 	fmt.Printf("Input: %s (assignee: %s)\n",
 		streamv3.GetOr(task, "id", ""),
@@ -134,18 +134,18 @@ func main() {
 	fmt.Println("\n📊 Example 3: Nested Records + Sequences")
 	fmt.Println("----------------------------------------")
 
-	userInfo := streamv3.NewRecord().
+	userInfo := streamv3.MakeMutableRecord().
 		String("name", "Bob").
 		String("department", "Engineering").
-		Build()
+		Freeze()
 
 	permissions := slices.Values([]string{"read", "write", "admin"})
 
-	userRecord := streamv3.NewRecord().
+	userRecord := streamv3.MakeMutableRecord().
 		String("user_id", "USR-789").
-		Record("profile", userInfo).          // Nested record
+		Nested("profile", userInfo).          // Nested record
 		StringSeq("permissions", permissions). // Sequence
-		Build()
+		Freeze()
 
 	fmt.Printf("Input: %s\n", streamv3.GetOr(userRecord, "user_id", ""))
 

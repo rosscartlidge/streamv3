@@ -14,19 +14,19 @@ func main() {
 	// Create records with multiple complex field types
 	tags := slices.Values([]string{"critical", "security"})
 	scores := slices.Values([]int{95, 88, 92})
-	metadata := streamv3.NewRecord().
+	metadata := streamv3.MakeMutableRecord().
 		String("priority", "high").
 		Int("version", 2).
 		Float("weight", 1.5).
-		Build()
+		Freeze()
 
-	task := streamv3.NewRecord().
+	task := streamv3.MakeMutableRecord().
 		String("id", "COMPLEX-001").
 		String("title", "Security Patch").
 		StringSeq("tags", tags).
 		IntSeq("scores", scores).
-		Record("metadata", metadata).
-		Build()
+		Nested("metadata", metadata).
+		Freeze()
 
 	fmt.Println("📊 Original complex record:")
 	fmt.Printf("  ID: %s\n", streamv3.GetOr(task, "id", ""))

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"iter"
+	"maps"
 	"strings"
 )
 
@@ -33,13 +34,9 @@ func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record
 					if predicate(left, right) {
 						joined := make(Record)
 						// Copy left record
-						for k, v := range left {
-							joined[k] = v
-						}
+						maps.Copy(joined, left)
 						// Copy right record (with potential conflicts)
-						for k, v := range right {
-							joined[k] = v
-						}
+						maps.Copy(joined, right)
 						if !yield(joined) {
 							return
 						}
@@ -66,13 +63,9 @@ func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record,
 					if predicate(left, right) {
 						joined := make(Record)
 						// Copy left record
-						for k, v := range left {
-							joined[k] = v
-						}
+						maps.Copy(joined, left)
 						// Copy right record
-						for k, v := range right {
-							joined[k] = v
-						}
+						maps.Copy(joined, right)
 						if !yield(joined) {
 							return
 						}
@@ -113,13 +106,9 @@ func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record
 					if predicate(left, right) {
 						joined := make(Record)
 						// Copy left record
-						for k, v := range left {
-							joined[k] = v
-						}
+						maps.Copy(joined, left)
 						// Copy right record
-						for k, v := range right {
-							joined[k] = v
-						}
+						maps.Copy(joined, right)
 						if !yield(joined) {
 							return
 						}
@@ -164,13 +153,9 @@ func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record,
 					if predicate(left, right) {
 						joined := make(Record)
 						// Copy left record
-						for k, v := range left {
-							joined[k] = v
-						}
+						maps.Copy(joined, left)
 						// Copy right record
-						for k, v := range right {
-							joined[k] = v
-						}
+						maps.Copy(joined, right)
 						if !yield(joined) {
 							return
 						}
@@ -320,9 +305,7 @@ func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record
 				result := make(Record)
 
 				// Copy the grouping field values
-				for field, value := range groupFields[key] {
-					result[field] = value
-				}
+				maps.Copy(result, groupFields[key])
 
 				// Add the sequence of group members as an iter.Seq[Record]
 				groupRecords := groups[key]

@@ -57,9 +57,9 @@ func main() {
 
 	// Create sample data
 	sampleData := []streamv3.Record{
-		streamv3.NewRecord().String("id", "1").String("name", "Alice").Int("age", 30).Float("score", 95.5).Build(),
-		streamv3.NewRecord().String("id", "2").String("name", "Bob").Int("age", 25).Float("score", 87.2).Build(),
-		streamv3.NewRecord().String("id", "3").String("name", "Carol").Int("age", 35).Float("score", 92.8).Build(),
+		streamv3.MakeMutableRecord().String("id", "1").String("name", "Alice").Int("age", 30).Float("score", 95.5).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "2").String("name", "Bob").Int("age", 25).Float("score", 87.2).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "3").String("name", "Carol").Int("age", 35).Float("score", 92.8).Freeze(),
 	}
 
 	// Write CSV to a file

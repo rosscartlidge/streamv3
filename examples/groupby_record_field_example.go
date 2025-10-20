@@ -11,14 +11,14 @@ func main() {
 	fmt.Println("=================================\n")
 
 	// Create some nested records
-	location1 := streamv3.NewRecord().String("city", "New York").String("country", "USA").Build()
-	location2 := streamv3.NewRecord().String("city", "New York").String("country", "USA").Build() // Same content, different Record
-	location3 := streamv3.NewRecord().String("city", "London").String("country", "UK").Build()    // Different content
+	location1 := streamv3.MakeMutableRecord().String("city", "New York").String("country", "USA").Freeze()
+	location2 := streamv3.MakeMutableRecord().String("city", "New York").String("country", "USA").Freeze() // Same content, different Record
+	location3 := streamv3.MakeMutableRecord().String("city", "London").String("country", "UK").Freeze()    // Different content
 
 	records := []streamv3.Record{
-		streamv3.NewRecord().String("user", "Alice").Record("location", location1).Build(),
-		streamv3.NewRecord().String("user", "Bob").Record("location", location2).Build(),   // Same location content as Alice
-		streamv3.NewRecord().String("user", "Carol").Record("location", location3).Build(), // Different location
+		streamv3.MakeMutableRecord().String("user", "Alice").Nested("location", location1).Freeze(),
+		streamv3.MakeMutableRecord().String("user", "Bob").Nested("location", location2).Freeze(),   // Same location content as Alice
+		streamv3.MakeMutableRecord().String("user", "Carol").Nested("location", location3).Freeze(), // Different location
 	}
 
 	fmt.Println("📊 Sample records:")

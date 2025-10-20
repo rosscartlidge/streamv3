@@ -113,7 +113,10 @@ func (c *ReadCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) err
 	}
 
 	// Normal execution: Read CSV file (empty string means stdin)
-	records := streamv3.ReadCSV(inputFile)
+	records, err := streamv3.ReadCSV(inputFile)
+	if err != nil {
+		return fmt.Errorf("reading CSV: %w", err)
+	}
 
 	// Write as JSONL to stdout
 	if err := lib.WriteJSONL(os.Stdout, records); err != nil {
@@ -125,16 +128,22 @@ func (c *ReadCSVConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) err
 
 // generateCode generates Go code for the read-csv command
 func (c *ReadCSVConfig) generateCode(filename string) error {
-	// Generate ReadCSV call
+	// Generate ReadCSV call with error handling
 	var code string
 	if filename == "" {
-		code = `records := streamv3.ReadCSV("")`
+		code = `records, err := streamv3.ReadCSV("")
+	if err != nil {
+		return fmt.Errorf("reading CSV: %w", err)
+	}`
 	} else {
-		code = fmt.Sprintf(`records := streamv3.ReadCSV(%q)`, filename)
+		code = fmt.Sprintf(`records, err := streamv3.ReadCSV(%q)
+	if err != nil {
+		return fmt.Errorf("reading CSV: %%w", err)
+	}`, filename)
 	}
 
 	// Create init fragment (first in pipeline)
-	frag := lib.NewInitFragment("records", code, nil)
+	frag := lib.NewInitFragment("records", code, []string{"fmt"})
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

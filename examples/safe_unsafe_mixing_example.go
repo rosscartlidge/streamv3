@@ -71,11 +71,11 @@ func demonstrateMixedPipeline() {
 				amountStr, streamv3.GetOr(r, "id", "unknown"))
 		}
 
-		return streamv3.NewRecord().
+		return streamv3.MakeMutableRecord().
 			String("id", streamv3.GetOr(r, "id", "")).
 			Float("amount", amount).
 			String("category", streamv3.GetOr(r, "category", "")).
-			Build(), nil
+			Freeze(), nil
 	})(safeStream)
 
 	// Convert back to normal, ignoring errors
@@ -240,11 +240,11 @@ func processFailFast(filename string) (err error) {
 				streamv3.GetOr(r, "account", "unknown"))
 		}
 
-		return streamv3.NewRecord().
+		return streamv3.MakeMutableRecord().
 			String("account", streamv3.GetOr(r, "account", "")).
 			Float("balance", balance).
 			String("status", streamv3.GetOr(r, "status", "")).
-			Build(), nil
+			Freeze(), nil
 	})(csvStream)
 
 	// Convert to Unsafe - will panic on any error
@@ -317,12 +317,12 @@ Webcam,89.99,18`,
 					streamv3.GetOr(r, "product", "unknown"))
 			}
 
-			return streamv3.NewRecord().
+			return streamv3.MakeMutableRecord().
 				String("product", streamv3.GetOr(r, "product", "")).
 				Float("price", price).
 				Int("stock", stock).
 				String("source", filename).
-				Build(), nil
+				Freeze(), nil
 		})(csvStream)
 
 		// Use IgnoreErrors to collect valid records, skip invalid ones

@@ -17,21 +17,21 @@ func main() {
 	tags3 := slices.Values([]string{"work", "documentation"})
 
 	records := []streamv3.Record{
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-123").
 			String("assignee", "Alice").
 			StringSeq("tags", tags1).
-			Build(),
-		streamv3.NewRecord().
+			Freeze(),
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-124").
 			String("assignee", "Bob").
 			StringSeq("tags", tags2).
-			Build(),
-		streamv3.NewRecord().
+			Freeze(),
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-125").
 			String("assignee", "Alice").
 			StringSeq("tags", tags3).
-			Build(),
+			Freeze(),
 	}
 
 	fmt.Println("📊 Original Records:")

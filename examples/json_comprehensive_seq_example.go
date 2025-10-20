@@ -17,14 +17,14 @@ func main() {
 	floatValues := slices.Values([]float64{1.5, 2.3, 3.7})
 	boolFlags := slices.Values([]bool{true, false, true})
 
-	record := streamv3.NewRecord().
+	record := streamv3.MakeMutableRecord().
 		String("id", "MIXED-001").
 		String("title", "Complex Task").
 		StringSeq("string_tags", stringTags).
 		IntSeq("int_scores", intScores).
 		Float64Seq("float_values", floatValues).
 		BoolSeq("bool_flags", boolFlags).
-		Build()
+		Freeze()
 
 	fmt.Println("📊 Record with multiple iter.Seq types:")
 	fmt.Printf("  ID: %s\n", streamv3.GetOr(record, "id", ""))

@@ -19,12 +19,12 @@ func main() {
 	tags1 := slices.Values([]string{"urgent", "work"})
 	scores1 := slices.Values([]int{85, 92})
 
-	record1 := streamv3.NewRecord().
+	record1 := streamv3.MakeMutableRecord().
 		String("id", "task-123").
 		String("user", "Alice").
 		StringSeq("tags", tags1).
 		IntSeq("scores", scores1).
-		Build()
+		Freeze()
 
 	fmt.Println("Input record:")
 	fmt.Printf("  ID: %s, User: %s\n", streamv3.GetOr(record1, "id", ""), streamv3.GetOr(record1, "user", ""))
@@ -65,11 +65,11 @@ func main() {
 	priorities := slices.Values([]string{"high", "low"})
 	types := slices.Values([]string{"bug", "feature"})
 
-	record2 := streamv3.NewRecord().
+	record2 := streamv3.MakeMutableRecord().
 		String("project", "StreamV3").
 		StringSeq("priorities", priorities).
 		StringSeq("types", types).
-		Build()
+		Freeze()
 
 	fmt.Println("Input record:")
 	fmt.Printf("  Project: %s\n", streamv3.GetOr(record2, "project", ""))
@@ -105,16 +105,16 @@ func main() {
 	fmt.Println("\n🔍 Nested Record Flattening Example")
 	fmt.Println("-----------------------------------")
 
-	userInfo := streamv3.NewRecord().
+	userInfo := streamv3.MakeMutableRecord().
 		String("name", "Bob").
 		String("email", "bob@example.com").
-		Build()
+		Freeze()
 
-	nestedRecord := streamv3.NewRecord().
+	nestedRecord := streamv3.MakeMutableRecord().
 		String("id", "order-456").
-		Record("customer", userInfo).
+		Nested("customer", userInfo).
 		Float("amount", 199.99).
-		Build()
+		Freeze()
 
 	fmt.Println("Input nested record:")
 	fmt.Printf("  ID: %s, Amount: $%.2f\n", streamv3.GetOr(nestedRecord, "id", ""), streamv3.GetOr(nestedRecord, "amount", 0.0))

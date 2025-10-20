@@ -17,9 +17,9 @@ func main() {
 	tags3 := slices.Values([]string{"personal"})
 
 	records := []streamv3.Record{
-		streamv3.NewRecord().String("user", "Alice").StringSeq("tags", tags1).Build(),
-		streamv3.NewRecord().String("user", "Bob").StringSeq("tags", tags2).Build(),   // Same content as Alice
-		streamv3.NewRecord().String("user", "Carol").StringSeq("tags", tags3).Build(), // Different content
+		streamv3.MakeMutableRecord().String("user", "Alice").StringSeq("tags", tags1).Freeze(),
+		streamv3.MakeMutableRecord().String("user", "Bob").StringSeq("tags", tags2).Freeze(),   // Same content as Alice
+		streamv3.MakeMutableRecord().String("user", "Carol").StringSeq("tags", tags3).Freeze(), // Different content
 	}
 
 	fmt.Println("📊 Sample records:")

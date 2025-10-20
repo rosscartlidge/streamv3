@@ -45,10 +45,11 @@ import (
 - `iter.Seq[T]` / `iter.Seq2[T, error]` - Go 1.23+ lazy iterators
 - `Record` - Map-based data: `map[string]any`
 - `slices.Values([]T)` - Create iterator from slice
-- `streamv3.ReadCSV("file.csv")` - Read CSV (returns `iter.Seq[Record]` - panics on file errors)
+- `streamv3.ReadCSV("file.csv")` - Read CSV (returns `(iter.Seq[Record], error)`)
   - **⚠️ CSV Auto-Parsing**: Numeric strings become `int64`/`float64`, not strings!
   - Example: CSV value `"25"` → `int64(25)`, so use `GetOr(r, "age", int64(0))` not `GetOr(r, "age", "")`
-- `streamv3.NewRecord().String("key", "val").Int("num", 42).Build()` - Build records
+  - **Always handle errors**: `data, err := streamv3.ReadCSV("file.csv"); if err != nil { log.Fatal(err) }`
+- `streamv3.MakeMutableRecord().String("key", "val").Int("num", 42).Freeze()` - Build records efficiently
 
 ### Core Operations (SQL-style naming)
 
@@ -87,7 +88,7 @@ import (
 - `streamv3.OnCondition(func(left, right Record) bool)` - Custom join condition
 
 ### Charts
-- `streamv3.QuickChart(data, "output.html")` - Simple chart
+- `streamv3.QuickChart(data, "xField", "yField", "output.html")` - Simple chart (returns error)
 - `streamv3.InteractiveChart(data, "file.html", config)` - Custom chart
 
 ## Code Generation Rules
@@ -101,7 +102,7 @@ import (
 5. **Always handle errors** from file operations
 6. **Use SQL-style names**: `Select` not `Map`, `Where` not `Filter`, `Limit` not `Take`
 7. **Chain carefully**: Don't nest too many operations - prefer multiple clear steps
-8. **Use Record builder**: `NewRecord().String(...).Int(...).Build()`
+8. **Use Record builder**: `MakeMutableRecord().String(...).Int(...).Freeze()`
 9. **Type parameters**: Add `[T]` when compiler needs help: `CountWindow[streamv3.Record](10)`
 10. **Complete examples**: Include main function and imports
 11. **Comments for clarity**: Explain non-obvious logic with simple comments
@@ -151,7 +152,10 @@ top10Regions := streamv3.Limit[streamv3.Record](10)(sortedByRevenue)
 // Alice,30,75000.50,true
 // Bob,25,65000.00,false
 
-data := streamv3.ReadCSV("employees.csv")
+data, err := streamv3.ReadCSV("employees.csv")
+if err != nil {
+    log.Fatalf("Failed to read CSV: %v", err)
+}
 
 for record := range data {
     // ✅ CORRECT - CSV parses numbers as int64/float64
@@ -176,7 +180,10 @@ adults := streamv3.Where(func(r streamv3.Record) bool {
 ### CSV Analysis with Filtering on Aggregated Results
 ```go
 // Read sales data and find regions with total sales over $500
-data := streamv3.ReadCSV("sales.csv")
+data, err := streamv3.ReadCSV("sales.csv")
+if err != nil {
+    log.Fatalf("Failed to read CSV: %v", err)
+}
 
 // Group all sales by region
 grouped := streamv3.GroupByFields("regional_analysis", "region")(data)

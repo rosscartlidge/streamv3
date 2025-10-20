@@ -115,7 +115,10 @@ func (c *execCommand) Execute(ctx context.Context, args []string) error {
 	}
 
 	// Normal execution: Execute command and parse output
-	records := streamv3.ExecCommand(command, cmdArgs)
+	records, err := streamv3.ExecCommand(command, cmdArgs)
+	if err != nil {
+		return fmt.Errorf("executing command: %w", err)
+	}
 
 	// Write as JSONL to stdout
 	if err := lib.WriteJSONL(os.Stdout, records); err != nil {
@@ -137,7 +140,7 @@ func (c *ExecConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error 
 
 // generateCodeDirect generates Go code for the exec command
 func (c *execCommand) generateCodeDirect(command string, args []string) error {
-	// Generate ExecCommand call
+	// Generate ExecCommand call with error handling
 	var argsStr string
 	if len(args) == 0 {
 		argsStr = "nil"
@@ -149,10 +152,13 @@ func (c *execCommand) generateCodeDirect(command string, args []string) error {
 		argsStr = "[]string{" + strings.Join(quotedArgs, ", ") + "}"
 	}
 
-	code := fmt.Sprintf(`records := streamv3.ExecCommand(%q, %s)`, command, argsStr)
+	code := fmt.Sprintf(`records, err := streamv3.ExecCommand(%q, %s)
+	if err != nil {
+		return fmt.Errorf("executing command: %%w", err)
+	}`, command, argsStr)
 
 	// Create init fragment (first in pipeline)
-	frag := lib.NewInitFragment("records", code, nil)
+	frag := lib.NewInitFragment("records", code, []string{"fmt"})
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

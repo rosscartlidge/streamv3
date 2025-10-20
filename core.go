@@ -1,9 +1,12 @@
 package streamv3
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"iter"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -160,151 +163,34 @@ type Value interface {
 }
 
 // ============================================================================
-// TYPE-SAFE RECORD BUILDER - COMPATIBLE WITH STREAMV2
+// MUTABLE RECORD - EFFICIENT BUILDING WITH IN-PLACE MUTATION
 // ============================================================================
 
-// TypedRecord provides type-safe field setting with method chaining
-type TypedRecord struct {
-	data map[string]any
+// MutableRecord is a Record type optimized for efficient building.
+// Methods mutate in place and return the same instance for chaining.
+// Use .Freeze() to convert to a regular Record when done building.
+type MutableRecord Record
+
+// MakeMutableRecord creates an empty MutableRecord for efficient building
+func MakeMutableRecord() MutableRecord {
+	return make(MutableRecord)
 }
 
-// NewRecord creates a new type-safe Record builder
-func NewRecord() *TypedRecord {
-	return &TypedRecord{data: make(map[string]any)}
+// Freeze converts a MutableRecord to an immutable Record
+func (m MutableRecord) Freeze() Record {
+	return Record(m)
 }
 
-// Set adds a field with compile-time type safety
-func Set[V Value](tr *TypedRecord, key string, value V) *TypedRecord {
-	tr.data[key] = value
-	return tr
-}
-
-// String adds a string field
-func (tr *TypedRecord) String(key, value string) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// JSONString adds a JSON string field with type safety
-func (tr *TypedRecord) JSONString(key string, value JSONString) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Int adds an integer field
-func (tr *TypedRecord) Int(key string, value int64) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Float adds a float field
-func (tr *TypedRecord) Float(key string, value float64) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Bool adds a boolean field
-func (tr *TypedRecord) Bool(key string, value bool) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Time adds a time field
-func (tr *TypedRecord) Time(key string, value time.Time) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Record adds a nested record field
-func (tr *TypedRecord) Record(key string, value Record) *TypedRecord {
-	return Set(tr, key, value)
+// ToMutable creates a mutable copy of a Record for modification
+// This preserves immutability by creating a shallow copy of the original Record
+func (r Record) ToMutable() MutableRecord {
+	m := make(MutableRecord, len(r))
+	maps.Copy(m, r)
+	return m
 }
 
 // ============================================================================
-// ITER.SEQ FIELD METHODS
-// ============================================================================
-
-// IntSeq adds an iter.Seq[int] field
-func (tr *TypedRecord) IntSeq(key string, value iter.Seq[int]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Int8Seq adds an iter.Seq[int8] field
-func (tr *TypedRecord) Int8Seq(key string, value iter.Seq[int8]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Int16Seq adds an iter.Seq[int16] field
-func (tr *TypedRecord) Int16Seq(key string, value iter.Seq[int16]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Int32Seq adds an iter.Seq[int32] field
-func (tr *TypedRecord) Int32Seq(key string, value iter.Seq[int32]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Int64Seq adds an iter.Seq[int64] field
-func (tr *TypedRecord) Int64Seq(key string, value iter.Seq[int64]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// UintSeq adds an iter.Seq[uint] field
-func (tr *TypedRecord) UintSeq(key string, value iter.Seq[uint]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Uint8Seq adds an iter.Seq[uint8] field
-func (tr *TypedRecord) Uint8Seq(key string, value iter.Seq[uint8]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Uint16Seq adds an iter.Seq[uint16] field
-func (tr *TypedRecord) Uint16Seq(key string, value iter.Seq[uint16]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Uint32Seq adds an iter.Seq[uint32] field
-func (tr *TypedRecord) Uint32Seq(key string, value iter.Seq[uint32]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Uint64Seq adds an iter.Seq[uint64] field
-func (tr *TypedRecord) Uint64Seq(key string, value iter.Seq[uint64]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Float32Seq adds an iter.Seq[float32] field
-func (tr *TypedRecord) Float32Seq(key string, value iter.Seq[float32]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Float64Seq adds an iter.Seq[float64] field
-func (tr *TypedRecord) Float64Seq(key string, value iter.Seq[float64]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// BoolSeq adds an iter.Seq[bool] field
-func (tr *TypedRecord) BoolSeq(key string, value iter.Seq[bool]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// StringSeq adds an iter.Seq[string] field
-func (tr *TypedRecord) StringSeq(key string, value iter.Seq[string]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// TimeSeq adds an iter.Seq[time.Time] field
-func (tr *TypedRecord) TimeSeq(key string, value iter.Seq[time.Time]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// RecordSeq adds an iter.Seq[Record] field
-func (tr *TypedRecord) RecordSeq(key string, value iter.Seq[Record]) *TypedRecord {
-	return Set(tr, key, value)
-}
-
-// Build finalizes the record construction
-func (tr *TypedRecord) Build() Record {
-	return Record(tr.data)
-}
-
-// ============================================================================
-// TYPE-SAFE RECORD ACCESS WITH AUTOMATIC CONVERSION - FROM STREAMV2
+// TYPE-SAFE RECORD ACCESS
 // ============================================================================
 
 // Get retrieves a typed value from a record with automatic conversion
@@ -337,16 +223,6 @@ func GetOr[T any](r Record, field string, defaultVal T) T {
 	return defaultVal
 }
 
-// SetField assigns a value to a record field with compile-time type safety
-func SetField[V Value](r Record, field string, value V) Record {
-	result := make(Record, len(r)+1)
-	for k, v := range r {
-		result[k] = v
-	}
-	result[field] = value
-	return result
-}
-
 // Has checks if a field exists
 func (r Record) Has(field string) bool {
 	_, exists := r[field]
@@ -362,14 +238,264 @@ func (r Record) Keys() []string {
 	return keys
 }
 
-// Set creates a new Record with an additional field - immutable update
-func (r Record) Set(field string, value any) Record {
+// ============================================================================
+// MUTABLERECORD FIELD METHODS - IN-PLACE MUTATION (EFFICIENT)
+// ============================================================================
+
+// Set adds a field with compile-time type safety (mutates in place)
+func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
+	m[field] = value
+	return m
+}
+
+// String adds a string field (mutates in place)
+func (m MutableRecord) String(field, value string) MutableRecord {
+	return Set(m, field, value)
+}
+
+// JSONString adds a JSON string field (mutates in place)
+func (m MutableRecord) JSONString(field string, value JSONString) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Int adds an integer field (mutates in place)
+func (m MutableRecord) Int(field string, value int64) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Float adds a float field (mutates in place)
+func (m MutableRecord) Float(field string, value float64) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Bool adds a boolean field (mutates in place)
+func (m MutableRecord) Bool(field string, value bool) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Time adds a time field (mutates in place)
+func (m MutableRecord) Time(field string, value time.Time) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Nested adds a nested record field (mutates in place)
+func (m MutableRecord) Nested(field string, value Record) MutableRecord {
+	return Set(m, field, value)
+}
+
+// ============================================================================
+// RECORD FIELD METHODS - IMMUTABLE UPDATES (CREATES COPIES)
+// ============================================================================
+
+// SetImmutable adds a field with compile-time type safety - creates new Record (immutable)
+func SetImmutable[V Value](r Record, field string, value V) Record {
 	result := make(Record, len(r)+1)
-	for k, v := range r {
-		result[k] = v
-	}
+	maps.Copy(result, r)
 	result[field] = value
 	return result
+}
+
+// String adds a string field (creates new Record)
+func (r Record) String(field, value string) Record {
+	return SetImmutable(r, field, value)
+}
+
+// JSONString adds a JSON string field (creates new Record)
+func (r Record) JSONString(field string, value JSONString) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Int adds an integer field (creates new Record)
+func (r Record) Int(field string, value int64) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Float adds a float field (creates new Record)
+func (r Record) Float(field string, value float64) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Bool adds a boolean field (creates new Record)
+func (r Record) Bool(field string, value bool) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Time adds a time field (creates new Record)
+func (r Record) Time(field string, value time.Time) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Nested adds a nested record field (creates new Record)
+func (r Record) Nested(field string, value Record) Record {
+	return SetImmutable(r, field, value)
+}
+
+// ============================================================================
+// MUTABLERECORD ITER.SEQ FIELD METHODS - IN-PLACE MUTATION
+// ============================================================================
+
+// IntSeq adds an iter.Seq[int] field (mutates in place)
+func (m MutableRecord) IntSeq(field string, value iter.Seq[int]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Int8Seq adds an iter.Seq[int8] field (mutates in place)
+func (m MutableRecord) Int8Seq(field string, value iter.Seq[int8]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Int16Seq adds an iter.Seq[int16] field (mutates in place)
+func (m MutableRecord) Int16Seq(field string, value iter.Seq[int16]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Int32Seq adds an iter.Seq[int32] field (mutates in place)
+func (m MutableRecord) Int32Seq(field string, value iter.Seq[int32]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Int64Seq adds an iter.Seq[int64] field (mutates in place)
+func (m MutableRecord) Int64Seq(field string, value iter.Seq[int64]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// UintSeq adds an iter.Seq[uint] field (mutates in place)
+func (m MutableRecord) UintSeq(field string, value iter.Seq[uint]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Uint8Seq adds an iter.Seq[uint8] field (mutates in place)
+func (m MutableRecord) Uint8Seq(field string, value iter.Seq[uint8]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Uint16Seq adds an iter.Seq[uint16] field (mutates in place)
+func (m MutableRecord) Uint16Seq(field string, value iter.Seq[uint16]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Uint32Seq adds an iter.Seq[uint32] field (mutates in place)
+func (m MutableRecord) Uint32Seq(field string, value iter.Seq[uint32]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Uint64Seq adds an iter.Seq[uint64] field (mutates in place)
+func (m MutableRecord) Uint64Seq(field string, value iter.Seq[uint64]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Float32Seq adds an iter.Seq[float32] field (mutates in place)
+func (m MutableRecord) Float32Seq(field string, value iter.Seq[float32]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// Float64Seq adds an iter.Seq[float64] field (mutates in place)
+func (m MutableRecord) Float64Seq(field string, value iter.Seq[float64]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// BoolSeq adds an iter.Seq[bool] field (mutates in place)
+func (m MutableRecord) BoolSeq(field string, value iter.Seq[bool]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// StringSeq adds an iter.Seq[string] field (mutates in place)
+func (m MutableRecord) StringSeq(field string, value iter.Seq[string]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// TimeSeq adds an iter.Seq[time.Time] field (mutates in place)
+func (m MutableRecord) TimeSeq(field string, value iter.Seq[time.Time]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// RecordSeq adds an iter.Seq[Record] field (mutates in place)
+func (m MutableRecord) RecordSeq(field string, value iter.Seq[Record]) MutableRecord {
+	return Set(m, field, value)
+}
+
+// ============================================================================
+// RECORD ITER.SEQ FIELD METHODS - IMMUTABLE UPDATES
+// ============================================================================
+
+// IntSeq adds an iter.Seq[int] field (creates new Record)
+func (r Record) IntSeq(field string, value iter.Seq[int]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Int8Seq adds an iter.Seq[int8] field (creates new Record)
+func (r Record) Int8Seq(field string, value iter.Seq[int8]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Int16Seq adds an iter.Seq[int16] field (creates new Record)
+func (r Record) Int16Seq(field string, value iter.Seq[int16]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Int32Seq adds an iter.Seq[int32] field (creates new Record)
+func (r Record) Int32Seq(field string, value iter.Seq[int32]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Int64Seq adds an iter.Seq[int64] field (creates new Record)
+func (r Record) Int64Seq(field string, value iter.Seq[int64]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// UintSeq adds an iter.Seq[uint] field (creates new Record)
+func (r Record) UintSeq(field string, value iter.Seq[uint]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Uint8Seq adds an iter.Seq[uint8] field (creates new Record)
+func (r Record) Uint8Seq(field string, value iter.Seq[uint8]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Uint16Seq adds an iter.Seq[uint16] field (creates new Record)
+func (r Record) Uint16Seq(field string, value iter.Seq[uint16]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Uint32Seq adds an iter.Seq[uint32] field (creates new Record)
+func (r Record) Uint32Seq(field string, value iter.Seq[uint32]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Uint64Seq adds an iter.Seq[uint64] field (creates new Record)
+func (r Record) Uint64Seq(field string, value iter.Seq[uint64]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Float32Seq adds an iter.Seq[float32] field (creates new Record)
+func (r Record) Float32Seq(field string, value iter.Seq[float32]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// Float64Seq adds an iter.Seq[float64] field (creates new Record)
+func (r Record) Float64Seq(field string, value iter.Seq[float64]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// BoolSeq adds an iter.Seq[bool] field (creates new Record)
+func (r Record) BoolSeq(field string, value iter.Seq[bool]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// StringSeq adds an iter.Seq[string] field (creates new Record)
+func (r Record) StringSeq(field string, value iter.Seq[string]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// TimeSeq adds an iter.Seq[time.Time] field (creates new Record)
+func (r Record) TimeSeq(field string, value iter.Seq[time.Time]) Record {
+	return SetImmutable(r, field, value)
+}
+
+// RecordSeq adds an iter.Seq[Record] field (creates new Record)
+func (r Record) RecordSeq(field string, value iter.Seq[Record]) Record {
+	return SetImmutable(r, field, value)
 }
 
 // ============================================================================
@@ -669,9 +795,7 @@ func Materialize(sourceField, targetField, separator string) Filter[Record, Reco
 				result := make(Record)
 
 				// Copy all existing fields
-				for key, value := range record {
-					result[key] = value
-				}
+				maps.Copy(result, record)
 
 				// Materialize the source field if it's an iter.Seq
 				if sourceValue, exists := record[sourceField]; exists && isIterSeq(sourceValue) {
@@ -705,9 +829,7 @@ func MaterializeJSON(sourceField, targetField string) Filter[Record, Record] {
 				result := make(Record)
 
 				// Copy all existing fields
-				for key, value := range record {
-					result[key] = value
-				}
+				maps.Copy(result, record)
 
 				// Materialize the source field if it exists
 				if sourceValue, exists := record[sourceField]; exists {
@@ -719,6 +841,53 @@ func MaterializeJSON(sourceField, targetField string) Filter[Record, Record] {
 						// Fallback to string representation if JSON fails
 						result[targetField] = fmt.Sprintf("%v", sourceValue)
 					}
+				}
+				// If source field doesn't exist, don't add target field
+
+				if !yield(result) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// Hash creates a SHA256 hash of a string field for efficient grouping.
+// Useful for grouping on long strings or when you need fixed-length grouping keys.
+// The hash is hex-encoded (64 characters) for readability and compatibility.
+//
+// Example: {"url": "https://example.com/very/long/path"} → {"url_hash": "a3f2c8b1..."}
+//
+// Use cases:
+//   - Group by long text fields without massive memory overhead
+//   - Create stable, fixed-length keys for any string value
+//   - Avoid separator ambiguity issues (unlike Materialize with commas)
+//
+// Note: This is a one-way operation - you cannot reconstruct the original value from the hash.
+func Hash(sourceField, targetField string) Filter[Record, Record] {
+	return func(input iter.Seq[Record]) iter.Seq[Record] {
+		return func(yield func(Record) bool) {
+			for record := range input {
+				result := make(Record)
+
+				// Copy all existing fields
+				maps.Copy(result, record)
+
+				// Hash the source field if it exists
+				if sourceValue, exists := record[sourceField]; exists {
+					// Convert value to string
+					var strValue string
+					if str, ok := sourceValue.(string); ok {
+						strValue = str
+					} else {
+						// Convert other types to string representation
+						strValue = fmt.Sprintf("%v", sourceValue)
+					}
+
+					// Compute SHA256 hash
+					hash := sha256.Sum256([]byte(strValue))
+					// Encode as hex string (64 characters, human-readable)
+					result[targetField] = hex.EncodeToString(hash[:])
 				}
 				// If source field doesn't exist, don't add target field
 
@@ -814,9 +983,7 @@ func dotFlattenRecord(record Record, prefix, separator string, fields ...string)
 		// If the value is a nested record, flatten it recursively
 		if nestedRecord, ok := value.(Record); ok && shouldFlatten {
 			flattened := dotFlattenRecord(nestedRecord, newKey, separator)
-			for flatKey, flatValue := range flattened {
-				result[flatKey] = flatValue
-			}
+			maps.Copy(result, flattened)
 		} else {
 			// For non-record values (including sequences), or fields not to be flattened, keep as-is
 			result[newKey] = value
@@ -855,9 +1022,7 @@ func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ..
 		// If the value is a nested record, flatten it recursively
 		if nestedRecord, ok := value.(Record); ok && shouldFlatten {
 			flattened := dotFlattenRecord(nestedRecord, newKey, separator)
-			for flatKey, flatValue := range flattened {
-				nonSeqRecord[flatKey] = flatValue
-			}
+			maps.Copy(nonSeqRecord, flattened)
 		} else if shouldFlatten && isIterSeq(value) {
 			// This is an iter.Seq field - collect its values for dot product expansion
 			values := materializeSequence(value)
@@ -886,13 +1051,11 @@ func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ..
 
 	// Create dot product expansion - pair corresponding elements from each sequence
 	var results []Record
-	for i := 0; i < minLen; i++ {
+	for i := range minLen {
 		result := make(Record)
 
 		// Copy non-sequence fields
-		for key, value := range nonSeqRecord {
-			result[key] = value
-		}
+		maps.Copy(result, nonSeqRecord)
 
 		// Add corresponding element from each sequence
 		for j, fieldName := range seqFields {
@@ -907,7 +1070,7 @@ func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ..
 
 // crossFlattenRecord expands specified sequence fields using cartesian product
 // If no fields specified, expands all sequence fields
-func crossFlattenRecord(r Record, sep string, fields ...string) []Record {
+func crossFlattenRecord(r Record, _ string, fields ...string) []Record {
 	var columns [][]Record
 	var nonSeqFields []string
 
@@ -975,12 +1138,8 @@ func cartesianProduct(columns [][]Record) []Record {
 	for _, lr := range cartesianProduct(columns[1:]) {
 		for _, rr := range columns[0] {
 			r := make(Record)
-			for f := range rr {
-				r[f] = rr[f]
-			}
-			for f := range lr {
-				r[f] = lr[f]
-			}
+			maps.Copy(r, rr)
+			maps.Copy(r, lr)
 			rs = append(rs, r)
 		}
 	}

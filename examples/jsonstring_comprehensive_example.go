@@ -13,20 +13,20 @@ func main() {
 	// Create complex data
 	tags := slices.Values([]string{"urgent", "security", "critical"})
 	scores := slices.Values([]int{95, 88, 92})
-	metadata := streamv3.NewRecord().
+	metadata := streamv3.MakeMutableRecord().
 		String("priority", "high").
 		Int("version", 2).
 		Float("weight", 1.5).
-		Build()
+		Freeze()
 
 	// Create record with complex fields
-	task := streamv3.NewRecord().
+	task := streamv3.MakeMutableRecord().
 		String("id", "TASK-001").
 		String("title", "Security Update").
 		StringSeq("tags", tags).
 		IntSeq("scores", scores).
-		Record("metadata", metadata).
-		Build()
+		Nested("metadata", metadata).
+		Freeze()
 
 	fmt.Println("📊 Original record:")
 	fmt.Printf("  ID: %s\n", streamv3.GetOr(task, "id", ""))
@@ -83,11 +83,11 @@ func main() {
 	scoresJSON, _ := streamv3.NewJSONString([]int{85, 92, 78, 88})
 
 	// Create record with JSONString fields using fluent API
-	recordWithJSON := streamv3.NewRecord().
+	recordWithJSON := streamv3.MakeMutableRecord().
 		String("id", "USER-001").
 		JSONString("user_data", userJSON).
 		JSONString("test_scores", scoresJSON).
-		Build()
+		Freeze()
 
 	fmt.Printf("Record with JSONString fields:\n")
 	fmt.Printf("  ID: %s\n", streamv3.GetOr(recordWithJSON, "id", ""))
@@ -109,9 +109,9 @@ func main() {
 	otherTags, _ := streamv3.NewJSONString([]string{"feature", "enhancement"})
 
 	tasks := []streamv3.Record{
-		streamv3.NewRecord().String("id", "T1").String("team", "Backend").JSONString("tags_json", commonTags).Build(),
-		streamv3.NewRecord().String("id", "T2").String("team", "Frontend").JSONString("tags_json", commonTags).Build(),
-		streamv3.NewRecord().String("id", "T3").String("team", "QA").JSONString("tags_json", otherTags).Build(),
+		streamv3.MakeMutableRecord().String("id", "T1").String("team", "Backend").JSONString("tags_json", commonTags).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "T2").String("team", "Frontend").JSONString("tags_json", commonTags).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "T3").String("team", "QA").JSONString("tags_json", otherTags).Freeze(),
 	}
 
 	groupResults := streamv3.Chain(

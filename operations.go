@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"maps"
 	"slices"
 	"time"
 )
@@ -286,7 +287,7 @@ func Tee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
 
 	// Create n identical iterators over the collected values
 	streams := make([]iter.Seq[T], n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		streams[i] = slices.Values(values)
 	}
 
@@ -305,7 +306,7 @@ func LazyTee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
 	channels := make([]chan T, n)
 	done := make(chan struct{})
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		channels[i] = make(chan T, 100) // Buffered to handle temporary speed differences
 	}
 
@@ -338,7 +339,7 @@ func LazyTee[T any](input iter.Seq[T], n int) []iter.Seq[T] {
 
 	// Create output iterators
 	streams := make([]iter.Seq[T], n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		ch := channels[i]
 		streams[i] = func(yield func(T) bool) {
 			defer func() {
@@ -382,9 +383,7 @@ func RunningSum(fieldName string) Filter[Record, Record] {
 				// Create output record with running sum
 				outputRecord := make(Record)
 				// Copy original record
-				for k, v := range record {
-					outputRecord[k] = v
-				}
+				maps.Copy(outputRecord, record)
 				// Add running sum fields
 				outputRecord["running_sum"] = runningTotal
 				outputRecord["running_count"] = int64(count)
@@ -431,9 +430,7 @@ func RunningAverage(fieldName string, windowSize int) Filter[Record, Record] {
 
 				// Create output record
 				outputRecord := make(Record)
-				for k, v := range record {
-					outputRecord[k] = v
-				}
+				maps.Copy(outputRecord, record)
 				outputRecord["moving_avg"] = avg
 				outputRecord["window_size"] = int64(len(window))
 				outputRecord["total_count"] = int64(count)
@@ -467,9 +464,7 @@ func ExponentialMovingAverage(fieldName string, alpha float64) Filter[Record, Re
 
 				// Create output record
 				outputRecord := make(Record)
-				for k, v := range record {
-					outputRecord[k] = v
-				}
+				maps.Copy(outputRecord, record)
 				outputRecord["ema"] = ema
 				outputRecord["alpha"] = alpha
 
@@ -506,9 +501,7 @@ func RunningMinMax(fieldName string) Filter[Record, Record] {
 
 				// Create output record
 				outputRecord := make(Record)
-				for k, v := range record {
-					outputRecord[k] = v
-				}
+				maps.Copy(outputRecord, record)
 				outputRecord["running_min"] = min
 				outputRecord["running_max"] = max
 				outputRecord["running_range"] = max - min
@@ -537,9 +530,7 @@ func RunningCount(fieldName string) Filter[Record, Record] {
 
 				// Create output record
 				outputRecord := make(Record)
-				for k, v := range record {
-					outputRecord[k] = v
-				}
+				maps.Copy(outputRecord, record)
 				outputRecord["distinct_counts"] = counts
 				outputRecord["total_count"] = totalCount
 				outputRecord["distinct_values"] = int64(len(counts))
