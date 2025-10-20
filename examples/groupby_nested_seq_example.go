@@ -17,25 +17,25 @@ func main() {
 	tags3 := slices.Values([]string{"personal"})
 
 	// Nested records containing iter.Seq fields
-	profile1 := streamv3.NewRecord().
+	profile1 := streamv3.MakeMutableRecord().
 		String("role", "developer").
 		StringSeq("tags", tags1).
-		Build()
+		Freeze()
 
-	profile2 := streamv3.NewRecord().
+	profile2 := streamv3.MakeMutableRecord().
 		String("role", "developer").
 		StringSeq("tags", tags2). // Same content as profile1, but different sequence instance
-		Build()
+		Freeze()
 
-	profile3 := streamv3.NewRecord().
+	profile3 := streamv3.MakeMutableRecord().
 		String("role", "manager").
 		StringSeq("tags", tags3).
-		Build()
+		Freeze()
 
 	records := []streamv3.Record{
-		streamv3.NewRecord().String("user", "Alice").Record("profile", profile1).Build(),
-		streamv3.NewRecord().String("user", "Bob").Record("profile", profile2).Build(),   // Same profile content as Alice
-		streamv3.NewRecord().String("user", "Carol").Record("profile", profile3).Build(), // Different profile
+		streamv3.MakeMutableRecord().String("user", "Alice").Nested("profile", profile1).Freeze(),
+		streamv3.MakeMutableRecord().String("user", "Bob").Nested("profile", profile2).Freeze(),   // Same profile content as Alice
+		streamv3.MakeMutableRecord().String("user", "Carol").Nested("profile", profile3).Freeze(), // Different profile
 	}
 
 	fmt.Println("📊 Sample records:")

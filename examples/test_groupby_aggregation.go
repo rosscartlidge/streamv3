@@ -13,16 +13,16 @@ func main() {
 
 	// Create sample sales data
 	salesData := []streamv3.Record{
-		streamv3.NewRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Int("quantity", 2).Build(),
-		streamv3.NewRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Int("quantity", 4).Build(),
-		streamv3.NewRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Int("quantity", 3).Build(),
-		streamv3.NewRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Int("quantity", 1).Build(),
-		streamv3.NewRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Int("quantity", 2).Build(),
-		streamv3.NewRecord().String("region", "North").String("product", "Tablet").Float("amount", 500).Int("quantity", 5).Build(),
-		streamv3.NewRecord().String("region", "East").String("product", "Phone").Float("amount", 850).Int("quantity", 2).Build(),
-		streamv3.NewRecord().String("region", "South").String("product", "Tablet").Float("amount", 450).Int("quantity", 3).Build(),
-		streamv3.NewRecord().String("region", "West").String("product", "Laptop").Float("amount", 1400).Int("quantity", 1).Build(),
-		streamv3.NewRecord().String("region", "West").String("product", "Phone").Float("amount", 750).Int("quantity", 4).Build(),
+		streamv3.MakeMutableRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Int("quantity", 2).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Int("quantity", 4).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Int("quantity", 3).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Int("quantity", 1).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Int("quantity", 2).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "North").String("product", "Tablet").Float("amount", 500).Int("quantity", 5).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "East").String("product", "Phone").Float("amount", 850).Int("quantity", 2).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "South").String("product", "Tablet").Float("amount", 450).Int("quantity", 3).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "West").String("product", "Laptop").Float("amount", 1400).Int("quantity", 1).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "West").String("product", "Phone").Float("amount", 750).Int("quantity", 4).Freeze(),
 	}
 
 	fmt.Printf("📊 Sample Data (%d records):\n", len(salesData))

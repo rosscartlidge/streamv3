@@ -16,16 +16,16 @@ func main() {
 	tags2 := slices.Values([]string{"feature", "enhancement"})
 
 	records := []streamv3.Record{
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-001").
 			String("title", "Fix bug").
 			StringSeq("tags", tags1).
-			Build(),
-		streamv3.NewRecord().
+			Freeze(),
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-002").
 			String("title", "Add feature").
 			StringSeq("tags", tags2).
-			Build(),
+			Freeze(),
 	}
 
 	fmt.Println("📊 Records with iter.Seq fields:")

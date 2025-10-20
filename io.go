@@ -9,6 +9,7 @@ import (
 	"iter"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -195,14 +196,8 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig
 			fields = append(fields, field)
 		}
 
-		// Use standard library sort
-		for i := 0; i < len(fields); i++ {
-			for j := i + 1; j < len(fields); j++ {
-				if fields[i] > fields[j] {
-					fields[i], fields[j] = fields[j], fields[i]
-				}
-			}
-		}
+		// Sort using standard library
+		slices.Sort(fields)
 	}
 
 	// Write headers if enabled
@@ -247,13 +242,14 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig
 // ============================================================================
 
 // ReadCSV reads CSV from a file and returns an iterator
-func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record] {
-	return func(yield func(Record) bool) {
-		file, err := os.Open(filename)
-		if err != nil {
-			// For simple API, we skip errors - use ReadCSVSafe for error handling
-			return
-		}
+// Returns error if file cannot be opened (Sources always return errors)
+func ReadCSV(filename string, config ...CSVConfig) (iter.Seq[Record], error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", filename, err)
+	}
+
+	seq := func(yield func(Record) bool) {
 		defer file.Close()
 
 		// Use the io.Reader version
@@ -263,6 +259,8 @@ func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record] {
 			}
 		}
 	}
+
+	return seq, nil
 }
 
 // ReadCSVSafe reads CSV with error handling
@@ -417,21 +415,25 @@ func WriteJSONToWriter(sb iter.Seq[Record], writer io.Writer) error {
 // ============================================================================
 
 // ReadJSON reads JSON records from a file (one JSON object per line)
-func ReadJSON(filename string) iter.Seq[Record] {
-	return func(yield func(Record) bool) {
-			file, err := os.Open(filename)
-			if err != nil {
-				return // Skip errors in simple API
-			}
-			defer file.Close()
+// Returns error if file cannot be opened (Sources always return errors)
+func ReadJSON(filename string) (iter.Seq[Record], error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", filename, err)
+	}
 
-			// Use the io.Reader version
-			for record := range ReadJSONFromReader(file) {
-				if !yield(record) {
-					return
-				}
+	seq := func(yield func(Record) bool) {
+		defer file.Close()
+
+		// Use the io.Reader version
+		for record := range ReadJSONFromReader(file) {
+			if !yield(record) {
+				return
 			}
 		}
+	}
+
+	return seq, nil
 }
 
 // ReadJSONSafe reads JSON with error handling
@@ -502,28 +504,32 @@ func WriteJSON(sb iter.Seq[Record], filename string) error {
 // ============================================================================
 
 // ReadLines reads text lines from a file
-func ReadLines(filename string) iter.Seq[Record] {
-	return func(yield func(Record) bool) {
-			file, err := os.Open(filename)
-			if err != nil {
-				return // Skip errors in simple API
+// Returns error if file cannot be opened (Sources always return errors)
+func ReadLines(filename string) (iter.Seq[Record], error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", filename, err)
+	}
+
+	seq := func(yield func(Record) bool) {
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		lineNum := 0
+		for scanner.Scan() {
+			record := Record{
+				"line":        scanner.Text(),
+				"line_number": int64(lineNum),
 			}
-			defer file.Close()
+			lineNum++
 
-			scanner := bufio.NewScanner(file)
-			lineNum := 0
-			for scanner.Scan() {
-				record := Record{
-					"line":        scanner.Text(),
-					"line_number": int64(lineNum),
-				}
-				lineNum++
-
-				if !yield(record) {
-					return
-				}
+			if !yield(record) {
+				return
 			}
 		}
+	}
+
+	return seq, nil
 }
 
 // ReadLinesSafe reads text lines with error handling
@@ -673,53 +679,57 @@ func DefaultCommandConfig() CommandConfig {
 }
 
 // ReadCommandOutput reads command output with column-aligned data
-func ReadCommandOutput(filename string, config ...CommandConfig) iter.Seq[Record] {
+// Returns error if file cannot be opened (Sources always return errors)
+func ReadCommandOutput(filename string, config ...CommandConfig) (iter.Seq[Record], error) {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return func(yield func(Record) bool) {
-		file, err := os.Open(filename)
-			if err != nil {
-				return // Skip errors in simple API
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", filename, err)
+	}
+
+	seq := func(yield func(Record) bool) {
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+
+		var columnPositions []ColumnInfo
+		lineNum := 0
+		headerProcessed := false
+
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			// Skip empty lines if configured
+			if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
+				continue
 			}
-			defer file.Close()
 
-			scanner := bufio.NewScanner(file)
-
-			var columnPositions []ColumnInfo
-			lineNum := 0
-			headerProcessed := false
-
-			for scanner.Scan() {
-				line := scanner.Text()
-
-				// Skip empty lines if configured
-				if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
-					continue
-				}
-
-				// Process header line
-				if cfg.HasHeaders && !headerProcessed {
-					columnPositions = parseHeaderLine(line)
-					headerProcessed = true
-					lineNum++
-					continue
-				}
-
-				// Parse data line
-				record := parseDataLine(line, columnPositions, cfg.TrimSpaces)
-				record["_line_number"] = int64(lineNum)
-				record["_raw_line"] = line
-
+			// Process header line
+			if cfg.HasHeaders && !headerProcessed {
+				columnPositions = parseHeaderLine(line)
+				headerProcessed = true
 				lineNum++
+				continue
+			}
 
-				if !yield(record) {
-					return
-				}
+			// Parse data line
+			record := parseDataLine(line, columnPositions, cfg.TrimSpaces)
+			record["_line_number"] = int64(lineNum)
+			record["_raw_line"] = line
+
+			lineNum++
+
+			if !yield(record) {
+				return
 			}
 		}
+	}
+
+	return seq, nil
 }
 
 // ReadCommandOutputSafe reads command output with error handling
@@ -793,59 +803,63 @@ func ReadCommandOutputSafe(filename string, config ...CommandConfig) iter.Seq2[R
 }
 
 // ExecCommand executes a command and returns its output as a stream
-func ExecCommand(command string, args []string, config ...CommandConfig) iter.Seq[Record] {
+// Returns error if command cannot be started (Sources always return errors)
+func ExecCommand(command string, args []string, config ...CommandConfig) (iter.Seq[Record], error) {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {
 		cfg = config[0]
 	}
 
-	return func(yield func(Record) bool) {
-		cmd := exec.Command(command, args...)
-			stdout, err := cmd.StdoutPipe()
-			if err != nil {
-				return // Skip errors in simple API
+	cmd := exec.Command(command, args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start command: %w", err)
+	}
+
+	seq := func(yield func(Record) bool) {
+		defer func() { _ = cmd.Wait() }()
+
+		scanner := bufio.NewScanner(stdout)
+
+		var columnPositions []ColumnInfo
+		lineNum := 0
+		headerProcessed := false
+
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			// Skip empty lines if configured
+			if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
+				continue
 			}
 
-			if err := cmd.Start(); err != nil {
+			// Process header line
+			if cfg.HasHeaders && !headerProcessed {
+				columnPositions = parseHeaderLine(line)
+				headerProcessed = true
+				lineNum++
+				continue
+			}
+
+			// Parse data line
+			record := parseDataLine(line, columnPositions, cfg.TrimSpaces)
+			record["_line_number"] = int64(lineNum)
+			record["_raw_line"] = line
+			record["_command"] = command
+
+			lineNum++
+
+			if !yield(record) {
 				return
 			}
-			defer cmd.Wait()
-
-			scanner := bufio.NewScanner(stdout)
-
-			var columnPositions []ColumnInfo
-			lineNum := 0
-			headerProcessed := false
-
-			for scanner.Scan() {
-				line := scanner.Text()
-
-				// Skip empty lines if configured
-				if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
-					continue
-				}
-
-				// Process header line
-				if cfg.HasHeaders && !headerProcessed {
-					columnPositions = parseHeaderLine(line)
-					headerProcessed = true
-					lineNum++
-					continue
-				}
-
-				// Parse data line
-				record := parseDataLine(line, columnPositions, cfg.TrimSpaces)
-				record["_line_number"] = int64(lineNum)
-				record["_raw_line"] = line
-				record["_command"] = command
-
-				lineNum++
-
-				if !yield(record) {
-					return
-				}
-			}
 		}
+	}
+
+	return seq, nil
 }
 
 // ExecCommandSafe executes a command with error handling
@@ -969,7 +983,7 @@ func parseHeaderLine(line string) []ColumnInfo {
 
 // parseDataLine extracts field values by splitting on whitespace
 // Assigns 1:1 with header fields, with remaining tokens going to last field
-func parseDataLine(line string, columns []ColumnInfo, trimSpaces bool) Record {
+func parseDataLine(line string, columns []ColumnInfo, _ bool) Record {
 	record := make(Record)
 
 	if len(columns) == 0 {
@@ -1001,7 +1015,7 @@ func parseDataLine(line string, columns []ColumnInfo, trimSpaces bool) Record {
 }
 
 // parseDataLineSafe is like parseDataLine but returns errors
-func parseDataLineSafe(line string, columns []ColumnInfo, trimSpaces bool) (Record, error) {
+func parseDataLineSafe(line string, columns []ColumnInfo, _ bool) (Record, error) {
 	if len(columns) == 0 {
 		return nil, fmt.Errorf("no column information available")
 	}

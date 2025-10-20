@@ -81,7 +81,7 @@ func createSalesDashboard(outputDir string) {
 				sales := baseAmount * seasonality * growth * noise
 				profit := sales * (0.15 + rand.Float64()*0.15) // 15-30% profit margin
 
-				record := streamv3.NewRecord().
+				record := streamv3.MakeMutableRecord().
 					String("date", date.Format("2006-01-02")).
 					String("region", region).
 					String("product", product).
@@ -89,7 +89,7 @@ func createSalesDashboard(outputDir string) {
 					Float("profit", profit).
 					Float("profit_margin", profit/sales*100).
 					Int("deals_closed", int64(5+rand.Intn(20))).
-					Build()
+					Freeze()
 
 				salesData = append(salesData, record)
 			}
@@ -141,7 +141,7 @@ func createSystemMetrics(outputDir string) {
 			memoryUsage = math.Min(100, memoryUsage+20)
 		}
 
-		record := streamv3.NewRecord().
+		record := streamv3.MakeMutableRecord().
 			String("timestamp", timestamp.Format("2006-01-02 15:04:05")).
 			Float("cpu_usage", cpuUsage).
 			Float("memory_usage", memoryUsage).
@@ -150,7 +150,7 @@ func createSystemMetrics(outputDir string) {
 			Float("network_tx_mbps", networkTx).
 			Float("load_average", cpuUsage/20).
 			Int("active_connections", int64(100+rand.Intn(400))).
-			Build()
+			Freeze()
 
 		metricsData = append(metricsData, record)
 	}
@@ -207,7 +207,7 @@ func createProcessAnalysis(outputDir string) {
 			memSize = int64(memUsage * 1024)
 		}
 
-		record := streamv3.NewRecord().
+		record := streamv3.MakeMutableRecord().
 			Int("PID", int64(1000+i)).
 			String("USER", user).
 			Float("CPU", cpuUsage).
@@ -216,7 +216,7 @@ func createProcessAnalysis(outputDir string) {
 			String("CMD", cmd).
 			String("STAT", []string{"S", "R", "D", "T"}[rand.Intn(4)]).
 			Int("TIME", int64(rand.Intn(3600))). // Seconds
-			Build()
+			Freeze()
 
 		processData = append(processData, record)
 	}
@@ -276,7 +276,7 @@ func createNetworkAnalysis(outputDir string) {
 				bytesOut := baseTraffic * 0.6 * (0.8 + rand.Float64()*0.4)
 				connections := int64(1 + rand.Intn(50))
 
-				record := streamv3.NewRecord().
+				record := streamv3.MakeMutableRecord().
 					String("timestamp", timestamp.Format("2006-01-02 15:04:05")).
 					String("protocol", protocol).
 					Int("port", int64(port)).
@@ -285,7 +285,7 @@ func createNetworkAnalysis(outputDir string) {
 					Float("total_bytes", bytesIn+bytesOut).
 					Int("connections", connections).
 					Float("avg_response_time", 50+rand.Float64()*200). // ms
-					Build()
+					Freeze()
 
 				networkData = append(networkData, record)
 			}
@@ -314,12 +314,12 @@ func createNetworkAnalysis(outputDir string) {
 func createQuickExample(outputDir string) {
 	// Simple monthly revenue data
 	revenueData := []streamv3.Record{
-		streamv3.NewRecord().String("month", "Jan 2024").Float("revenue", 120000).Int("customers", 450).Float("avg_deal", 2667).Build(),
-		streamv3.NewRecord().String("month", "Feb 2024").Float("revenue", 135000).Int("customers", 480).Float("avg_deal", 2813).Build(),
-		streamv3.NewRecord().String("month", "Mar 2024").Float("revenue", 118000).Int("customers", 425).Float("avg_deal", 2776).Build(),
-		streamv3.NewRecord().String("month", "Apr 2024").Float("revenue", 142000).Int("customers", 510).Float("avg_deal", 2784).Build(),
-		streamv3.NewRecord().String("month", "May 2024").Float("revenue", 156000).Int("customers", 545).Float("avg_deal", 2862).Build(),
-		streamv3.NewRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Build(),
+		streamv3.MakeMutableRecord().String("month", "Jan 2024").Float("revenue", 120000).Int("customers", 450).Float("avg_deal", 2667).Freeze(),
+		streamv3.MakeMutableRecord().String("month", "Feb 2024").Float("revenue", 135000).Int("customers", 480).Float("avg_deal", 2813).Freeze(),
+		streamv3.MakeMutableRecord().String("month", "Mar 2024").Float("revenue", 118000).Int("customers", 425).Float("avg_deal", 2776).Freeze(),
+		streamv3.MakeMutableRecord().String("month", "Apr 2024").Float("revenue", 142000).Int("customers", 510).Float("avg_deal", 2784).Freeze(),
+		streamv3.MakeMutableRecord().String("month", "May 2024").Float("revenue", 156000).Int("customers", 545).Float("avg_deal", 2862).Freeze(),
+		streamv3.MakeMutableRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Freeze(),
 	}
 
 	data := streamv3.From(revenueData)

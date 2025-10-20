@@ -131,7 +131,10 @@ func TestReadWriteCSV(t *testing.T) {
 	}
 
 	// Read it back
-	seq := ReadCSV(filename)
+	seq, err := ReadCSV(filename)
+	if err != nil {
+		t.Fatalf("ReadCSV failed: %v", err)
+	}
 	result := slices.Collect(seq)
 
 	if len(result) != 2 {
@@ -248,7 +251,10 @@ func TestReadWriteJSON(t *testing.T) {
 	}
 
 	// Read it back
-	seq := ReadJSON(filename)
+	seq, err := ReadJSON(filename)
+	if err != nil {
+		t.Fatalf("ReadJSON failed: %v", err)
+	}
 	result := slices.Collect(seq)
 
 	if len(result) != 2 {
@@ -304,7 +310,10 @@ func TestReadLines(t *testing.T) {
 	}
 
 	// Read lines
-	seq := ReadLines(filename)
+	seq, err := ReadLines(filename)
+	if err != nil {
+		t.Fatalf("ReadLines failed: %v", err)
+	}
 	result := slices.Collect(seq)
 
 	if len(result) != 3 {
@@ -392,7 +401,10 @@ func TestExecCommand(t *testing.T) {
 	config := DefaultCommandConfig()
 	config.HasHeaders = false
 
-	seq := ExecCommand("echo", []string{"hello world"}, config)
+	seq, err := ExecCommand("echo", []string{"hello world"}, config)
+	if err != nil {
+		t.Fatalf("ExecCommand failed: %v", err)
+	}
 	result := slices.Collect(seq)
 
 	// Should have at least one record
@@ -439,7 +451,10 @@ func TestExecCommandWithConfig(t *testing.T) {
 	config.TrimSpaces = true
 	config.HasHeaders = false  // Disable headers for echo output
 
-	seq := ExecCommand("echo", []string{"hello"}, config)
+	seq, err := ExecCommand("echo", []string{"hello"}, config)
+	if err != nil {
+		t.Fatalf("ExecCommand failed: %v", err)
+	}
 	result := slices.Collect(seq)
 
 	if len(result) == 0 {
@@ -568,7 +583,10 @@ func TestCSVPipeline(t *testing.T) {
 	}
 
 	// Read, filter, and write
-	input := ReadCSV(inputFile)
+	input, err := ReadCSV(inputFile)
+	if err != nil {
+		t.Fatalf("ReadCSV failed: %v", err)
+	}
 
 	filtered := Where(func(r Record) bool {
 		// CSV parses numbers automatically, so age is int64, not string
@@ -582,7 +600,10 @@ func TestCSVPipeline(t *testing.T) {
 	}
 
 	// Read output and verify
-	output := ReadCSV(outputFile)
+	output, err := ReadCSV(outputFile)
+	if err != nil {
+		t.Fatalf("ReadCSV failed: %v", err)
+	}
 	result := slices.Collect(output)
 
 	// Should have Alice and Charlie (filtered out Bob who has age 25)
@@ -632,7 +653,10 @@ func TestJSONPipeline(t *testing.T) {
 	}
 
 	// Read and process
-	input := ReadJSON(filename)
+	input, err := ReadJSON(filename)
+	if err != nil {
+		t.Fatalf("ReadJSON failed: %v", err)
+	}
 	filtered := Where(func(r Record) bool {
 		value, ok := r["value"].(float64)
 		return ok && value >= 150
@@ -785,10 +809,9 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 	scores := slices.Values([]int{95, 88, 92})
 	weights := slices.Values([]float64{1.5, 2.3, 0.8})
 
-	metadata := NewRecord().
+	metadata := MakeMutableRecord().
 		String("priority", "high").
-		Int("version", 2).
-		Build()
+		Int("version", 2)
 
 	// Create JSONString field
 	configJSON, err := NewJSONString(map[string]any{
@@ -800,7 +823,7 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 	}
 
 	originalRecords := []Record{
-		NewRecord().
+		MakeMutableRecord().
 			String("id", "TASK-001").
 			String("title", "Security Update").
 			Int("priority_num", 1).
@@ -809,16 +832,16 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 			StringSeq("tags", tags).
 			IntSeq("scores", scores).
 			Float64Seq("weights", weights).
-			Record("metadata", metadata).
+			Nested("metadata", metadata.Freeze()).
 			JSONString("config", configJSON).
-			Build(),
-		NewRecord().
+			Freeze(),
+		MakeMutableRecord().
 			String("id", "TASK-002").
 			String("title", "Feature Request").
 			Int("priority_num", 2).
 			Float("score", 87.2).
 			Bool("completed", true).
-			Build(),
+			Freeze(),
 	}
 
 	// Write to JSON
@@ -829,7 +852,10 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 	}
 
 	// Read back from JSON
-	reconstructedStream := ReadJSON(filename)
+	reconstructedStream, err := ReadJSON(filename)
+	if err != nil {
+		t.Fatalf("ReadJSON failed: %v", err)
+	}
 	reconstructedRecords := slices.Collect(reconstructedStream)
 
 	if len(reconstructedRecords) != 2 {
@@ -897,24 +923,24 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 func TestJSONStreamProcessing(t *testing.T) {
 	// Step 1: Create sample data
 	salesData := []Record{
-		NewRecord().
+		MakeMutableRecord().
 			String("product", "Laptop").
 			Float("price", 1999.99).
 			Int("quantity", 1).
 			String("region", "North").
-			Build(),
-		NewRecord().
+			Freeze(),
+		MakeMutableRecord().
 			String("product", "Phone").
 			Float("price", 899.99).
 			Int("quantity", 2).
 			String("region", "South").
-			Build(),
-		NewRecord().
+			Freeze(),
+		MakeMutableRecord().
 			String("product", "Tablet").
 			Float("price", 399.99).
 			Int("quantity", 1).
 			String("region", "North").
-			Build(),
+			Freeze(),
 	}
 
 	// Step 2: Write to buffer (simulating first process output)
@@ -991,12 +1017,12 @@ func TestJSONStreamProcessing(t *testing.T) {
 func TestFunctionalPipelineComposition(t *testing.T) {
 	// Create test data
 	sales := []Record{
-		NewRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Build(),
-		NewRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Build(),
-		NewRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Build(),
-		NewRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Build(),
-		NewRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Build(),
-		NewRecord().String("region", "North").String("product", "Tablet").Float("amount", 400).Build(),
+		MakeMutableRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Freeze(),
+		MakeMutableRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Freeze(),
+		MakeMutableRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Freeze(),
+		MakeMutableRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Freeze(),
+		MakeMutableRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Freeze(),
+		MakeMutableRecord().String("region", "North").String("product", "Tablet").Float("amount", 400).Freeze(),
 	}
 
 	// Test 1: Chain multiple Where filters

@@ -9,20 +9,20 @@ func main() {
 	fmt.Println("🔧 Record Creation API Test")
 	fmt.Println("===========================\n")
 
-	// Test nested record creation with the new .Record() method
-	userRecord := streamv3.NewRecord().
+	// Test nested record creation with the new .Nested() method
+	userRecord := streamv3.MakeMutableRecord().
 		String("name", "Alice").
 		Int("age", 30).
-		Build()
+		Freeze()
 
-	orderRecord := streamv3.NewRecord().
+	orderRecord := streamv3.MakeMutableRecord().
 		String("id", "ORD-123").
 		Float("amount", 99.99).
-		Record("customer", userRecord). // Using the new .Record() method
+		Nested("customer", userRecord). // Using the new .Nested() method
 		Bool("paid", true).
-		Build()
+		Freeze()
 
-	fmt.Println("📋 Created nested record using .Record() method:")
+	fmt.Println("📋 Created nested record using .Nested() method:")
 	fmt.Printf("Order ID: %s\n", streamv3.GetOr(orderRecord, "id", ""))
 	fmt.Printf("Amount: $%.2f\n", streamv3.GetOr(orderRecord, "amount", 0.0))
 	fmt.Printf("Paid: %v\n", streamv3.GetOr(orderRecord, "paid", false))
@@ -33,5 +33,5 @@ func main() {
 		fmt.Printf("Customer Age: %d\n", streamv3.GetOr(customer, "age", 0))
 	}
 
-	fmt.Println("\n✅ .Record() method working correctly for nested records!")
+	fmt.Println("\n✅ .Nested() method working correctly for nested records!")
 }

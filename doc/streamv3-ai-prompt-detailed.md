@@ -60,10 +60,10 @@ import (
 
 ## Creating Iterators
 - `slices.Values([]T)` - Create iterator from slice
-- `streamv3.ReadCSV("file.csv", config...)` - Read CSV (returns `iter.Seq[Record]` - panics on file errors)
+- `streamv3.ReadCSV("file.csv", config...)` - Read CSV (returns `(iter.Seq[Record], error)`)
 - `streamv3.ToChannel[T](iter.Seq[T])` - Convert iterator to channel
 - `streamv3.FromChannelSafe[T](itemCh, errCh)` - Create iterator from channels
-- `streamv3.NewRecord().String("key", "val").Int("num", 42).Build()` - Build records
+- `streamv3.MakeMutableRecord().String("key", "val").Int("num", 42).Freeze()` - Build records
 
 ## Core Operations (SQL-style naming)
 
@@ -116,10 +116,10 @@ import (
 2. **One step at a time**: Break complex operations into clear, logical steps
 3. **Descriptive variables**: Use names like `filteredSales`, `groupedData`, not `fs`, `gd`
 4. **Logical flow**: Process data in obvious, step-by-step manner
-5. **Always handle errors** from file operations (but remember: ReadCSV panics on errors, doesn't return error)
+5. **Always handle errors** from file operations - ReadCSV, ReadJSON, etc. return `(iter.Seq[Record], error)`
 6. **Use SQL-style names**: `Select` not `Map`, `Where` not `Filter`, `Limit` not `Take`
 7. **Chain carefully**: Don't nest too many operations - prefer multiple clear steps
-8. **Use Record builder**: `NewRecord().String(...).Int(...).Build()`
+8. **Use Record builder**: `MakeMutableRecord().String(...).Int(...).Freeze()`
 9. **Type parameters**: Add `[T]` when compiler needs help: `CountWindow[streamv3.Record](10)`
 10. **Complete examples**: Include main function and imports
 11. **Comments for clarity**: Explain non-obvious logic with simple comments
@@ -168,7 +168,10 @@ top10Regions := streamv3.Limit[streamv3.Record](10)(sortedByRevenue)
 ## CSV Analysis with Filtering on Aggregated Results
 ```go
 // Read sales data and find regions with total sales over $500
-data := streamv3.ReadCSV("sales.csv")
+data, err := streamv3.ReadCSV("sales.csv")
+if err != nil {
+    log.Fatalf("Failed to read CSV: %v", err)
+}
 
 // Group all sales by region
 grouped := streamv3.GroupByFields("regional_analysis", "region")(data)
@@ -452,9 +455,17 @@ results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 
 ### ReadCSV
 ```go
-func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record]
+func ReadCSV(filename string, config ...CSVConfig) (iter.Seq[Record], error)
 ```
-Reads CSV file into Record iterator. Panics on file errors.
+Reads CSV file into Record iterator. Returns error if file cannot be opened or read.
+
+**Example:**
+```go
+data, err := streamv3.ReadCSV("employees.csv")
+if err != nil {
+    log.Fatalf("Failed to read CSV: %v", err)
+}
+```
 
 ### WriteCSV
 ```go
@@ -464,9 +475,17 @@ Writes Record iterator to CSV file. Fields are auto-detected (all non-underscore
 
 ### ReadJSON
 ```go
-func ReadJSON(filename string) iter.Seq[Record]
+func ReadJSON(filename string) (iter.Seq[Record], error)
 ```
-Reads JSON file into Record iterator. Panics on file errors.
+Reads JSON file into Record iterator. Returns error if file cannot be opened or read.
+
+**Example:**
+```go
+data, err := streamv3.ReadJSON("data.json")
+if err != nil {
+    log.Fatalf("Failed to read JSON: %v", err)
+}
+```
 
 ### WriteJSON
 ```go
@@ -538,7 +557,10 @@ import (
 
 func main() {
     // Read employee data
-    employees := streamv3.ReadCSV("employees.csv")
+    employees, err := streamv3.ReadCSV("employees.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
 
     // Filter for high salary employees
     highSalaryEmployees := streamv3.Where(func(r streamv3.Record) bool {
@@ -579,7 +601,10 @@ import (
 
 func main() {
     // Read sales data
-    sales := streamv3.ReadCSV("sales.csv")
+    sales, err := streamv3.ReadCSV("sales.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
 
     // Group by product
     grouped := streamv3.GroupByFields("product_analysis", "product_name")(sales)
@@ -622,7 +647,10 @@ import (
 
 func main() {
     // Read customer data
-    customers := streamv3.ReadCSV("customers.csv")
+    customers, err := streamv3.ReadCSV("customers.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
 
     // Add customer tier based on total purchases
     enrichedCustomers := streamv3.Select(func(r streamv3.Record) streamv3.Record {
@@ -682,11 +710,11 @@ func main() {
         for i := 0; ; i++ {
             status := statuses[i%len(statuses)]
 
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("status", status).
                 String("endpoint", fmt.Sprintf("/api/endpoint%d", i%3)).
                 Time("timestamp", time.Now()).
-                Build()
+                Freeze()
 
             if !yield(record) {
                 return
@@ -749,15 +777,15 @@ import (
 func main() {
     // Create sample customer data
     customers := []streamv3.Record{
-        streamv3.NewRecord().String("customer_id", "C001").String("name", "Alice").Build(),
-        streamv3.NewRecord().String("customer_id", "C002").String("name", "Bob").Build(),
+        streamv3.MakeMutableRecord().String("customer_id", "C001").String("name", "Alice").Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C002").String("name", "Bob").Freeze(),
     }
 
     // Create sample order data
     orders := []streamv3.Record{
-        streamv3.NewRecord().String("customer_id", "C001").Float("amount", 500).Build(),
-        streamv3.NewRecord().String("customer_id", "C001").Float("amount", 800).Build(),
-        streamv3.NewRecord().String("customer_id", "C002").Float("amount", 200).Build(),
+        streamv3.MakeMutableRecord().String("customer_id", "C001").Float("amount", 500).Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C001").Float("amount", 800).Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C002").Float("amount", 200).Freeze(),
     }
 
     // Join customers with orders
@@ -804,7 +832,10 @@ import (
 
 func main() {
     // Read sales data
-    sales := streamv3.ReadCSV("monthly_sales.csv")
+    sales, err := streamv3.ReadCSV("monthly_sales.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
 
     // Group by month
     grouped := streamv3.GroupByFields("monthly_analysis", "month")(sales)
@@ -842,7 +873,7 @@ func main() {
 
 1. **Chain Operations**: Use functional composition for readable pipelines
 2. **Use Type Safety**: Leverage generics for compile-time safety
-3. **Handle Errors**: Remember ReadCSV panics on errors (no error return)
+3. **Handle Errors**: Always check errors from I/O operations (ReadCSV, ReadJSON, etc. return errors)
 4. **Memory Efficiency**: Use lazy evaluation and avoid materializing large datasets
 5. **Performance**: Use appropriate window sizes and batch operations
 6. **Readability First**: Break complex pipelines into clear steps with descriptive variable names
@@ -919,10 +950,10 @@ parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
     if err != nil {
         return streamv3.Record{}, fmt.Errorf("invalid amount: %s", amountStr)
     }
-    return streamv3.NewRecord().
+    return streamv3.MakeMutableRecord().
         String("id", streamv3.GetOr(r, "id", "")).
         Float("amount", amount).
-        Build(), nil
+        Freeze(), nil
 })(safeStream)
 
 // Convert back to normal, ignoring parse errors
@@ -975,7 +1006,7 @@ validated := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error
     if !ok {
         return streamv3.Record{}, fmt.Errorf("invalid balance")
     }
-    return streamv3.NewRecord().Float("balance", balance).Build(), nil
+    return streamv3.MakeMutableRecord().Float("balance", balance).Freeze(), nil
 })(csvStream)
 
 // Convert to Unsafe - will panic on any error
@@ -1001,7 +1032,7 @@ parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
     if !ok {
         return streamv3.Record{}, fmt.Errorf("invalid price")
     }
-    return streamv3.NewRecord().Float("price", price).Build(), nil
+    return streamv3.MakeMutableRecord().Float("price", price).Freeze(), nil
 })(csvStream)
 
 // Skip errors, collect valid records

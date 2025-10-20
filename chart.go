@@ -1,7 +1,6 @@
 package streamv3
 
 import (
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -170,7 +169,7 @@ func TimeSeriesChart(sb iter.Seq[Record], timeField string, valueFields []string
 // ============================================================================
 
 // analyzeData examines the records to understand data types and structure
-func analyzeData(records []Record, config ChartConfig) ChartData {
+func analyzeData(records []Record, _ ChartConfig) ChartData {
 	if len(records) == 0 {
 		return ChartData{}
 	}
@@ -437,80 +436,6 @@ func getUniqueValues(values []any, limit int) []any {
 	}
 
 	return unique
-}
-
-// ============================================================================
-// COLOR SCHEMES
-// ============================================================================
-
-// generateColorScheme creates colors based on the specified scheme
-func generateColorScheme(scheme string, count int) []string {
-	switch scheme {
-	case "vibrant":
-		return generateVibrantColors(count)
-	case "pastel":
-		return generatePastelColors(count)
-	case "monochrome":
-		return generateMonochromeColors(count)
-	default:
-		return generateVibrantColors(count)
-	}
-}
-
-// generateVibrantColors creates bright, distinct colors
-func generateVibrantColors(count int) []string {
-	baseColors := []string{
-		"#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF",
-		"#FF9F40", "#FF6384", "#C9CBCF", "#4BC0C0", "#36A2EB",
-	}
-
-	colors := make([]string, count)
-	for i := 0; i < count; i++ {
-		if i < len(baseColors) {
-			colors[i] = baseColors[i]
-		} else {
-			// Generate additional colors using hash
-			hash := md5.Sum([]byte(fmt.Sprintf("color_%d", i)))
-			r := int(hash[0])
-			g := int(hash[1])
-			b := int(hash[2])
-			colors[i] = fmt.Sprintf("#%02X%02X%02X", r, g, b)
-		}
-	}
-	return colors
-}
-
-// generatePastelColors creates soft, muted colors
-func generatePastelColors(count int) []string {
-	baseColors := []string{
-		"#FFB3BA", "#BAFFC9", "#BAE1FF", "#FFFFBA", "#FFD3BA",
-		"#E0BBE4", "#D4A4A4", "#B4E5E5", "#F5F5DC", "#DDA0DD",
-	}
-
-	colors := make([]string, count)
-	for i := 0; i < count; i++ {
-		if i < len(baseColors) {
-			colors[i] = baseColors[i]
-		} else {
-			// Generate pastel variations
-			hash := md5.Sum([]byte(fmt.Sprintf("pastel_%d", i)))
-			r := 200 + int(hash[0])%56  // 200-255 range for pastels
-			g := 200 + int(hash[1])%56
-			b := 200 + int(hash[2])%56
-			colors[i] = fmt.Sprintf("#%02X%02X%02X", r, g, b)
-		}
-	}
-	return colors
-}
-
-// generateMonochromeColors creates grayscale colors
-func generateMonochromeColors(count int) []string {
-	colors := make([]string, count)
-	for i := 0; i < count; i++ {
-		intensity := 50 + (150*i)/count // Range from dark gray to light gray
-		colors[i] = fmt.Sprintf("#%02X%02X%02X", intensity, intensity, intensity)
-	}
-	return colors
 }
 
 // ============================================================================

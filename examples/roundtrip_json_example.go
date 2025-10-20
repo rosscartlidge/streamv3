@@ -19,12 +19,12 @@ func main() {
 	flags := slices.Values([]bool{true, false, true})
 	weights := slices.Values([]float64{1.5, 2.3, 0.8})
 
-	metadata := streamv3.NewRecord().
+	metadata := streamv3.MakeMutableRecord().
 		String("priority", "high").
 		Int("version", 2).
 		Float("confidence", 0.95).
 		Bool("verified", true).
-		Build()
+		Freeze()
 
 	// Create JSONString field
 	configJSON, _ := streamv3.NewJSONString(map[string]any{
@@ -34,7 +34,7 @@ func main() {
 	})
 
 	originalRecords := []streamv3.Record{
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-001").
 			String("title", "Security Update").
 			Int("priority_num", 1).
@@ -44,16 +44,16 @@ func main() {
 			IntSeq("scores", scores).
 			BoolSeq("flags", flags).
 			Float64Seq("weights", weights).
-			Record("metadata", metadata).
+			Nested("metadata", metadata).
 			JSONString("config", configJSON).
-			Build(),
-		streamv3.NewRecord().
+			Freeze(),
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-002").
 			String("title", "Feature Request").
 			Int("priority_num", 2).
 			Float("score", 87.2).
 			Bool("completed", true).
-			Build(),
+			Freeze(),
 	}
 
 	fmt.Println("📊 Original data:")
@@ -74,7 +74,11 @@ func main() {
 	fmt.Printf("✅ Written to %s\n", jsonFile)
 
 	fmt.Println("\n🔧 Step 2: JSON file → Stream")
-	reconstructedStream := streamv3.ReadJSON(jsonFile)
+	reconstructedStream, err := streamv3.ReadJSON(jsonFile)
+	if err != nil {
+		fmt.Printf("❌ Error reading JSON: %v\n", err)
+		return
+	}
 
 	var reconstructedRecords []streamv3.Record
 	for record := range reconstructedStream {

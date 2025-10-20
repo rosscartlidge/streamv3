@@ -18,24 +18,24 @@ func main() {
 	bools := slices.Values([]bool{true, false})
 
 	// Create nested records
-	user1 := streamv3.NewRecord().String("name", "Alice").Int("age", 30).Build()
-	user2 := streamv3.NewRecord().String("name", "Bob").Int("age", 25).Build()
+	user1 := streamv3.MakeMutableRecord().String("name", "Alice").Int("age", 30).Freeze()
+	user2 := streamv3.MakeMutableRecord().String("name", "Bob").Int("age", 25).Freeze()
 
 	tasks := []streamv3.Record{
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-001").
 			String("team", "Backend").
 			StringSeq("tags", tags1).
 			IntSeq("scores", numbers).
 			BoolSeq("flags", bools).
-			Record("user", user1).
-			Build(),
-		streamv3.NewRecord().
+			Nested("user", user1).
+			Freeze(),
+		streamv3.MakeMutableRecord().
 			String("id", "TASK-002").
 			String("team", "Frontend").
 			StringSeq("tags", tags2).
-			Record("user", user2).
-			Build(),
+			Nested("user", user2).
+			Freeze(),
 	}
 
 	fmt.Println("📊 Original records:")

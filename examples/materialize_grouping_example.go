@@ -18,10 +18,10 @@ func main() {
 	bugFix := slices.Values([]string{"urgent", "work"}) // Same content as urgentWork1
 
 	tasks := []streamv3.Record{
-		streamv3.NewRecord().String("id", "TASK-001").String("team", "Backend").StringSeq("tags", urgentWork1).Build(),
-		streamv3.NewRecord().String("id", "TASK-002").String("team", "Frontend").StringSeq("tags", urgentWork2).Build(), // Same tags content
-		streamv3.NewRecord().String("id", "TASK-003").String("team", "Backend").StringSeq("tags", feature).Build(),
-		streamv3.NewRecord().String("id", "TASK-004").String("team", "QA").StringSeq("tags", bugFix).Build(), // Same tags content again
+		streamv3.MakeMutableRecord().String("id", "TASK-001").String("team", "Backend").StringSeq("tags", urgentWork1).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "TASK-002").String("team", "Frontend").StringSeq("tags", urgentWork2).Freeze(), // Same tags content
+		streamv3.MakeMutableRecord().String("id", "TASK-003").String("team", "Backend").StringSeq("tags", feature).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "TASK-004").String("team", "QA").StringSeq("tags", bugFix).Freeze(), // Same tags content again
 	}
 
 	fmt.Println("📊 Tasks with iter.Seq tag fields:")

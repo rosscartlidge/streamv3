@@ -20,10 +20,10 @@ func main() {
 	}
 
 	// Store it in a record
-	record := streamv3.NewRecord().
+	record := streamv3.MakeMutableRecord().
 		String("id", "test").
 		IntSeq("numbers", numbers).
-		Build()
+		Freeze()
 
 	fmt.Println("🔍 First access to sequence:")
 	if numbersSeq, ok := streamv3.Get[iter.Seq[int]](record, "numbers"); ok {

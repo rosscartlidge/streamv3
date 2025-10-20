@@ -17,13 +17,13 @@ func main() {
 	scores := slices.Values([]float64{85.5, 92.0, 78.5})
 
 	// Create a record with various iter.Seq fields using the fluent API
-	record := streamv3.NewRecord().
+	record := streamv3.MakeMutableRecord().
 		String("id", "task-123").
 		String("title", "Complete project").
 		IntSeq("numbers", numbers).        // iter.Seq[int]
 		StringSeq("tags", tags).           // iter.Seq[string]
 		Float64Seq("scores", scores).      // iter.Seq[float64]
-		Build()
+		Freeze()
 
 	fmt.Println("📋 Created record with iter.Seq fields:")
 	fmt.Printf("ID: %s\n", streamv3.GetOr(record, "id", ""))

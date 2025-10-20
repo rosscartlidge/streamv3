@@ -14,26 +14,26 @@ func main() {
 	tags := slices.Values([]string{"urgent", "security"})
 	scores := slices.Values([]int{95, 88})
 
-	metadata := streamv3.NewRecord().
+	metadata := streamv3.MakeMutableRecord().
 		String("priority", "high").
 		Int("version", 2).
-		Build()
+		Freeze()
 
 	configJSON, _ := streamv3.NewJSONString(map[string]any{
 		"timeout": 30,
 		"enabled": true,
 	})
 
-	original := streamv3.NewRecord().
+	original := streamv3.MakeMutableRecord().
 		String("id", "TASK-001").
 		Int("priority_num", 1).
 		Float("score", 95.5).
 		Bool("completed", false).
 		StringSeq("tags", tags).
 		IntSeq("scores", scores).
-		Record("metadata", metadata).
+		Nested("metadata", metadata).
 		JSONString("config", configJSON).
-		Build()
+		Freeze()
 
 	fmt.Println("📊 Original data:")
 	printSimpleRecord(original)
@@ -53,7 +53,11 @@ func main() {
 	fmt.Printf("  1. ✅ Stream → JSON file: %s\n", jsonFile)
 
 	// 2. JSON → Stream
-	reconstructedStream := streamv3.ReadJSON(jsonFile)
+	reconstructedStream, err := streamv3.ReadJSON(jsonFile)
+	if err != nil {
+		fmt.Printf("❌ Error reading JSON: %v\n", err)
+		return
+	}
 	var reconstructed streamv3.Record
 	for record := range reconstructedStream {
 		reconstructed = record

@@ -10,13 +10,13 @@ import (
 func main() {
 	// Sample sales data
 	sales := []streamv3.Record{
-		streamv3.NewRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Build(),
-		streamv3.NewRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Build(),
-		streamv3.NewRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Build(),
-		streamv3.NewRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Build(),
-		streamv3.NewRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Build(),
-		streamv3.NewRecord().String("region", "West").String("product", "Tablet").Float("amount", 600).Build(),
-		streamv3.NewRecord().String("region", "North").String("product", "Tablet").Float("amount", 500).Build(),
+		streamv3.MakeMutableRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "West").String("product", "Tablet").Float("amount", 600).Freeze(),
+		streamv3.MakeMutableRecord().String("region", "North").String("product", "Tablet").Float("amount", 500).Freeze(),
 	}
 
 	fmt.Println("🔥 Functional Composition: Chained Operations")

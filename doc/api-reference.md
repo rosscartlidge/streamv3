@@ -23,9 +23,18 @@
   - [Join Operations](#join-operations)
   - [GroupBy Operations](#groupby-operations)
   - [Aggregation Functions](#aggregation-functions)
+- [Composition Operations](#composition-operations)
+- [Flattening Operations](#flattening-operations)
 - [Utility Operations](#utility-operations)
 - [I/O Operations](#io-operations)
+  - [CSV Operations](#csv-operations)
+  - [JSON Operations](#json-operations)
+  - [Line Operations](#line-operations)
+  - [Command Output Operations](#command-output-operations)
 - [Chart & Visualization](#chart--visualization)
+- [Helper Functions](#helper-functions)
+  - [Record Access](#record-access)
+- [Error Handling](#error-handling)
 
 ---
 
@@ -92,11 +101,15 @@ package main
 
 import (
     "fmt"
+    "log"
     "github.com/rosscartlidge/streamv3"
 )
 
 func main() {
-    data := streamv3.ReadCSV("data.csv")
+    data, err := streamv3.ReadCSV("data.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
 
     for record := range data {
         name := streamv3.GetOr(record, "name", "")
@@ -187,20 +200,56 @@ func FromChannelSafe[T any](itemCh <-chan T, errCh <-chan error) iter.Seq2[T, er
 ```
 Creates an iterator from separate item and error channels.
 
-### NewRecord
+### ToChannelWithErrors[T]
 ```go
-func NewRecord() *RecordBuilder
+func ToChannelWithErrors[T any](sb iter.Seq2[T, error]) (<-chan T, <-chan error)
 ```
-Creates a new record builder for constructing Records.
+Converts an error-aware iterator to separate item and error channels.
 
 **Example:**
 ```go
-record := streamv3.NewRecord().
+data, err := streamv3.ReadCSVSafe("data.csv")
+if err != nil {
+    log.Fatal(err)
+}
+itemCh, errCh := streamv3.ToChannelWithErrors(data)
+
+go func() {
+    for err := range errCh {
+        log.Printf("Error: %v", err)
+    }
+}()
+
+for record := range itemCh {
+    // Process record
+}
+```
+
+### MakeMutableRecord
+```go
+func MakeMutableRecord() MutableRecord
+```
+Creates a new mutable record for efficient building. Use `.Freeze()` to convert to a regular `Record` when done building.
+
+**Example:**
+```go
+// Efficient building with mutation
+record := streamv3.MakeMutableRecord().
     String("name", "Alice").
     Int("age", 30).
     Float("score", 95.5).
-    Build()
+    Freeze()  // Convert to frozen Record
+
+// For use in slices, always call .Freeze()
+records := []streamv3.Record{
+    streamv3.MakeMutableRecord().
+        String("id", "001").
+        Int("count", 42).
+        Freeze(),
+}
 ```
+
+**Note:** `MutableRecord` methods mutate in place for efficiency during construction. Call `.Freeze()` to get a regular `Record` for use in pipelines or data structures.
 
 ---
 
@@ -587,7 +636,108 @@ results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
 
 ---
 
+## Composition Operations
+
+### Pipe[T, U, V]
+```go
+func Pipe[T, U, V any](f1 Filter[T, U], f2 Filter[U, V]) Filter[T, V]
+```
+Composes two filters into a single filter.
+
+**Example:**
+```go
+// Compose "double" and "add 1" into single filter
+double := streamv3.Select(func(x int) int { return x * 2 })
+addOne := streamv3.Select(func(x int) int { return x + 1 })
+composed := streamv3.Pipe(double, addOne)
+
+result := composed(numbers) // Doubles then adds 1
+```
+
+### Pipe3[T, U, V, W]
+```go
+func Pipe3[T, U, V, W any](f1 Filter[T, U], f2 Filter[U, V], f3 Filter[V, W]) Filter[T, W]
+```
+Composes three filters into a single filter.
+
+### PipeWithErrors[T, U, V]
+```go
+func PipeWithErrors[T, U, V any](f1 FilterWithErrors[T, U], f2 FilterWithErrors[U, V]) FilterWithErrors[T, V]
+```
+Composes two error-handling filters.
+
+### ChainWithErrors[T]
+```go
+func ChainWithErrors[T any](filters ...FilterWithErrors[T, T]) FilterWithErrors[T, T]
+```
+Chains multiple same-type error-handling filters together.
+
+---
+
+## Flattening Operations
+
+### DotFlatten
+```go
+func DotFlatten(separator string, fields ...string) Filter[Record, Record]
+```
+Flattens multiple sequence fields using dot product (parallel iteration). If you have sequences of equal length and want to pair up elements at matching positions, use this.
+
+**Example:**
+```go
+// Input: {names: ["Alice", "Bob"], ages: [30, 25]}
+// Output: [{name: "Alice", age: 30}, {name: "Bob", age: 25}]
+flattened := streamv3.DotFlatten(",", "names", "ages")(records)
+```
+
+### CrossFlatten
+```go
+func CrossFlatten(separator string, fields ...string) Filter[Record, Record]
+```
+Flattens multiple sequence fields using Cartesian product. Each element from the first sequence is paired with every element from the second sequence.
+
+**Example:**
+```go
+// Input: {colors: ["red", "blue"], sizes: ["S", "M"]}
+// Output: [{color: "red", size: "S"}, {color: "red", size: "M"},
+//          {color: "blue", size: "S"}, {color: "blue", size: "M"}]
+flattened := streamv3.CrossFlatten(",", "colors", "sizes")(records)
+```
+
+---
+
 ## Utility Operations
+
+### Hash
+```go
+func Hash(sourceField, targetField string) Filter[Record, Record]
+```
+Creates a SHA256 hash of a string field for efficient grouping. Useful for grouping on long strings or when you need fixed-length grouping keys. The hash is hex-encoded (64 characters) for readability and compatibility.
+
+**Example:**
+```go
+// Hash long URLs for efficient grouping
+hashed := streamv3.Hash("url", "url_hash")(records)
+
+// Now group by the hash instead of the full URL
+grouped := streamv3.GroupByFields("data", "url_hash")(hashed)
+```
+
+**Use cases:**
+- Grouping on very long strings (URLs, file paths, etc.)
+- Creating fixed-length keys for external systems
+- Deduplication based on content
+
+### Materialize
+```go
+func Materialize(field string) Filter[Record, Record]
+```
+Converts `iter.Seq` fields to `[]string` for better readability when inspecting data.
+
+### MaterializeJSON
+```go
+func MaterializeJSON(field string) Filter[Record, Record]
+```
+Converts `iter.Seq` and `Record` fields to JSON-compatible types while preserving type information.
 
 ### Tee[T]
 ```go
@@ -665,9 +815,20 @@ filtered := streamv3.Where(func(r streamv3.Record) bool {
 
 #### ReadCSV
 ```go
-func ReadCSV(filename string, config ...CSVConfig) iter.Seq[Record]
+func ReadCSV(filename string, config ...CSVConfig) (iter.Seq[Record], error)
 ```
-Reads CSV file into Record iterator. Panics on file errors. **Values are auto-parsed** to appropriate types.
+Reads CSV file into Record iterator. Returns error if file cannot be opened. **Values are auto-parsed** to appropriate types.
+
+**Example:**
+```go
+data, err := streamv3.ReadCSV("data.csv")
+if err != nil {
+    log.Fatalf("Failed to read CSV: %v", err)
+}
+for record := range data {
+    // Process record
+}
+```
 
 #### ReadCSVFromReader
 ```go
@@ -675,19 +836,124 @@ func ReadCSVFromReader(reader io.Reader, config ...CSVConfig) iter.Seq[Record]
 ```
 Reads CSV from any io.Reader. **Values are auto-parsed** to appropriate types.
 
+#### ReadCSVSafe
+```go
+func ReadCSVSafe(filename string, config ...CSVConfig) iter.Seq2[Record, error]
+```
+Error-aware version of ReadCSV. Returns iterator that yields both records and errors encountered during reading.
+
+**Example:**
+```go
+data, err := streamv3.ReadCSVSafe("data.csv")
+if err != nil {
+    log.Fatalf("Failed to open CSV: %v", err)
+}
+for record, err := range data {
+    if err != nil {
+        log.Printf("Error reading record: %v", err)
+        continue
+    }
+    // Process record
+}
+```
+
+#### ReadCSVSafeFromReader
+```go
+func ReadCSVSafeFromReader(reader io.Reader, config ...CSVConfig) iter.Seq2[Record, error]
+```
+Error-aware version of ReadCSVFromReader.
+
 #### WriteCSV
 ```go
 func WriteCSV(stream iter.Seq[Record], filename string, config ...CSVConfig) error
 ```
 Writes Record iterator to CSV file. Fields are auto-detected (all non-underscore, non-complex fields in alphabetical order) unless explicitly specified via config.Fields.
 
+#### WriteCSVToWriter
+```go
+func WriteCSVToWriter(stream iter.Seq[Record], writer io.Writer, config ...CSVConfig) error
+```
+Writes Record iterator to any io.Writer as CSV.
+
+**Example:**
+```go
+var buf bytes.Buffer
+err := streamv3.WriteCSVToWriter(records, &buf)
+if err != nil {
+    log.Fatalf("Failed to write CSV: %v", err)
+}
+csvString := buf.String()
+```
+
+#### DefaultCSVConfig
+```go
+func DefaultCSVConfig() CSVConfig
+```
+Returns default CSV configuration.
+
+#### CSVConfig
+```go
+type CSVConfig struct {
+    Delimiter      rune
+    Comment        rune
+    FieldsPerRecord int
+    LazyQuotes     bool
+    TrimLeadingSpace bool
+    Fields         []string  // Explicit field order for writing
+}
+```
+
 ### JSON Operations
 
 #### ReadJSON
 ```go
-func ReadJSON(filename string) iter.Seq[Record]
+func ReadJSON(filename string) (iter.Seq[Record], error)
 ```
-Reads JSON file into Record iterator. Panics on file errors.
+Reads JSONL (JSON Lines) file into Record iterator. Returns error if file cannot be opened.
+
+**Example:**
+```go
+data, err := streamv3.ReadJSON("data.jsonl")
+if err != nil {
+    log.Fatalf("Failed to read JSON: %v", err)
+}
+for record := range data {
+    // Process record
+}
+```
+
+#### ReadJSONFromReader
+```go
+func ReadJSONFromReader(reader io.Reader) iter.Seq[Record]
+```
+Reads JSONL from any io.Reader (stdin, network, etc).
+
+#### ReadJSONSafe
+```go
+func ReadJSONSafe(filename string) iter.Seq2[Record, error]
+```
+Error-aware version of ReadJSON. Returns iterator that yields both records and parse errors.
+
+**Example:**
+```go
+data, err := streamv3.ReadJSONSafe("data.jsonl")
+if err != nil {
+    log.Fatalf("Failed to open JSON file: %v", err)
+}
+for record, err := range data {
+    if err != nil {
+        log.Printf("Error parsing JSON: %v", err)
+        continue
+    }
+    // Process record
+}
+```
+
+#### ReadJSONSafeFromReader
+```go
+func ReadJSONSafeFromReader(reader io.Reader) iter.Seq2[Record, error]
+```
+Error-aware version of ReadJSONFromReader.
 
 #### WriteJSON
 ```go
@@ -699,7 +965,108 @@ Writes Record iterator to JSON file.
 ```go
 func WriteJSONToWriter(stream iter.Seq[Record], writer io.Writer) error
 ```
-Writes Record iterator to any io.Writer as JSON.
+Writes Record iterator to any io.Writer as JSONL.
+
+### Line Operations
+
+#### ReadLines
+```go
+func ReadLines(filename string) (iter.Seq[Record], error)
+```
+Reads text file line by line into Records with a "line" field. Returns error if file cannot be opened.
+
+**Example:**
+```go
+lines, err := streamv3.ReadLines("logfile.txt")
+if err != nil {
+    log.Fatalf("Failed to read file: %v", err)
+}
+for record := range lines {
+    line := streamv3.GetOr(record, "line", "")
+    fmt.Println(line)
+}
+```
+
+#### ReadLinesSafe
+```go
+func ReadLinesSafe(filename string) iter.Seq2[Record, error]
+```
+Error-aware version of ReadLines. Returns iterator that yields both records and read errors.
+
+#### WriteLines
+```go
+func WriteLines(stream iter.Seq[Record], filename string) error
+```
+Writes Records to text file, one line per record (uses "line" field).
+
+### Command Output Operations
+
+#### ExecCommand
+```go
+func ExecCommand(command string, args []string, config ...CommandConfig) (iter.Seq[Record], error)
+```
+Executes a command and parses its column-aligned output into Records. Returns error if command fails to start.
+
+**Example:**
+```go
+processes, err := streamv3.ExecCommand("ps", []string{"-efl"})
+if err != nil {
+    log.Fatalf("Failed to execute command: %v", err)
+}
+for process := range processes {
+    cmd := streamv3.GetOr(process, "CMD", "")
+    fmt.Println(cmd)
+}
+```
+
+#### ReadCommandOutput
+```go
+func ReadCommandOutput(filename string, config ...CommandConfig) (iter.Seq[Record], error)
+```
+Reads previously captured command output from a file and parses column-aligned data. Returns error if file cannot be opened.
+
+#### ReadCommandOutputSafe
+```go
+func ReadCommandOutputSafe(filename string, config ...CommandConfig) iter.Seq2[Record, error]
+```
+Error-aware version of ReadCommandOutput. Returns iterator that yields both records and parse errors.
+
+#### ExecCommandSafe
+```go
+func ExecCommandSafe(command string, args []string, config ...CommandConfig) iter.Seq2[Record, error]
+```
+Error-aware version of ExecCommand. Returns iterator that yields both records and execution errors.
+
+**Example:**
+```go
+processes, err := streamv3.ExecCommandSafe("ps", []string{"-efl"})
+if err != nil {
+    log.Fatalf("Failed to start command: %v", err)
+}
+for process, err := range processes {
+    if err != nil {
+        log.Printf("Error parsing output: %v", err)
+        continue
+    }
+    cmd := streamv3.GetOr(process, "CMD", "")
+    fmt.Println(cmd)
+}
+```
+
+#### DefaultCommandConfig
+```go
+func DefaultCommandConfig() CommandConfig
+```
+Returns default command parsing configuration.
+
+#### CommandConfig
+```go
+type CommandConfig struct {
+    SkipLines      int
+    TrimSpaces     bool
+    MinColumnWidth int
+}
+```
 
 ---
 
@@ -770,25 +1137,81 @@ err := streamv3.InteractiveChart(
 ```go
 func Get[T any](record Record, key string) (T, bool)
 ```
-Safely gets typed value from Record.
+Safely gets typed value from Record. Includes automatic type conversion for numeric and string types.
+
+**Example:**
+```go
+name, exists := streamv3.Get[string](record, "name")
+if !exists {
+    log.Println("name field not found")
+}
+
+// Type conversion: string "42" → int64(42)
+age, ok := streamv3.Get[int64](record, "age")
+```
 
 #### GetOr[T]
 ```go
 func GetOr[T any](record Record, key string, defaultValue T) T
 ```
-Gets value with default fallback.
-
-#### SetField
-```go
-func SetField[T any](record Record, key string, value T) Record
-```
-Sets field value in Record.
+Gets value with default fallback. Includes automatic type conversion.
 
 **Example:**
 ```go
-name, exists := streamv3.Get[string](record, "name")
-age := streamv3.GetOr(record, "age", 0)
-updated := streamv3.SetField(record, "processed", true)
+age := streamv3.GetOr(record, "age", int64(0))
+name := streamv3.GetOr(record, "name", "Unknown")
+```
+
+#### Set[V]
+```go
+func Set[V Value](m MutableRecord, field string, value V) MutableRecord
+```
+Sets field value in a MutableRecord (mutates in place).
+
+**Example:**
+```go
+mut := streamv3.MakeMutableRecord()
+streamv3.Set(mut, "name", "Alice")
+streamv3.Set(mut, "age", int64(30))
+record := mut.Freeze()
+```
+
+#### SetImmutable[V]
+```go
+func SetImmutable[V Value](r Record, field string, value V) Record
+```
+Creates a new Record with the field value set (immutable operation).
+
+**Example:**
+```go
+updated := streamv3.SetImmutable(record, "processed", true)
+// original record is unchanged
+```
+
+#### Field[V]
+```go
+func Field[V Value](key string, value V) Record
+```
+Creates a single-field Record.
+
+**Example:**
+```go
+nameField := streamv3.Field("name", "Alice")
+// Returns: Record{"name": "Alice"}
+```
+
+#### ValidateRecord
+```go
+func ValidateRecord(r Record) error
+```
+Validates that a Record contains only supported value types.
+
+**Example:**
+```go
+err := streamv3.ValidateRecord(record)
+if err != nil {
+    log.Printf("Invalid record: %v", err)
+}
 ```
 
 ---
@@ -797,18 +1220,70 @@ updated := streamv3.SetField(record, "processed", true)
 
 > 🛡️ **Production Patterns**: Learn robust error handling strategies in the [Advanced Tutorial](advanced-tutorial.md#error-handling-and-resilience).
 
-StreamV3 provides both safe and unsafe versions of operations:
+StreamV3 provides multiple error handling approaches:
 
-- **Regular functions**: Panic on errors (fail-fast approach)
-- **Safe functions**: Return errors via `iter.Seq2[T, error]`
+### Source Functions (I/O Operations)
+Source functions that read from files or execute commands return errors explicitly:
+
+```go
+// Source functions return (iter.Seq[Record], error)
+data, err := streamv3.ReadCSV("data.csv")
+if err != nil {
+    log.Fatalf("Failed to open file: %v", err)
+}
+
+records, err := streamv3.ReadJSON("data.jsonl")
+if err != nil {
+    log.Fatalf("Failed to open file: %v", err)
+}
+
+lines, err := streamv3.ReadLines("logfile.txt")
+if err != nil {
+    log.Fatalf("Failed to open file: %v", err)
+}
+
+processes, err := streamv3.ExecCommand("ps", []string{"-efl"})
+if err != nil {
+    log.Fatalf("Failed to execute command: %v", err)
+}
+```
+
+### Sink Functions (Write Operations)
+Sink functions that write to files also return errors:
+
+```go
+err := streamv3.WriteCSV(records, "output.csv")
+if err != nil {
+    log.Fatalf("Failed to write CSV: %v", err)
+}
+
+err = streamv3.WriteJSON(records, "output.jsonl")
+if err != nil {
+    log.Fatalf("Failed to write JSON: %v", err)
+}
+```
+
+### Filter Operations
+Filter functions have two versions for transformation error handling:
+
+- **Regular functions**: Designed for transformations that don't fail
+- **Safe functions**: Return errors via `iter.Seq2[T, error]` for error-prone transformations
 
 **Example:**
 ```go
-// Unsafe - panics on error
-result := streamv3.Select(transform)(data)
+// Regular filter - for transformations that don't fail
+result := streamv3.Select(func(x int) int {
+    return x * 2
+})(data)
 
-// Safe - handles errors
-safeResult := streamv3.SelectSafe(safeTransform)(dataWithErrors)
+// Safe filter - for transformations that can fail
+safeResult := streamv3.SelectSafe(func(x int) (int, error) {
+    if x < 0 {
+        return 0, fmt.Errorf("negative value: %d", x)
+    }
+    return x * 2, nil
+})(dataWithErrors)
+
 for value, err := range safeResult {
     if err != nil {
         log.Printf("Error: %v", err)
@@ -817,6 +1292,13 @@ for value, err := range safeResult {
     // Process value
 }
 ```
+
+### Best Practices
+
+1. **Always check errors from Source and Sink functions** - These involve I/O and can fail
+2. **Use Safe filters for user input or external data** - Where validation is needed
+3. **Use regular filters for pure transformations** - Cleaner and more efficient
+4. **Fail fast at the source** - Catch file/command errors before processing begins
 
 ---
 

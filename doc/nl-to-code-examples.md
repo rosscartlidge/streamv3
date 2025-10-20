@@ -120,7 +120,7 @@ func main() {
     // Calculate 7-day moving average using sliding window
     movingAvgTraffic := streamv3.Select(func(window []streamv3.Record) streamv3.Record {
         if len(window) == 0 {
-            return streamv3.NewRecord().Build()
+            return streamv3.MakeMutableRecord().Freeze()
         }
 
         // Calculate average for this window
@@ -299,7 +299,7 @@ func main() {
         for i := 0; ; i++ {
             status := statuses[i%len(statuses)]
 
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("status", status).
                 String("endpoint", fmt.Sprintf("/api/endpoint%d", i%3)).
                 Time("timestamp", time.Now()).
@@ -381,7 +381,7 @@ func main() {
                 temp = baseTemp + float64(i%10-5) // Normal variation
             }
 
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("sensor_id", fmt.Sprintf("temp_%s_%d", location, i%3)).
                 String("location", location).
                 Float("temperature", temp).
@@ -477,17 +477,17 @@ import (
 func main() {
     // Create sample customer data
     customers := []streamv3.Record{
-        streamv3.NewRecord().String("customer_id", "C001").String("name", "Alice Johnson").String("city", "New York").Build(),
-        streamv3.NewRecord().String("customer_id", "C002").String("name", "Bob Smith").String("city", "Los Angeles").Build(),
-        streamv3.NewRecord().String("customer_id", "C003").String("name", "Carol Davis").String("city", "Chicago").Build(),
+        streamv3.MakeMutableRecord().String("customer_id", "C001").String("name", "Alice Johnson").String("city", "New York").Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C002").String("name", "Bob Smith").String("city", "Los Angeles").Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C003").String("name", "Carol Davis").String("city", "Chicago").Freeze(),
     }
 
     // Create sample order data
     orders := []streamv3.Record{
-        streamv3.NewRecord().String("customer_id", "C001").Float("amount", 500).String("product", "Laptop").Build(),
-        streamv3.NewRecord().String("customer_id", "C001").Float("amount", 800).String("product", "Monitor").Build(),
-        streamv3.NewRecord().String("customer_id", "C002").Float("amount", 200).String("product", "Mouse").Build(),
-        streamv3.NewRecord().String("customer_id", "C003").Float("amount", 1200).String("product", "Workstation").Build(),
+        streamv3.MakeMutableRecord().String("customer_id", "C001").Float("amount", 500).String("product", "Laptop").Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C001").Float("amount", 800).String("product", "Monitor").Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C002").Float("amount", 200).String("product", "Mouse").Freeze(),
+        streamv3.MakeMutableRecord().String("customer_id", "C003").Float("amount", 1200).String("product", "Workstation").Freeze(),
     }
 
     // Join customers with their orders
@@ -541,24 +541,24 @@ import (
 func main() {
     // Product catalog
     products := []streamv3.Record{
-        streamv3.NewRecord().String("product_id", "P001").String("name", "Gaming Laptop").String("category", "Electronics").Build(),
-        streamv3.NewRecord().String("product_id", "P002").String("name", "Office Chair").String("category", "Furniture").Build(),
-        streamv3.NewRecord().String("product_id", "P003").String("name", "Coffee Maker").String("category", "Appliances").Build(),
+        streamv3.MakeMutableRecord().String("product_id", "P001").String("name", "Gaming Laptop").String("category", "Electronics").Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "P002").String("name", "Office Chair").String("category", "Furniture").Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "P003").String("name", "Coffee Maker").String("category", "Appliances").Freeze(),
     }
 
     // Sales data (last 30 days)
     sales := []streamv3.Record{
-        streamv3.NewRecord().String("product_id", "P001").Int("quantity_sold", 25).Float("revenue", 25000).Build(),
-        streamv3.NewRecord().String("product_id", "P001").Int("quantity_sold", 15).Float("revenue", 15000).Build(),
-        streamv3.NewRecord().String("product_id", "P002").Int("quantity_sold", 8).Float("revenue", 2400).Build(),
-        streamv3.NewRecord().String("product_id", "P003").Int("quantity_sold", 12).Float("revenue", 1800).Build(),
+        streamv3.MakeMutableRecord().String("product_id", "P001").Int("quantity_sold", 25).Float("revenue", 25000).Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "P001").Int("quantity_sold", 15).Float("revenue", 15000).Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "P002").Int("quantity_sold", 8).Float("revenue", 2400).Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "P003").Int("quantity_sold", 12).Float("revenue", 1800).Freeze(),
     }
 
     // Inventory data
     inventory := []streamv3.Record{
-        streamv3.NewRecord().String("product_id", "P001").Int("stock_level", 5).Int("reorder_point", 10).Build(),
-        streamv3.NewRecord().String("product_id", "P002").Int("stock_level", 25).Int("reorder_point", 15).Build(),
-        streamv3.NewRecord().String("product_id", "P003").Int("stock_level", 3).Int("reorder_point", 8).Build(),
+        streamv3.MakeMutableRecord().String("product_id", "P001").Int("stock_level", 5).Int("reorder_point", 10).Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "P002").Int("stock_level", 25).Int("reorder_point", 15).Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "P003").Int("stock_level", 3).Int("reorder_point", 8).Freeze(),
     }
 
     // First, aggregate sales by product
@@ -795,7 +795,7 @@ func main() {
         transactions, _ := streamv3.Get[[]streamv3.Record](r, "fraud_analysis")
 
         if len(transactions) < 2 {
-            return streamv3.NewRecord().Build() // Skip if not multiple transactions
+            return streamv3.MakeMutableRecord().Freeze() // Skip if not multiple transactions
         }
 
         // Calculate fraud indicators
@@ -814,7 +814,7 @@ func main() {
         }
 
         // Build fraud alert record
-        return streamv3.NewRecord().
+        return streamv3.MakeMutableRecord().
             String("ip_address", streamv3.GetOr(r, "GroupValue", "")).
             String("time_window", streamv3.GetOr(r, "hour_window", "")).
             Int("transaction_count", len(transactions)).

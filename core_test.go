@@ -335,13 +335,12 @@ func TestJSONStringString(t *testing.T) {
 // RECORD BUILDER TESTS
 // ============================================================================
 
-func TestNewRecord(t *testing.T) {
-	r := NewRecord().
+func TestMakeRecord(t *testing.T) {
+	r := MakeMutableRecord().
 		String("name", "Alice").
 		Int("age", 30).
 		Float("score", 95.5).
-		Bool("active", true).
-		Build()
+		Bool("active", true)
 
 	if r["name"] != "Alice" {
 		t.Errorf("Expected name=Alice, got %v", r["name"])
@@ -359,7 +358,7 @@ func TestNewRecord(t *testing.T) {
 
 func TestRecordWithTime(t *testing.T) {
 	now := time.Now()
-	r := NewRecord().Time("timestamp", now).Build()
+	r := MakeMutableRecord().Time("timestamp", now)
 
 	if r["timestamp"] != now {
 		t.Errorf("Expected timestamp=%v, got %v", now, r["timestamp"])
@@ -368,10 +367,9 @@ func TestRecordWithTime(t *testing.T) {
 
 func TestRecordWithNestedRecord(t *testing.T) {
 	nested := Record{"city": "NYC"}
-	r := NewRecord().
+	r := MakeMutableRecord().
 		String("name", "Alice").
-		Record("address", nested).
-		Build()
+		Nested("address", nested)
 
 	addr, ok := r["address"].(Record)
 	if !ok {
@@ -384,7 +382,7 @@ func TestRecordWithNestedRecord(t *testing.T) {
 
 func TestRecordWithJSONString(t *testing.T) {
 	js := JSONString(`{"data":"value"}`)
-	r := NewRecord().JSONString("json", js).Build()
+	r := MakeMutableRecord().JSONString("json", js)
 
 	result, ok := r["json"].(JSONString)
 	if !ok {
@@ -442,21 +440,69 @@ func TestGetOr(t *testing.T) {
 	}
 }
 
-func TestSetField(t *testing.T) {
+func TestMutableRecordSet(t *testing.T) {
+	m := MakeMutableRecord().String("name", "Alice")
+	m2 := Set(m, "age", int64(30))
+
+	// Both m and m2 should point to same underlying map (mutation)
+	if m2["age"] != int64(30) {
+		t.Errorf("Set failed: expected 30, got %v", m2["age"])
+	}
+	if m2["name"] != "Alice" {
+		t.Error("Set should preserve existing fields")
+	}
+}
+
+func TestRecordSetImmutable(t *testing.T) {
 	r := Record{"name": "Alice"}
-	r2 := SetField(r, "age", int64(30))
+	r2 := SetImmutable(r, "age", int64(30))
 
 	// Original should be unchanged
 	if _, exists := r["age"]; exists {
-		t.Error("SetField should not modify original record")
+		t.Error("SetImmutable should not modify original record")
 	}
 
 	// New record should have field
 	if r2["age"] != int64(30) {
-		t.Errorf("SetField failed: expected 30, got %v", r2["age"])
+		t.Errorf("SetImmutable failed: expected 30, got %v", r2["age"])
 	}
 	if r2["name"] != "Alice" {
-		t.Error("SetField should preserve existing fields")
+		t.Error("SetImmutable should preserve existing fields")
+	}
+}
+
+func TestRecordToMutable(t *testing.T) {
+	// Create an immutable record
+	original := MakeMutableRecord().
+		String("name", "Alice").
+		Int("age", 30).
+		Float("score", 95.5).
+		Freeze()
+
+	// Convert to mutable for modification
+	mutable := original.ToMutable().
+		Int("age", 31).
+		String("city", "NYC")
+
+	updated := mutable.Freeze()
+
+	// Original should be unchanged (shallow copy preserves immutability)
+	if original["age"] != int64(30) {
+		t.Error("ToMutable should not modify original record")
+	}
+	if _, exists := original["city"]; exists {
+		t.Error("ToMutable should create a copy, not mutate original")
+	}
+
+	// Updated record should have changes
+	if updated["age"] != int64(31) {
+		t.Errorf("ToMutable update failed: expected age=31, got %v", updated["age"])
+	}
+	if updated["city"] != "NYC" {
+		t.Errorf("ToMutable addition failed: expected city=NYC, got %v", updated["city"])
+	}
+	if updated["name"] != "Alice" {
+		t.Error("ToMutable should preserve existing fields")
 	}
 }
 
@@ -492,21 +538,6 @@ func TestRecordKeys(t *testing.T) {
 
 	if !hasName || !hasAge {
 		t.Errorf("Keys missing expected fields: %v", keys)
-	}
-}
-
-func TestRecordSet(t *testing.T) {
-	r := Record{"name": "Alice"}
-	r2 := r.Set("age", int64(30))
-
-	// Original unchanged
-	if _, exists := r["age"]; exists {
-		t.Error("Set should not modify original record")
-	}
-
-	// New record has field
-	if r2["age"] != int64(30) {
-		t.Errorf("Set failed: expected 30, got %v", r2["age"])
 	}
 }
 

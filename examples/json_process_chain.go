@@ -64,7 +64,7 @@ func generateData() {
 	tags4 := slices.Values([]string{"clothing", "winter"})
 
 	salesData := []streamv3.Record{
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "SALE-001").
 			String("product", "iPhone 15").
 			String("category", "electronics").
@@ -72,9 +72,9 @@ func generateData() {
 			Int("quantity", 2).
 			String("region", "North").
 			StringSeq("tags", tags1).
-			Build(),
+			Freeze(),
 
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "SALE-002").
 			String("product", "MacBook Pro").
 			String("category", "electronics").
@@ -82,9 +82,9 @@ func generateData() {
 			Int("quantity", 1).
 			String("region", "South").
 			StringSeq("tags", tags2).
-			Build(),
+			Freeze(),
 
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "SALE-003").
 			String("product", "Python Guide").
 			String("category", "books").
@@ -92,9 +92,9 @@ func generateData() {
 			Int("quantity", 3).
 			String("region", "North").
 			StringSeq("tags", tags3).
-			Build(),
+			Freeze(),
 
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "SALE-004").
 			String("product", "Winter Jacket").
 			String("category", "clothing").
@@ -102,9 +102,9 @@ func generateData() {
 			Int("quantity", 2).
 			String("region", "North").
 			StringSeq("tags", tags4).
-			Build(),
+			Freeze(),
 
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "SALE-005").
 			String("product", "iPad Air").
 			String("category", "electronics").
@@ -112,7 +112,7 @@ func generateData() {
 			Int("quantity", 1).
 			String("region", "South").
 			StringSeq("tags", tags1).
-			Build(),
+			Freeze(),
 	}
 
 	stream := streamv3.From(salesData)
@@ -249,14 +249,14 @@ func runChainDemo() {
 	var step1Output strings.Builder
 	tags := slices.Values([]string{"electronics", "premium"})
 	sampleData := []streamv3.Record{
-		streamv3.NewRecord().
+		streamv3.MakeMutableRecord().
 			String("id", "DEMO-001").
 			String("product", "Premium Laptop").
 			Float("price", 1999.99).
 			Int("quantity", 1).
 			String("region", "North").
 			StringSeq("tags", tags).
-			Build(),
+			Freeze(),
 	}
 	streamv3.WriteJSONToWriter(streamv3.From(sampleData), &step1Output)
 	fmt.Printf("Output: %s\n", strings.TrimSpace(step1Output.String()))
