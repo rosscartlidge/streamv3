@@ -106,7 +106,7 @@ func generateSalesData() []streamv3.Record {
 
     var data []streamv3.Record
     for i := 0; i < 100; i++ {
-        record := streamv3.NewRecord().
+        record := streamv3.MakeMutableRecord().
             String("region", regions[i%len(regions)]).
             String("product", products[i%len(products)]).
             String("customer", customers[i%len(customers)]).
@@ -171,7 +171,7 @@ func main() {
 func generateTimeSeriesData() []streamv3.Record {
     var data []streamv3.Record
     for i := 0; i < 50; i++ {
-        record := streamv3.NewRecord().
+        record := streamv3.MakeMutableRecord().
             Time("timestamp", time.Now().Add(-time.Duration(i)*time.Hour)).
             Float("value", 100 + float64(i%10)*5).
             String("sensor", fmt.Sprintf("sensor_%d", i%3)).
@@ -239,7 +239,7 @@ func generateNumericData() []streamv3.Record {
     var data []streamv3.Record
 
     for i := 0; i < 30; i++ {
-        record := streamv3.NewRecord().
+        record := streamv3.MakeMutableRecord().
             String("category", categories[i%len(categories)]).
             Float("value", 50 + float64(i)*1.5 + float64(i%5)*10).
             Build()
@@ -271,15 +271,15 @@ import (
 func main() {
     // Create user and order datasets
     users := []streamv3.Record{
-        streamv3.NewRecord().String("user_id", "1").String("name", "Alice").String("city", "NYC").Build(),
-        streamv3.NewRecord().String("user_id", "2").String("name", "Bob").String("city", "LA").Build(),
-        streamv3.NewRecord().String("user_id", "3").String("name", "Carol").String("city", "Chicago").Build(),
+        streamv3.MakeMutableRecord().String("user_id", "1").String("name", "Alice").String("city", "NYC").Freeze(),
+        streamv3.MakeMutableRecord().String("user_id", "2").String("name", "Bob").String("city", "LA").Freeze(),
+        streamv3.MakeMutableRecord().String("user_id", "3").String("name", "Carol").String("city", "Chicago").Freeze(),
     }
 
     orders := []streamv3.Record{
-        streamv3.NewRecord().String("user_id", "1").Float("amount", 100).String("product", "Laptop").Build(),
-        streamv3.NewRecord().String("user_id", "2").Float("amount", 50).String("product", "Mouse").Build(),
-        streamv3.NewRecord().String("user_id", "1").Float("amount", 200).String("product", "Monitor").Build(),
+        streamv3.MakeMutableRecord().String("user_id", "1").Float("amount", 100).String("product", "Laptop").Freeze(),
+        streamv3.MakeMutableRecord().String("user_id", "2").Float("amount", 50).String("product", "Mouse").Freeze(),
+        streamv3.MakeMutableRecord().String("user_id", "1").Float("amount", 200).String("product", "Monitor").Freeze(),
     }
 
     // Perform inner join on user_id
@@ -307,13 +307,13 @@ Handle missing data gracefully:
 ```go
 func demonstrateLeftJoin() {
     users := []streamv3.Record{
-        streamv3.NewRecord().String("user_id", "1").String("name", "Alice").Build(),
-        streamv3.NewRecord().String("user_id", "2").String("name", "Bob").Build(),
-        streamv3.NewRecord().String("user_id", "3").String("name", "Carol").Build(),
+        streamv3.MakeMutableRecord().String("user_id", "1").String("name", "Alice").Freeze(),
+        streamv3.MakeMutableRecord().String("user_id", "2").String("name", "Bob").Freeze(),
+        streamv3.MakeMutableRecord().String("user_id", "3").String("name", "Carol").Freeze(),
     }
 
     orders := []streamv3.Record{
-        streamv3.NewRecord().String("user_id", "1").Float("amount", 100).Build(),
+        streamv3.MakeMutableRecord().String("user_id", "1").Float("amount", 100).Freeze(),
         // Note: No orders for user 2 and 3
     }
 
@@ -344,14 +344,14 @@ Use custom predicates for sophisticated joins:
 ```go
 func demonstrateComplexJoin() {
     products := []streamv3.Record{
-        streamv3.NewRecord().String("product_id", "1").String("category", "Electronics").Float("price", 100).Build(),
-        streamv3.NewRecord().String("product_id", "2").String("category", "Electronics").Float("price", 200).Build(),
-        streamv3.NewRecord().String("product_id", "3").String("category", "Books").Float("price", 20).Build(),
+        streamv3.MakeMutableRecord().String("product_id", "1").String("category", "Electronics").Float("price", 100).Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "2").String("category", "Electronics").Float("price", 200).Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "3").String("category", "Books").Float("price", 20).Freeze(),
     }
 
     sales := []streamv3.Record{
-        streamv3.NewRecord().String("product_id", "1").Int("quantity", 5).String("region", "North").Build(),
-        streamv3.NewRecord().String("product_id", "2").Int("quantity", 3).String("region", "South").Build(),
+        streamv3.MakeMutableRecord().String("product_id", "1").Int("quantity", 5).String("region", "North").Freeze(),
+        streamv3.MakeMutableRecord().String("product_id", "2").Int("quantity", 3).String("region", "South").Freeze(),
     }
 
     // Custom join condition: match products with sales and calculate revenue
@@ -402,7 +402,7 @@ func main() {
     // Simulate infinite sensor data stream
     sensorStream := func(yield func(streamv3.Record) bool) {
         for i := 0; ; i++ {
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("sensor_id", fmt.Sprintf("sensor_%d", i%3)).
                 Float("temperature", 20 + float64(i%20)).
                 Float("humidity", 40 + float64(i%30)).
@@ -462,7 +462,7 @@ func demonstrateInfiniteStreamHandling() {
     // Create infinite data generator
     infiniteData := func(yield func(streamv3.Record) bool) {
         for i := 0; ; i++ {
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("event_id", fmt.Sprintf("event_%d", i)).
                 Float("value", float64(i)).
                 Time("timestamp", time.Now()).
@@ -512,11 +512,11 @@ Implement reactive patterns for event streams:
 func demonstrateEventDrivenProcessing() {
     // Simulate event stream
     events := []streamv3.Record{
-        streamv3.NewRecord().String("type", "user_login").String("user", "alice").Time("time", time.Now()).Build(),
-        streamv3.NewRecord().String("type", "purchase").String("user", "alice").Float("amount", 100).Build(),
-        streamv3.NewRecord().String("type", "user_login").String("user", "bob").Time("time", time.Now()).Build(),
-        streamv3.NewRecord().String("type", "error").String("service", "payment").String("message", "timeout").Build(),
-        streamv3.NewRecord().String("type", "purchase").String("user", "bob").Float("amount", 50).Build(),
+        streamv3.MakeMutableRecord().String("type", "user_login").String("user", "alice").Time("time", time.Now()).Freeze(),
+        streamv3.MakeMutableRecord().String("type", "purchase").String("user", "alice").Float("amount", 100).Freeze(),
+        streamv3.MakeMutableRecord().String("type", "user_login").String("user", "bob").Time("time", time.Now()).Freeze(),
+        streamv3.MakeMutableRecord().String("type", "error").String("service", "payment").String("message", "timeout").Freeze(),
+        streamv3.MakeMutableRecord().String("type", "purchase").String("user", "bob").Float("amount", 50).Freeze(),
     }
 
     // Process different event types
@@ -570,7 +570,7 @@ func demonstrateCountWindows() {
     // Simulate infinite sensor readings
     sensorData := func(yield func(streamv3.Record) bool) {
         for i := 0; ; i++ {
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("sensor_id", fmt.Sprintf("temp_sensor_%d", i%3)).
                 Float("temperature", 20 + float64(i%15) + (float64(i)*0.1)).
                 Time("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
@@ -633,7 +633,7 @@ func demonstrateTimeWindows() {
             // Simulate price fluctuations
             price := basePrice + (float64(i%10)-5)*2 + float64(i)*0.1
 
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("symbol", "AAPL").
                 Float("price", price).
                 Time("timestamp", baseTime.Add(time.Duration(i)*time.Second)).
@@ -691,7 +691,7 @@ func demonstrateSlidingWindows() {
             // Simulate network latency measurements
             latency := 50 + float64(i%8) + float64(i)*0.5
 
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("server", fmt.Sprintf("srv_%d", i%3)).
                 Float("latency_ms", latency).
                 Int("sequence", i).
@@ -756,7 +756,7 @@ func demonstrateWindowedAggregation() {
                 unit = "%"
             }
 
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("sensor_id", sensorId).
                 String("metric_type", sensorId[:4]).
                 Float("value", value).
@@ -839,12 +839,12 @@ Handle irregular data streams with session-based windowing:
 func demonstrateSessionWindows() {
     // Simulate user activity with gaps
     userEvents := []streamv3.Record{
-        streamv3.NewRecord().String("user", "alice").String("action", "login").Time("time", time.Now()).Build(),
-        streamv3.NewRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(30*time.Second)).Build(),
-        streamv3.NewRecord().String("user", "alice").String("action", "purchase").Time("time", time.Now().Add(45*time.Second)).Build(),
+        streamv3.MakeMutableRecord().String("user", "alice").String("action", "login").Time("time", time.Now()).Freeze(),
+        streamv3.MakeMutableRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(30*time.Second)).Freeze(),
+        streamv3.MakeMutableRecord().String("user", "alice").String("action", "purchase").Time("time", time.Now().Add(45*time.Second)).Freeze(),
         // Gap of 10 minutes - new session
-        streamv3.NewRecord().String("user", "alice").String("action", "login").Time("time", time.Now().Add(10*time.Minute)).Build(),
-        streamv3.NewRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(10*time.Minute+20*time.Second)).Build(),
+        streamv3.MakeMutableRecord().String("user", "alice").String("action", "login").Time("time", time.Now().Add(10*time.Minute)).Freeze(),
+        streamv3.MakeMutableRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(10*time.Minute+20*time.Second)).Freeze(),
     }
 
     // Group events into sessions using time-based timeout
@@ -973,7 +973,7 @@ func generateBusinessData() []streamv3.Record {
 
     var data []streamv3.Record
     for i := 0; i < 200; i++ {
-        record := streamv3.NewRecord().
+        record := streamv3.MakeMutableRecord().
             String("region", regions[rand.Intn(len(regions))]).
             String("product", products[rand.Intn(len(products))]).
             Float("revenue", 10000 + rand.Float64()*90000).
@@ -1303,10 +1303,10 @@ Build resilient processing pipelines:
 func demonstrateFaultTolerantPipeline() {
     // Simulate unreliable data source
     unreliableData := []streamv3.Record{
-        streamv3.NewRecord().String("id", "1").String("value", "100").Build(),
-        streamv3.NewRecord().String("id", "2").String("value", "invalid").Build(),
-        streamv3.NewRecord().String("id", "3").String("value", "300").Build(),
-        streamv3.NewRecord().Build(), // Missing fields
+        streamv3.MakeMutableRecord().String("id", "1").String("value", "100").Freeze(),
+        streamv3.MakeMutableRecord().String("id", "2").String("value", "invalid").Freeze(),
+        streamv3.MakeMutableRecord().String("id", "3").String("value", "300").Freeze(),
+        streamv3.MakeMutableRecord().Freeze(), // Missing fields
     }
 
     // Fault-tolerant processing
@@ -1324,7 +1324,7 @@ func demonstrateFaultTolerantPipeline() {
         }
 
         // Create validated record
-        result := streamv3.NewRecord().
+        result := streamv3.MakeMutableRecord().
             String("id", id).
             Float("value", value).
             String("status", "processed").
@@ -1355,9 +1355,9 @@ Implement comprehensive data validation:
 func demonstrateDataValidation() {
     // Sample data with validation issues
     customerData := []streamv3.Record{
-        streamv3.NewRecord().String("email", "alice@example.com").Int("age", 30).Float("score", 95.5).Build(),
-        streamv3.NewRecord().String("email", "invalid-email").Int("age", -5).Float("score", 150.0).Build(),
-        streamv3.NewRecord().String("email", "bob@example.com").Int("age", 25).Float("score", 87.2).Build(),
+        streamv3.MakeMutableRecord().String("email", "alice@example.com").Int("age", 30).Float("score", 95.5).Freeze(),
+        streamv3.MakeMutableRecord().String("email", "invalid-email").Int("age", -5).Float("score", 150.0).Freeze(),
+        streamv3.MakeMutableRecord().String("email", "bob@example.com").Int("age", 25).Float("score", 87.2).Freeze(),
     }
 
     // Validation pipeline
@@ -1438,9 +1438,9 @@ Use `Safe()` to enter error-aware processing and `IgnoreErrors()` to exit gracef
 func demonstrateMixedPipeline() {
     // Start with normal data
     transactions := streamv3.From([]streamv3.Record{
-        streamv3.NewRecord().String("id", "TX001").String("amount_str", "100.50").Build(),
-        streamv3.NewRecord().String("id", "TX002").String("amount_str", "invalid").Build(),
-        streamv3.NewRecord().String("id", "TX003").String("amount_str", "250.75").Build(),
+        streamv3.MakeMutableRecord().String("id", "TX001").String("amount_str", "100.50").Freeze(),
+        streamv3.MakeMutableRecord().String("id", "TX002").String("amount_str", "invalid").Freeze(),
+        streamv3.MakeMutableRecord().String("id", "TX003").String("amount_str", "250.75").Freeze(),
     })
 
     // Apply normal filter
@@ -1459,7 +1459,7 @@ func demonstrateMixedPipeline() {
             return streamv3.Record{}, fmt.Errorf("invalid amount: %s", amountStr)
         }
 
-        return streamv3.NewRecord().
+        return streamv3.MakeMutableRecord().
             String("id", streamv3.GetOr(r, "id", "")).
             Float("amount", amount).
             Build(), nil
@@ -1803,9 +1803,9 @@ import (
 func TestStreamProcessing(t *testing.T) {
     // Test data
     input := []streamv3.Record{
-        streamv3.NewRecord().String("category", "A").Float("value", 100).Build(),
-        streamv3.NewRecord().String("category", "B").Float("value", 200).Build(),
-        streamv3.NewRecord().String("category", "A").Float("value", 150).Build(),
+        streamv3.MakeMutableRecord().String("category", "A").Float("value", 100).Freeze(),
+        streamv3.MakeMutableRecord().String("category", "B").Float("value", 200).Freeze(),
+        streamv3.MakeMutableRecord().String("category", "A").Float("value", 150).Freeze(),
     }
 
     // Test pipeline
@@ -1847,7 +1847,7 @@ func BenchmarkStreamProcessing(b *testing.B) {
     // Generate test data
     data := make([]streamv3.Record, 1000)
     for i := 0; i < 1000; i++ {
-        data[i] = streamv3.NewRecord().
+        data[i] = streamv3.MakeMutableRecord().
             String("id", fmt.Sprintf("item_%d", i)).
             Float("value", float64(i)).
             Build()

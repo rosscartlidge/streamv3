@@ -43,11 +43,11 @@ func main() {
 
     var data []streamv3.Record
     for _, month := range months {
-        record := streamv3.NewRecord().
+        record := streamv3.MakeMutableRecord().
             String("month", month).
             Float("revenue", 50000+rand.Float64()*100000).
             Int("deals", int64(20+rand.Intn(30))).
-            Build()
+            Freeze()
         data = append(data, record)
     }
 
@@ -167,9 +167,9 @@ import (
 func main() {
     // Create structured data
     people := []streamv3.Record{
-        streamv3.NewRecord().String("name", "Alice").Int("age", 30).Float("score", 95.5).Build(),
-        streamv3.NewRecord().String("name", "Bob").Int("age", 25).Float("score", 87.2).Build(),
-        streamv3.NewRecord().String("name", "Carol").Int("age", 35).Float("score", 92.1).Build(),
+        streamv3.MakeMutableRecord().String("name", "Alice").Int("age", int64(30)).Float("score", 95.5).Freeze(),
+        streamv3.MakeMutableRecord().String("name", "Bob").Int("age", int64(25)).Float("score", 87.2).Freeze(),
+        streamv3.MakeMutableRecord().String("name", "Carol").Int("age", int64(35)).Float("score", 92.1).Freeze(),
     }
 
     // Find high scorers using type-safe helpers
@@ -189,15 +189,15 @@ func main() {
 
 ### Record Builder Pattern
 
-The `NewRecord()` builder provides a fluent interface for creating structured data:
+The `MakeMutableRecord()` builder provides a fluent interface for creating structured data:
 
 ```go
-record := streamv3.NewRecord().
+record := streamv3.MakeMutableRecord().
     String("name", "Alice").
-    Int("age", 30).
+    Int("age", int64(30)).
     Float("salary", 75000.0).
     Bool("active", true).
-    Build()
+    Freeze()
 ```
 
 > 📚 **Reference**: See [Helper Functions](api-reference.md#helper-functions) for Record access utilities.
@@ -229,8 +229,11 @@ import (
 )
 
 func main() {
-    // Read CSV data (panics on error)
-    data := streamv3.ReadCSV("people.csv")
+    // Read CSV data - returns error if file cannot be opened
+    data, err := streamv3.ReadCSV("people.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
 
     // Find well-paid engineers
     engineers := streamv3.Where(func(r streamv3.Record) bool {
@@ -253,14 +256,20 @@ func main() {
 StreamV3 supports multiple data formats:
 
 ```go
-// Read JSON
-jsonData, err := streamv3.ReadJSON[MyStruct]("data.json")
+// Read JSON (returns iterator and error)
+jsonData, err := streamv3.ReadJSON("data.jsonl")
+if err != nil {
+    log.Fatalf("Failed to read JSON: %v", err)
+}
 
 // Read from any io.Reader (great for HTTP responses)
 csvStream := streamv3.ReadCSVFromReader(httpResponse.Body)
 
 // Write results
 err = streamv3.WriteJSON(processedData, "output.json")
+if err != nil {
+    log.Fatalf("Failed to write JSON: %v", err)
+}
 ```
 
 > 📚 **Reference**: See [I/O Operations](api-reference.md#io-operations) for all supported formats.
@@ -301,13 +310,13 @@ func main() {
         }
         fields := strings.Fields(line)
         if len(fields) >= 5 {
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("pid", fields[0]).
                 String("ppid", fields[1]).
                 String("cpu", fields[2]).
                 String("mem", fields[3]).
                 String("command", strings.Join(fields[4:], " ")).
-                Build()
+                Freeze()
             processes = append(processes, record)
         }
     }
@@ -407,12 +416,12 @@ func main() {
     var salesData []streamv3.Record
     for _, region := range regions {
         for _, product := range products {
-            record := streamv3.NewRecord().
+            record := streamv3.MakeMutableRecord().
                 String("region", region).
                 String("product", product).
                 Float("sales", 10000 + rand.Float64()*50000).
                 Int("units", int64(50 + rand.Intn(200))).
-                Build()
+                Freeze()
             salesData = append(salesData, record)
         }
     }
@@ -501,11 +510,14 @@ for value, err := range safeResult {
 
 ### I/O Error Handling
 ```go
-// ReadCSV panics on error - use for simple cases
-data := streamv3.ReadCSV("data.csv")
+// ReadCSV returns error - always check it
+data, err := streamv3.ReadCSV("data.csv")
+if err != nil {
+    log.Fatalf("Failed to read CSV: %v", err)
+}
 
 // WriteJSON returns error - handle it
-err := streamv3.WriteJSON(processedData, "output.json")
+err = streamv3.WriteJSON(processedData, "output.json")
 if err != nil {
     log.Fatalf("Failed to write JSON: %v", err)
 }
