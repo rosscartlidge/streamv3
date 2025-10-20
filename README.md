@@ -54,7 +54,7 @@ Create modern, responsive charts with zoom, pan, and filtering capabilities:
 streamv3.QuickChart(data, "month", "revenue", "chart.html")  // One line = full dashboard
 ```
 
-[**See Chart Examples →**](doc/chart_examples/)
+[**See Chart Demo →**](examples/chart_demo.go)
 
 ## 🚀 Quick Start
 
