@@ -113,8 +113,30 @@ for file in "${required_files[@]}"; do
     file_has_errors=0
     for pattern in "${bad_patterns[@]}"; do
         # Check if pattern exists but NOT in a "wrong" example section
-        # Skip lines that are in comment blocks showing what NOT to do
-        if grep "$pattern" "$file" 2>/dev/null | grep -v "❌\|Wrong\|WRONG\|wrong -\|Avoid\|Should be\|instead of\|Don't\|NOT\|doesn't exist\|//.*$pattern" > /dev/null 2>&1; then
+        # Use awk to check if lines with pattern are within 5 lines after a "❌ WRONG" comment
+        found_bad_usage=0
+
+        # Extract line numbers where pattern appears
+        pattern_lines=$(grep -n "$pattern" "$file" 2>/dev/null | cut -d: -f1)
+
+        for line_num in $pattern_lines; do
+            # Check if there's a "❌ WRONG" or similar marker within 5 lines before this line
+            start_line=$((line_num - 5))
+            if [ $start_line -lt 1 ]; then
+                start_line=1
+            fi
+
+            # Check if this is in a "wrong example" section
+            if ! sed -n "${start_line},${line_num}p" "$file" | grep -q "❌\|WRONG\|Wrong\|Don't\|doesn't exist\|NOT\|Avoid"; then
+                # Also check if the line itself has a comment indicating it's wrong
+                if ! sed -n "${line_num}p" "$file" | grep -q "//.*Filter is a type\|//.*doesn't exist\|//.*Map doesn't exist\|//.*Take doesn't exist"; then
+                    found_bad_usage=1
+                    break
+                fi
+            fi
+        done
+
+        if [ $found_bad_usage -eq 1 ]; then
             fail "Found outdated pattern '$pattern' in $file (not in a 'wrong example' section)"
             file_has_errors=1
         fi
