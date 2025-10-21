@@ -49,7 +49,7 @@ type Filter[T, U any] func(iter.Seq[T]) iter.Seq[U]
 type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
 
 // ============================================================================
-// COMPOSITION FUNCTIONS - IDENTICAL TO STREAMV2 PATTERNS
+// COMPOSITION FUNCTIONS
 // ============================================================================
 
 // Pipe composes two filters sequentially (T -> U -> V).
@@ -134,7 +134,7 @@ func ChainWithErrors[T any](filters ...FilterWithErrors[T, T]) FilterWithErrors[
 }
 
 // ============================================================================
-// RECORD SYSTEM - COMPATIBLE WITH STREAMV2
+// RECORD SYSTEM
 // ============================================================================
 
 // Record represents structured data with native Go types.
@@ -645,7 +645,7 @@ func (r Record) RecordSeq(field string, value iter.Seq[Record]) Record {
 }
 
 // ============================================================================
-// SMART TYPE CONVERSION SYSTEM - FROM STREAMV2
+// SMART TYPE CONVERSION SYSTEM
 // ============================================================================
 
 func convertTo[T any](val any) (T, bool) {
@@ -795,7 +795,7 @@ func convertToTime(val any) (time.Time, bool) {
 }
 
 // ============================================================================
-// RUNTIME VALIDATION HELPERS - FROM STREAMV2
+// RUNTIME VALIDATION HELPERS
 // ============================================================================
 
 // validateRecord checks if a Record has only Value-compatible field types
@@ -1093,7 +1093,7 @@ func Hash(sourceField, targetField string) Filter[Record, Record] {
 }
 
 // ============================================================================
-// RECORD FLATTENING OPERATIONS - FROM STREAMV2
+// RECORD FLATTENING OPERATIONS
 // ============================================================================
 
 // DotFlatten flattens nested records using dot product flattening (single output per input).
