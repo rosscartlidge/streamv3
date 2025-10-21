@@ -711,7 +711,7 @@ for window := range windowed {
 ```
 
 <details>
-<parameter name="summary">📋 <b>Click for complete, runnable code</b></summary>
+<summary>📋 <b>Click for complete, runnable code</b></summary>
 
 ```go
 package main
@@ -747,6 +747,8 @@ func main() {
 </details>
 
 ### Join and Analyze Pipeline
+
+**Quick view:**
 ```go
 // 1. Read both datasets
 left, err := streamv3.ReadCSV("customers.csv")
@@ -768,6 +770,68 @@ processed := streamv3.Select(enrichment)(joined)
 grouped := streamv3.GroupByFields("analysis", "customer_id")(processed)
 results := streamv3.Aggregate("analysis", aggregations)(grouped)
 ```
+
+<details>
+<summary>📋 <b>Click for complete, runnable code</b></summary>
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // 1. Read both datasets
+    left, err := streamv3.ReadCSV("customers.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+    right, err := streamv3.ReadCSV("orders.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 2. Join on common field
+    joined := streamv3.InnerJoin(right, streamv3.OnFields("customer_id"))(left)
+
+    // 3. Process joined data
+    enrichment := func(r streamv3.Record) streamv3.Record {
+        // Add calculated fields, transform data, etc.
+        orderAmount := streamv3.GetOr(r, "amount", 0.0)
+        tier := "Standard"
+        if orderAmount > 1000 {
+            tier = "Premium"
+        }
+        return streamv3.SetImmutable(r, "tier", tier)
+    }
+    processed := streamv3.Select(enrichment)(joined)
+
+    // 4. Aggregate results
+    grouped := streamv3.GroupByFields("analysis", "customer_id")(processed)
+    aggregations := map[string]streamv3.AggregateFunc{
+        "total_spent": streamv3.Sum("amount"),
+        "order_count": streamv3.Count(),
+        "avg_order":   streamv3.Avg("amount"),
+        "name":        streamv3.First("name"),
+    }
+    results := streamv3.Aggregate("analysis", aggregations)(grouped)
+
+    // 5. Display results
+    fmt.Println("Customer Analysis:")
+    for result := range results {
+        name := streamv3.GetOr(result, "name", "")
+        total := streamv3.GetOr(result, "total_spent", 0.0)
+        count := streamv3.GetOr(result, "order_count", int64(0))
+        avg := streamv3.GetOr(result, "avg_order", 0.0)
+        fmt.Printf("%s: $%.2f total, %d orders, $%.2f avg\n", name, total, count, avg)
+    }
+}
+```
+
+</details>
 
 ---
 
