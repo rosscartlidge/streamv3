@@ -112,11 +112,12 @@ func main() {
     })(grouped)
 
     // Sort by revenue (descending) and take top 5
-    top5 := streamv3.Limit[streamv3.Record](5)(
+    top5 := streamv3.Chain(
         streamv3.SortBy(func(r streamv3.Record) float64 {
             return -streamv3.GetOr(r, "total_revenue", 0.0) // Negative for descending
-        })(productRevenue),
-    )
+        }),
+        streamv3.Limit[streamv3.Record](5),
+    )(productRevenue)
 
     fmt.Println("Top 5 products by revenue:")
     rank := 1
