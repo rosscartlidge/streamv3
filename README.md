@@ -30,6 +30,66 @@ topRegions := streamv3.Chain(
 streamv3.QuickChart(topRegions, "region", "total_revenue", "top_regions.html")
 ```
 
+<details>
+<summary>💡 <b>Click for complete, runnable code with sample data</b></summary>
+
+```go
+package main
+
+import (
+    "log"
+    "os"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Create sample sales data in /tmp/sales.csv
+    csvData := `region,product,amount
+North,Widget,1500
+South,Gadget,2300
+East,Widget,1800
+West,Gadget,2100
+North,Gadget,3200
+South,Widget,1200
+East,Gadget,2800
+West,Widget,1600
+North,Widget,2500
+South,Gadget,1900
+East,Widget,2200
+West,Gadget,3100`
+
+    if err := os.WriteFile("/tmp/sales.csv", []byte(csvData), 0644); err != nil {
+        log.Fatalf("Failed to create sample data: %v", err)
+    }
+
+    // Read data, filter, group, and visualize - all type-safe
+    sales, err := streamv3.ReadCSV("/tmp/sales.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    topRegions := streamv3.Chain(
+        streamv3.GroupByFields("sales", "region"),
+        streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
+            "total_revenue": streamv3.Sum("amount"),
+        }),
+        streamv3.SortBy(func(r streamv3.Record) float64 {
+            return -streamv3.GetOr(r, "total_revenue", 0.0) // Descending
+        }),
+        streamv3.Limit[streamv3.Record](5),
+    )(sales)
+
+    if err := streamv3.QuickChart(topRegions, "region", "total_revenue", "/tmp/top_regions.html"); err != nil {
+        log.Fatalf("Failed to create chart: %v", err)
+    }
+
+    log.Println("Chart created: /tmp/top_regions.html")
+    log.Println("Sample data: /tmp/sales.csv")
+}
+```
+
+</details>
+
 **Or use the CLI:**
 ```bash
 # Prototype with Unix-style pipelines, then generate production Go code
