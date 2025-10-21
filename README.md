@@ -199,6 +199,8 @@ func main() {
 ## 🔧 Core Capabilities
 
 ### **SQL-Style Data Processing**
+
+**Quick view:**
 ```go
 // Group sales by region, calculate totals, get top 5
 topRegions := streamv3.Limit[streamv3.Record](5)(
@@ -207,7 +209,58 @@ topRegions := streamv3.Limit[streamv3.Record](5)(
             streamv3.GroupByFields("sales", "region")(salesData))))
 ```
 
+<details>
+<summary>📋 <b>Click for complete, runnable code</b></summary>
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Read sales data
+    salesData, err := streamv3.ReadCSV("sales.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Define aggregations
+    aggregations := map[string]streamv3.AggregateFunc{
+        "total_revenue": streamv3.Sum("amount"),
+        "sale_count":    streamv3.Count(),
+    }
+
+    // Define sort key function
+    keyFunc := func(r streamv3.Record) float64 {
+        return -streamv3.GetOr(r, "total_revenue", 0.0) // Negative for descending
+    }
+
+    // Group sales by region, calculate totals, get top 5
+    topRegions := streamv3.Limit[streamv3.Record](5)(
+        streamv3.SortBy(keyFunc)(
+            streamv3.Aggregate("sales", aggregations)(
+                streamv3.GroupByFields("sales", "region")(salesData))))
+
+    // Display results
+    fmt.Println("Top 5 Regions by Revenue:")
+    for region := range topRegions {
+        name := streamv3.GetOr(region, "region", "")
+        revenue := streamv3.GetOr(region, "total_revenue", 0.0)
+        count := streamv3.GetOr(region, "sale_count", int64(0))
+        fmt.Printf("%s: $%.2f (%d sales)\n", name, revenue, count)
+    }
+}
+```
+
+</details>
+
 ### **Real-Time Stream Processing**
+
+**Quick view:**
 ```go
 // Process sensor data in 5-minute windows
 windowed := streamv3.TimeWindow[streamv3.Record](5*time.Minute, "timestamp")(sensorStream)
@@ -216,7 +269,52 @@ for window := range windowed {
 }
 ```
 
+<details>
+<summary>📋 <b>Click for complete, runnable code</b></summary>
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "time"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Read sensor data
+    sensorStream, err := streamv3.ReadCSV("sensor_data.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Process sensor data in 5-minute windows
+    windowed := streamv3.TimeWindow[streamv3.Record](5*time.Minute, "timestamp")(sensorStream)
+
+    fmt.Println("Processing 5-minute windows:")
+    for window := range windowed {
+        // Analyze each time window
+        count := len(window)
+
+        // Calculate average temperature
+        var totalTemp float64
+        for _, record := range window {
+            temp := streamv3.GetOr(record, "temperature", 0.0)
+            totalTemp += temp
+        }
+        avgTemp := totalTemp / float64(count)
+
+        fmt.Printf("Window: %d readings, avg temp: %.2f°C\n", count, avgTemp)
+    }
+}
+```
+
+</details>
+
 ### **Interactive Dashboards**
+
+**Quick view:**
 ```go
 config := streamv3.DefaultChartConfig()
 config.Title = "Sales Dashboard"
@@ -224,7 +322,52 @@ config.ChartType = "line"
 streamv3.InteractiveChart(data, "dashboard.html", config)
 ```
 
+<details>
+<summary>📋 <b>Click for complete, runnable code</b></summary>
+
+```go
+package main
+
+import (
+    "log"
+    "slices"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Create sample sales data
+    salesData := []streamv3.Record{
+        streamv3.MakeMutableRecord().String("month", "Jan").Float("revenue", 120000).Freeze(),
+        streamv3.MakeMutableRecord().String("month", "Feb").Float("revenue", 135000).Freeze(),
+        streamv3.MakeMutableRecord().String("month", "Mar").Float("revenue", 145000).Freeze(),
+        streamv3.MakeMutableRecord().String("month", "Apr").Float("revenue", 132000).Freeze(),
+    }
+
+    data := slices.Values(salesData)
+
+    // Create interactive dashboard
+    config := streamv3.DefaultChartConfig()
+    config.Title = "Sales Dashboard"
+    config.ChartType = "line"
+    config.Width = 1200
+    config.Height = 600
+    config.EnableZoom = true
+    config.EnablePan = true
+
+    err := streamv3.InteractiveChart(data, "dashboard.html", config)
+    if err != nil {
+        log.Fatalf("Failed to create chart: %v", err)
+    }
+
+    log.Println("Dashboard created: dashboard.html")
+}
+```
+
+</details>
+
 ### **Data Integration**
+
+**Quick view:**
 ```go
 // Join customer and order data
 customerOrders := streamv3.InnerJoin(
@@ -232,6 +375,50 @@ customerOrders := streamv3.InnerJoin(
     streamv3.OnFields("customer_id")
 )(customerStream)
 ```
+
+<details>
+<summary>📋 <b>Click for complete, runnable code</b></summary>
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Read customer data
+    customerStream, err := streamv3.ReadCSV("customers.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Read order data
+    orderStream, err := streamv3.ReadCSV("orders.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Join customer and order data
+    customerOrders := streamv3.InnerJoin(
+        orderStream,
+        streamv3.OnFields("customer_id"),
+    )(customerStream)
+
+    // Display joined results
+    fmt.Println("Customer Orders:")
+    for record := range customerOrders {
+        custName := streamv3.GetOr(record, "customer_name", "")
+        orderID := streamv3.GetOr(record, "order_id", "")
+        amount := streamv3.GetOr(record, "amount", 0.0)
+        fmt.Printf("%s - Order %s: $%.2f\n", custName, orderID, amount)
+    }
+}
+```
+
+</details>
 
 ## 🎨 Try the Examples
 
