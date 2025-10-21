@@ -35,16 +35,22 @@ The godoc is the source of truth - it's always in sync with the actual code.
 import (
     "fmt"                                    // When using fmt.Printf, fmt.Println
     "log"                                    // When using log.Fatal, log.Printf
-    "github.com/rosscartlidge/streamv3"     // Always needed
+    "github.com/rosscartlidge/streamv3"     // ✅ CORRECT import path!
 )
 
 // Additional imports - ONLY when actually used:
 // "slices"     - ONLY if using slices.Values()
 // "time"       - ONLY if using time.Duration, time.Time
 // "strings"    - ONLY if using strings.Fields, strings.Contains, etc.
+// "os"         - ONLY if using os.WriteFile, os.ReadFile
 ```
 
 **DO NOT import packages that aren't referenced in the code.**
+
+**⚠️ Common Import Mistakes:**
+- ❌ `github.com/rocketlaunchr/streamv3` - Wrong! Different project
+- ❌ `github.com/streamv3/v3` - Wrong! Doesn't exist
+- ✅ `github.com/rosscartlidge/streamv3` - Correct!
 
 ### Core Types & Creation
 
@@ -80,6 +86,8 @@ if err != nil {
 - **Filter**: `Where(func(T) bool)` ← NOT Filter (Filter is the type name)
 - **Limit**: `Limit(n)`, `Offset(n)` ← NOT Take/Skip
 - **Sort**: `Sort()`, `SortBy(func(T) K)`, `SortDesc()`, `Reverse()`
+  - **Descending order**: Use negative values in SortBy: `return -value`
+  - **Ascending order**: Use positive values: `return value`
 - **Group**: `GroupByFields("groupName", "field1", "field2", ...)`
 - **Aggregate**: `Aggregate("groupName", map[string]AggregateFunc{...})`
 - **Join**: `InnerJoin(rightSeq, predicate)`, `LeftJoin()`, `RightJoin()`, `FullJoin()`
@@ -102,8 +110,8 @@ streamv3.SetField(record, "key", value)           // → modified record
 ### Aggregation Functions
 
 ```go
-streamv3.Count()
-streamv3.Sum("field")
+streamv3.Count()                    // ⚠️ NO PARAMETERS! Field name goes in map key
+streamv3.Sum("field")               // Takes field parameter
 streamv3.Avg("field")
 streamv3.Min[T]("field")
 streamv3.Max[T]("field")
@@ -113,6 +121,56 @@ streamv3.Collect("field")
 ```
 
 **Important**: After `Aggregate()`, grouping fields retain their original names.
+
+### ⛔ CRITICAL ANTI-PATTERNS
+
+**LLMs often hallucinate these WRONG APIs - DO NOT USE:**
+
+#### ❌ Wrong: Combined GroupBy + Aggregate API (doesn't exist!)
+```go
+// This API does NOT exist in StreamV3!
+result := streamv3.GroupByFields(
+    []string{"department"},           // ❌ Wrong!
+    []streamv3.Aggregation{          // ❌ Wrong!
+        streamv3.Count("count"),     // ❌ Wrong!
+    },
+)
+```
+
+#### ✅ Correct: Separate GroupBy and Aggregate
+```go
+// Step 1: Group by fields (namespace + field names)
+grouped := streamv3.GroupByFields("analysis", "department")(data)
+
+// Step 2: Aggregate with map (SAME namespace!)
+results := streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
+    "employee_count": streamv3.Count(),  // ✅ Field name is map KEY
+})(grouped)
+```
+
+**CRITICAL:** Namespace ("analysis") MUST match between GroupByFields and Aggregate!
+
+#### ❌ Wrong: Count() with parameter
+```go
+"count": streamv3.Count("employee_count")  // ❌ Won't compile!
+```
+
+#### ✅ Correct: Count() is parameterless
+```go
+"employee_count": streamv3.Count()  // ✅ Field name is the map key
+```
+
+#### ❌ Wrong: Different namespaces
+```go
+grouped := streamv3.GroupByFields("sales", "region")(data)
+results := streamv3.Aggregate("analysis", aggs)(grouped)  // ❌ Won't work!
+```
+
+#### ✅ Correct: Matching namespaces
+```go
+grouped := streamv3.GroupByFields("sales", "region")(data)
+results := streamv3.Aggregate("sales", aggs)(grouped)  // ✅ Same namespace
+```
 
 ### Join Predicates
 
