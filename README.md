@@ -45,7 +45,7 @@ Describe what you want in plain English, get working StreamV3 code:
 
 → **Generates clean, readable Go code automatically**
 
-[**Try the AI Assistant →**](doc/human-llm-tutorial.md)
+[**Try the AI Assistant →**](doc/ai-human-guide.md)
 
 ### 📊 **Interactive Visualizations**
 Create modern, responsive charts with zoom, pan, and filtering capabilities:
@@ -185,12 +185,13 @@ func main() {
 - Infinite stream handling
 - Performance optimization
 
-### 5. 🤖 **[AI Code Generation](doc/human-llm-tutorial.md)**
+### 5. 🤖 **[AI Code Generation](doc/ai-human-guide.md)**
 *Generate StreamV3 code from natural language*
 - Use any AI assistant (Claude, ChatGPT, Gemini)
 - Describe what you want, get working code
 - Human-readable, verifiable results
 - Perfect for rapid prototyping
+- **For LLMs**: Copy [ai-code-generation.md](doc/ai-code-generation.md) into your LLM
 
 ## 🔧 Core Capabilities
 
@@ -267,7 +268,7 @@ go run examples/early_termination_example.go
 1. **[Install StreamV3](#installation)** and try the quick start
 2. **[Try the CLI](doc/cli/codelab-cli.md)** for rapid prototyping *(in development)*
 3. **[Follow the Getting Started Guide](doc/codelab-intro.md)** for library fundamentals
-4. **[Try the AI Assistant](doc/human-llm-tutorial.md)** for code generation
+4. **[Try the AI Assistant](doc/ai-human-guide.md)** for code generation
 5. **[Explore Advanced Patterns](doc/advanced-tutorial.md)** for production use
 
 ## 📚 Documentation
@@ -276,7 +277,9 @@ go run examples/early_termination_example.go
 - **[Troubleshooting Guide](doc/cli/troubleshooting.md)** - Common issues and quick solutions
 - **[API Reference](doc/api-reference.md)** - Complete function documentation
 - **[CLI Tutorial](doc/cli/codelab-cli.md)** - Command-line tool guide
-- **[AI Code Generation](doc/human-llm-tutorial.md)** - Natural language to code
+- **[AI Code Generation](doc/ai-human-guide.md)** - Natural language to code
+  - **[For LLMs](doc/ai-code-generation.md)** - Copy this prompt into your LLM
+  - **[Detailed Examples](doc/ai-code-generation-detailed.md)** - Comprehensive example library
 
 ## 🤝 Community
 
