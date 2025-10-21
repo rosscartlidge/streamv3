@@ -43,12 +43,15 @@ section() {
 }
 
 # Function to extract Go code blocks from markdown
+# Only extracts code from <details> blocks (the complete, runnable examples)
 extract_code_blocks() {
     local file=$1
     local temp_dir=$2
 
     awk '
-        /^```go$/ { in_block=1; counter++; filename = sprintf("'$temp_dir'/example_%03d.go", counter); next }
+        /<details>/ { in_details=1; next }
+        /<\/details>/ { in_details=0; next }
+        /^```go$/ && in_details { in_block=1; counter++; filename = sprintf("'$temp_dir'/example_%03d.go", counter); next }
         /^```$/ && in_block { in_block=0; next }
         in_block && filename { print > filename }
     ' "$file"
