@@ -620,6 +620,156 @@ limited := streamv3.Take(10)(transformed)      // Take doesn't exist!
 
 ---
 
+## Filter Composition - CRITICAL CONCEPT
+
+**⚠️ IMPORTANT: Composition functions return Filter functions, NOT sequences!**
+
+All composition functions (`Chain`, `Pipe`, `Pipe3`, etc.) return a **Filter function** that must be applied to data. This is a common source of errors.
+
+### The Key Concept
+
+```go
+// ✅ CORRECT - Chain returns a Filter function, then apply it to data
+result := streamv3.Chain(
+    streamv3.Where(predicate1),
+    streamv3.Select(transform),
+    streamv3.Limit[T](10),
+)(data)  // ← The composed Filter is applied to data here
+
+// ❌ WRONG - Chain doesn't take data as the first parameter
+result := streamv3.Chain(data, filter1, filter2)  // Won't compile!
+```
+
+### Available Composition Functions
+
+**1. Chain[T]() - Same Type Composition**
+- Signature: `Chain[T any](filters ...Filter[T, T]) Filter[T, T]`
+- Use when all operations keep the same type
+- Variadic - takes any number of filters
+- All filters must be `Filter[T, T]` (same input and output type)
+
+```go
+// Example: Multi-step pipeline with same type throughout
+pipeline := streamv3.Chain(
+    streamv3.Where(func(r streamv3.Record) bool {
+        return streamv3.GetOr(r, "amount", 0.0) > 1000
+    }),
+    streamv3.GroupByFields("analysis", "region"),
+    streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
+        "total": streamv3.Sum("amount"),
+        "count": streamv3.Count(),
+    }),
+    streamv3.SortBy(func(r streamv3.Record) float64 {
+        return -streamv3.GetOr(r, "total", 0.0) // Descending
+    }),
+    streamv3.Limit[streamv3.Record](10),
+)
+
+// Apply the pipeline to data
+topRegions := pipeline(salesData)
+```
+
+**2. Pipe() - Type-Changing Composition**
+- Signature: `Pipe[T, U, V any](f1 Filter[T, U], f2 Filter[U, V]) Filter[T, V]`
+- Use when operations change types
+- Composes exactly two filters
+- Output type of f1 must match input type of f2
+
+```go
+// Example: Transform int → string → bool
+pipeline := streamv3.Pipe(
+    streamv3.Select(func(i int) string {
+        return fmt.Sprintf("Value: %d", i)
+    }),
+    streamv3.Where(func(s string) bool {
+        return len(s) > 10
+    }),
+)
+
+// Apply to int sequence, get bool sequence
+filtered := pipeline(intSeq)
+```
+
+**3. Pipe3() - Three-Filter Composition**
+- Signature: `Pipe3[T, U, V, W any](f1 Filter[T, U], f2 Filter[U, V], f3 Filter[V, W]) Filter[T, W]`
+- Similar to Pipe but for three filters
+- Each filter's output type must match the next filter's input type
+
+```go
+// Example: int → string → Record → filtered Record
+pipeline := streamv3.Pipe3(
+    toStringFilter,
+    toRecordFilter,
+    whereFilter,
+)
+
+result := pipeline(numbers)
+```
+
+**4. Error-Aware Composition**
+- `ChainWithErrors[T]()` - For `FilterWithErrors[T, T]`
+- `PipeWithErrors()` - For `FilterWithErrors[T, U]`
+- Use when working with error-aware sequences (`iter.Seq2[T, error]`)
+
+```go
+// Example with error-aware pipeline
+pipeline := streamv3.ChainWithErrors(
+    filter1WithErrors,
+    filter2WithErrors,
+    filter3WithErrors,
+)
+
+resultSeq := pipeline(dataWithErrors)
+for item, err := range resultSeq {
+    if err != nil {
+        log.Printf("Error: %v", err)
+        continue
+    }
+    // Process item
+}
+```
+
+### When to Use Each
+
+**Use Chain when:**
+- All operations work on the same type (e.g., all `Record → Record`)
+- You want a readable, top-to-bottom pipeline
+- You have multiple steps to compose
+
+**Use Pipe/Pipe3 when:**
+- Operations transform between different types
+- You need to compose type-changing operations
+- You're building type-safe transformation pipelines
+
+**Common Pattern - Reusable Pipelines:**
+```go
+// Define pipeline once, use many times
+highValueAnalysis := streamv3.Chain(
+    streamv3.Where(func(r streamv3.Record) bool {
+        return streamv3.GetOr(r, "amount", 0.0) > 1000
+    }),
+    streamv3.GroupByFields("analysis", "category"),
+    streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
+        "total": streamv3.Sum("amount"),
+        "avg":   streamv3.Avg("amount"),
+    }),
+)
+
+// Apply to different datasets
+q1Results := highValueAnalysis(q1Sales)
+q2Results := highValueAnalysis(q2Sales)
+q3Results := highValueAnalysis(q3Sales)
+```
+
+### Critical Reminders
+
+1. **Composition functions return Filters** - They don't process data directly
+2. **Apply the result to data** - Use `composedFilter(data)` syntax
+3. **Type consistency** - Chain requires same types, Pipe allows type changes
+4. **Read top-to-bottom** - Chain operations execute in order
+
+---
+
 ## Common Patterns
 
 ### CSV Analysis Pipeline

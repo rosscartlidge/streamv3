@@ -16,13 +16,16 @@ if err != nil {
     log.Fatal(err)
 }
 
-topRegions := streamv3.Limit[streamv3.Record](5)(
+topRegions := streamv3.Chain(
+    streamv3.GroupByFields("sales", "region"),
+    streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
+        "total_revenue": streamv3.Sum("amount"),
+    }),
     streamv3.SortBy(func(r streamv3.Record) float64 {
         return -streamv3.GetOr(r, "total_revenue", 0.0) // Descending
-    })(streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
-        "total_revenue": streamv3.Sum("amount"),
-    })(streamv3.GroupByFields("sales", "region")(sales)))
-)
+    }),
+    streamv3.Limit[streamv3.Record](5),
+)(sales)
 
 streamv3.QuickChart(topRegions, "region", "total_revenue", "top_regions.html")
 ```
