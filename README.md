@@ -206,10 +206,12 @@ func main() {
 **Quick view:**
 ```go
 // Group sales by region, calculate totals, get top 5
-topRegions := streamv3.Limit[streamv3.Record](5)(
-    streamv3.SortBy(keyFunc)(
-        streamv3.Aggregate("sales", aggregations)(
-            streamv3.GroupByFields("sales", "region")(salesData))))
+topRegions := streamv3.Chain(
+    streamv3.GroupByFields("sales", "region"),
+    streamv3.Aggregate("sales", aggregations),
+    streamv3.SortBy(keyFunc),
+    streamv3.Limit[streamv3.Record](5),
+)(salesData)
 ```
 
 <details>
@@ -243,10 +245,12 @@ func main() {
     }
 
     // Group sales by region, calculate totals, get top 5
-    topRegions := streamv3.Limit[streamv3.Record](5)(
-        streamv3.SortBy(keyFunc)(
-            streamv3.Aggregate("sales", aggregations)(
-                streamv3.GroupByFields("sales", "region")(salesData))))
+    topRegions := streamv3.Chain(
+        streamv3.GroupByFields("sales", "region"),
+        streamv3.Aggregate("sales", aggregations),
+        streamv3.SortBy(keyFunc),
+        streamv3.Limit[streamv3.Record](5),
+    )(salesData)
 
     // Display results
     fmt.Println("Top 5 Regions by Revenue:")

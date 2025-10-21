@@ -216,7 +216,7 @@ streamv3.InteractiveChart(data, "chart.html", config)
 
 ### ❌ Too Complex (avoid)
 ```go
-// Hard to read and verify
+// Hard to read and verify - deeply nested composition
 result := streamv3.Limit[streamv3.Record](10)(streamv3.SortBy(func(r streamv3.Record) float64 {
     return -streamv3.GetOr(r, "revenue", 0.0)
 })(streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
@@ -225,6 +225,24 @@ result := streamv3.Limit[streamv3.Record](10)(streamv3.SortBy(func(r streamv3.Re
 ```
 
 ### ✅ Simple and Clear (prefer)
+
+**Option 1: Use Chain() for clean composition**
+```go
+// Readable top-to-bottom pipeline
+result := streamv3.Chain(
+    streamv3.GroupByFields("sales", "region"),
+    streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
+        "total": streamv3.Sum("amount"),
+        "count": streamv3.Count(),
+    }),
+    streamv3.SortBy(func(r streamv3.Record) float64 {
+        return -streamv3.GetOr(r, "total", 0.0)
+    }),
+    streamv3.Limit[streamv3.Record](10),
+)(data)
+```
+
+**Option 2: Break into clear steps**
 ```go
 // Easy to read and verify step by step
 highValueSales := streamv3.Where(func(r streamv3.Record) bool {
