@@ -121,6 +121,65 @@ streamv3.OnFields("field1", "field2", ...)           // Join on field equality
 streamv3.OnCondition(func(left, right Record) bool) // Custom condition
 ```
 
+### Filter Composition - CRITICAL
+
+**⚠️ IMPORTANT: Composition functions return Filter functions, NOT sequences!**
+
+All composition functions (`Chain`, `Pipe`, etc.) return a **Filter function** that must be applied to data.
+
+```go
+// ✅ CORRECT - Chain returns a Filter, apply it to data
+result := streamv3.Chain(
+    streamv3.Where(predicate1),
+    streamv3.Select(transform),
+    streamv3.Limit[T](10),
+)(data)  // ← Apply the composed Filter to data
+
+// ❌ WRONG - Chain doesn't take data as first parameter
+result := streamv3.Chain(data, filter1, filter2)  // Won't compile!
+```
+
+**Available Composition Functions:**
+
+- **`Chain[T](...Filter[T, T])`** - Compose same-type filters (variadic)
+  - All filters must have same input/output type
+  - Returns `Filter[T, T]`
+  - Example: `Chain(Where(...), Select(...), Limit(...))(data)`
+
+- **`Pipe(f1, f2)`** - Compose two filters, can change types
+  - `Pipe(Filter[T, U], Filter[U, V])` returns `Filter[T, V]`
+  - Use when transforming between different types
+  - Example: `Pipe(Select(toStr), Where(lenCheck))(intSeq)`
+
+- **`Pipe3(f1, f2, f3)`** - Compose three filters with type changes
+  - Similar to `Pipe` but for three filters
+  - Example: `Pipe3(filter1, filter2, filter3)(data)`
+
+- **Error-aware variants:**
+  - `ChainWithErrors[T]()` - for `FilterWithErrors[T, T]`
+  - `PipeWithErrors()` - for `FilterWithErrors[T, U]`
+
+**Common Pattern - Multi-step Pipeline:**
+```go
+// Readable pipeline using Chain
+pipeline := streamv3.Chain(
+    streamv3.Where(func(r Record) bool {
+        return streamv3.GetOr(r, "amount", 0.0) > 1000
+    }),
+    streamv3.GroupByFields("analysis", "region"),
+    streamv3.Aggregate("analysis", map[string]AggregateFunc{
+        "total": streamv3.Sum("amount"),
+    }),
+    streamv3.SortBy(func(r Record) float64 {
+        return -streamv3.GetOr(r, "total", 0.0)
+    }),
+    streamv3.Limit[streamv3.Record](10),
+)
+
+// Apply to data
+topRegions := pipeline(salesData)
+```
+
 ### Charts & Visualization
 
 ```go
