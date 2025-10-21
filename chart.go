@@ -17,7 +17,10 @@ import (
 // INTERACTIVE CHART.JS VISUALIZATION SINK
 // ============================================================================
 
-// ChartConfig configures the interactive chart generation
+// ChartConfig configures the interactive chart generation.
+// Provides comprehensive control over chart appearance, behavior, and export options.
+//
+// Use DefaultChartConfig() to get sensible defaults, then customize as needed.
 type ChartConfig struct {
 	Title              string            `json:"title"`
 	Width              int               `json:"width"`
@@ -41,7 +44,26 @@ type ChartConfig struct {
 	Fields             map[string]string `json:"fields"`              // field -> data type hints
 }
 
-// DefaultChartConfig provides sensible defaults
+// DefaultChartConfig provides sensible defaults for interactive chart generation.
+// Returns a ChartConfig with common settings that work well for most visualizations.
+//
+// Default settings include:
+//   - Line chart with category X-axis
+//   - Interactive features enabled (zoom, pan, field selection)
+//   - Vibrant color scheme with light theme
+//   - Export to PNG and CSV formats
+//
+// Example:
+//
+//	// Use defaults as-is
+//	streamv3.InteractiveChart(data, "chart.html")
+//
+//	// Customize from defaults
+//	config := streamv3.DefaultChartConfig()
+//	config.Title = "Sales Dashboard"
+//	config.ChartType = "bar"
+//	config.Theme = "dark"
+//	streamv3.InteractiveChart(data, "chart.html", config)
 func DefaultChartConfig() ChartConfig {
 	return ChartConfig{
 		Title:              "Data Visualization",
@@ -91,7 +113,37 @@ type NumericStat struct {
 	Count  int     `json:"count"`
 }
 
-// InteractiveChart creates an HTML file with a fully interactive Chart.js visualization
+// InteractiveChart creates an HTML file with a fully interactive Chart.js visualization.
+// Generates a complete web-based dashboard with field selection, zoom/pan, and export capabilities.
+//
+// Features:
+//   - Interactive field selection UI
+//   - Multiple chart types (line, bar, scatter, pie, etc.)
+//   - Zoom and pan controls
+//   - Statistical overlays (trend lines, moving averages)
+//   - Export to PNG and CSV
+//   - Automatic data type detection
+//
+// The generated HTML file is self-contained and can be opened in any modern browser.
+//
+// Example:
+//
+//	// Create interactive chart with default settings
+//	sales, _ := streamv3.ReadCSV("sales.csv")
+//	streamv3.InteractiveChart(sales, "sales_dashboard.html")
+//
+//	// Customize appearance and behavior
+//	config := streamv3.DefaultChartConfig()
+//	config.Title = "Q4 Revenue Analysis"
+//	config.ChartType = "bar"
+//	config.Theme = "dark"
+//	config.EnableCalculations = true  // Show trend lines and moving averages
+//	streamv3.InteractiveChart(sales, "dashboard.html", config)
+//
+//	// Time-based data with custom axis settings
+//	config.XAxisType = "time"
+//	config.TimeFormat = "YYYY-MM-DD"
+//	streamv3.InteractiveChart(timeSeries, "timeseries.html", config)
 func InteractiveChart(sb iter.Seq[Record], filename string, config ...ChartConfig) error {
 	cfg := DefaultChartConfig()
 	if len(config) > 0 {
@@ -114,7 +166,29 @@ func InteractiveChart(sb iter.Seq[Record], filename string, config ...ChartConfi
 	return generateInteractiveHTML(chartData, cfg, filename)
 }
 
-// QuickChart creates a simple chart with minimal configuration
+// QuickChart creates a simple chart with minimal configuration.
+// The easiest way to create a visualization - just specify X and Y fields.
+//
+// Perfect for quick data exploration and prototyping. Uses sensible defaults
+// for all chart settings.
+//
+// Example:
+//
+//	// One-line chart creation
+//	sales, _ := streamv3.ReadCSV("sales.csv")
+//	streamv3.QuickChart(sales, "month", "revenue", "revenue_chart.html")
+//
+//	// Visualize aggregated data
+//	topRegions := streamv3.Limit[streamv3.Record](5)(
+//	    streamv3.SortBy(func(r streamv3.Record) float64 {
+//	        return -streamv3.GetOr(r, "total_sales", 0.0)
+//	    })(streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
+//	        "total_sales": streamv3.Sum("amount"),
+//	    })(streamv3.GroupByFields("sales", "region")(sales))))
+//
+//	streamv3.QuickChart(topRegions, "region", "total_sales", "top_regions.html")
+//
+// The generated HTML file includes all interactive features (zoom, pan, export).
 func QuickChart(sb iter.Seq[Record], xField, yField, filename string) error {
 	cfg := DefaultChartConfig()
 	cfg.Title = fmt.Sprintf("%s vs %s", yField, xField)
@@ -134,7 +208,46 @@ func QuickChart(sb iter.Seq[Record], xField, yField, filename string) error {
 	return generateInteractiveHTML(chartData, cfg, filename)
 }
 
-// TimeSeriesChart creates a time-based chart
+// TimeSeriesChart creates a time-based chart optimized for temporal data.
+// Automatically sorts data by time and configures Chart.js for time-series visualization.
+//
+// The time field should contain values that can be parsed as dates/times:
+//   - time.Time objects
+//   - RFC3339 strings ("2006-01-02T15:04:05Z")
+//   - Common date formats ("2006-01-02", "01/02/2006", etc.)
+//
+// Example:
+//
+//	// Single metric over time
+//	metrics, _ := streamv3.ReadCSV("metrics.csv")
+//	streamv3.TimeSeriesChart(
+//	    metrics,
+//	    "timestamp",
+//	    []string{"cpu_usage"},
+//	    "cpu_chart.html",
+//	)
+//
+//	// Multiple metrics on one chart
+//	streamv3.TimeSeriesChart(
+//	    metrics,
+//	    "timestamp",
+//	    []string{"cpu_usage", "memory_usage", "disk_io"},
+//	    "system_metrics.html",
+//	)
+//
+//	// Customize time axis format
+//	config := streamv3.DefaultChartConfig()
+//	config.TimeFormat = "YYYY-MM-DD HH:mm"
+//	config.Title = "Hourly Sales Data"
+//	streamv3.TimeSeriesChart(
+//	    sales,
+//	    "timestamp",
+//	    []string{"revenue", "orders"},
+//	    "hourly_sales.html",
+//	    config,
+//	)
+//
+// The chart automatically includes zoom/pan for exploring time ranges.
 func TimeSeriesChart(sb iter.Seq[Record], timeField string, valueFields []string, filename string, config ...ChartConfig) error {
 	cfg := DefaultChartConfig()
 	if len(config) > 0 {
