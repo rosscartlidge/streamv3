@@ -4,6 +4,18 @@ This directory contains reference implementations and validation tools for testi
 
 ## Quick Start
 
+### Run All Tests
+
+```bash
+# Run the complete test suite (validates and executes all reference implementations)
+./scripts/test-ai-code-generation.sh
+```
+
+This will:
+- ✅ Validate all 5 reference implementations for correct patterns
+- ✅ Execute each one to ensure they run successfully
+- ✅ Display a summary with pass/fail counts
+
 ### Validate Generated Code
 
 ```bash
