@@ -623,6 +623,8 @@ limited := streamv3.Take(10)(transformed)      // Take doesn't exist!
 ## Common Patterns
 
 ### CSV Analysis Pipeline
+
+**Quick view:**
 ```go
 // 1. Read with error handling
 data, err := streamv3.ReadCSV("sales.csv")
@@ -643,7 +645,58 @@ for result := range results {
 }
 ```
 
+<details>
+<summary>📋 <b>Click for complete, runnable code</b></summary>
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // 1. Read with error handling
+    data, err := streamv3.ReadCSV("sales.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 2. Filter data
+    predicate := func(r streamv3.Record) bool {
+        amount := streamv3.GetOr(r, "amount", 0.0)
+        return amount > 1000
+    }
+    filtered := streamv3.Where(predicate)(data)
+
+    // 3. Group and aggregate
+    grouped := streamv3.GroupByFields("analysis", "region")(filtered)
+    aggregations := map[string]streamv3.AggregateFunc{
+        "total":   streamv3.Sum("amount"),
+        "count":   streamv3.Count(),
+        "average": streamv3.Avg("amount"),
+    }
+    results := streamv3.Aggregate("analysis", aggregations)(grouped)
+
+    // 4. Display results
+    fmt.Println("Sales Analysis by Region:")
+    for result := range results {
+        region := streamv3.GetOr(result, "region", "")
+        total := streamv3.GetOr(result, "total", 0.0)
+        count := streamv3.GetOr(result, "count", int64(0))
+        avg := streamv3.GetOr(result, "average", 0.0)
+        fmt.Printf("%s: $%.2f total, %d sales, $%.2f average\n", region, total, count, avg)
+    }
+}
+```
+
+</details>
+
 ### Real-Time Processing Pipeline
+
+**Quick view:**
 ```go
 // 1. Create or read stream
 stream := /* data source */
@@ -657,11 +710,53 @@ for window := range windowed {
 }
 ```
 
+<details>
+<parameter name="summary">📋 <b>Click for complete, runnable code</b></summary>
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "time"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // 1. Create or read stream
+    stream, err := streamv3.ReadCSV("events.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 2. Window the data
+    duration := 5 * time.Minute
+    windowed := streamv3.TimeWindow[streamv3.Record](duration, "timestamp")(stream)
+
+    // 3. Process each window
+    fmt.Println("Processing 5-minute windows:")
+    for window := range windowed {
+        count := len(window)
+        fmt.Printf("Window: %d events\n", count)
+        // Analyze window - aggregate, filter, transform, etc.
+    }
+}
+```
+
+</details>
+
 ### Join and Analyze Pipeline
 ```go
 // 1. Read both datasets
 left, err := streamv3.ReadCSV("customers.csv")
+if err != nil {
+    log.Fatal(err)
+}
 right, err := streamv3.ReadCSV("orders.csv")
+if err != nil {
+    log.Fatal(err)
+}
 
 // 2. Join on common field
 joined := streamv3.InnerJoin(right, streamv3.OnFields("customer_id"))(left)

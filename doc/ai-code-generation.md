@@ -243,11 +243,18 @@ package main
 
 import (
     "fmt"
+    "log"
     "time"
     "github.com/rosscartlidge/streamv3"
 )
 
 func main() {
+    // Read data stream
+    dataStream, err := streamv3.ReadCSV("events.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
+
     // Process in 5-minute windows
     windowed := streamv3.TimeWindow[streamv3.Record](
         5*time.Minute,

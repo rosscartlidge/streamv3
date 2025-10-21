@@ -11,7 +11,10 @@ Built on Go 1.23+ with first-class support for iterators, generics, and function
 **Go Library:**
 ```go
 // Read data, filter, group, and visualize - all type-safe
-sales := streamv3.ReadCSV("sales.csv")
+sales, err := streamv3.ReadCSV("sales.csv")
+if err != nil {
+    log.Fatal(err)
+}
 
 topRegions := streamv3.Limit[streamv3.Record](5)(
     streamv3.SortBy(func(r streamv3.Record) float64 {
