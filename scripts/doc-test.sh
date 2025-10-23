@@ -58,7 +58,7 @@ section "1. Verifying Exported Functions are Documented"
 exported_funcs=$(go doc github.com/rosscartlidge/streamv3 | grep "^func " | awk '{print $2}' | cut -d'(' -f1 | sort -u)
 
 # Check if each is mentioned in LLM docs
-llm_files="doc/ai-code-generation.md doc/ai-code-generation-detailed.md"
+llm_files="doc/ai-code-generation.md doc/ai-human-guide.md"
 
 for func in $exported_funcs; do
     # Skip generic type parameters

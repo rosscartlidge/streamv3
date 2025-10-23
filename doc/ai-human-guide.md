@@ -605,8 +605,8 @@ find [patterns]"
 
 ### AI Code Generation Resources
 
-- **[AI Code Generation Prompt](ai-code-generation.md)** - Quick prompt for LLMs
-- **[Detailed Examples](ai-code-generation-detailed.md)** - Comprehensive examples library
+- **[AI Code Generation Prompt](ai-code-generation.md)** - THE prompt for LLMs (includes anti-patterns, examples, and all guidance)
+- **[AI Prompt Maintenance Guide](AI-PROMPT-README.md)** - For developers maintaining the prompt
 
 ---
 

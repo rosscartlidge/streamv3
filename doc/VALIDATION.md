@@ -51,7 +51,7 @@ StreamV3 Documentation Validation
 1. Checking Documentation Files
 ----------------------------------------
 ✓ Found: doc/ai-code-generation.md
-✓ Found: doc/ai-code-generation-detailed.md
+✓ Found: doc/AI-PROMPT-README.md
 ...
 
 4. Validating Go Code Examples

@@ -62,7 +62,7 @@ section "1. Checking Documentation Files"
 
 required_files=(
     "doc/ai-code-generation.md"
-    "doc/ai-code-generation-detailed.md"
+    "doc/AI-PROMPT-README.md"
     "doc/ai-human-guide.md"
     "doc/api-reference.md"
     "README.md"
@@ -159,7 +159,7 @@ trap "rm -rf $TEMP_DIR" EXIT
 
 files_with_code=(
     "doc/ai-code-generation.md"
-    "doc/ai-code-generation-detailed.md"
+    "doc/ai-human-guide.md"
     "README.md"
 )
 
@@ -286,7 +286,7 @@ section "6. Checking go doc References"
 
 llm_files=(
     "doc/ai-code-generation.md"
-    "doc/ai-code-generation-detailed.md"
+    "doc/ai-human-guide.md"
 )
 
 for file in "${llm_files[@]}"; do
@@ -322,9 +322,19 @@ for file in "${llm_files[@]}"; do
 
     file_has_all=1
     for pattern in "${critical_patterns[@]}"; do
-        if ! grep -q "$pattern" "$file"; then
-            fail "Missing critical pattern '$pattern' in $file"
-            file_has_all=0
+        # For ai-human-guide.md, allow patterns without streamv3. prefix
+        if [[ "$file" == "doc/ai-human-guide.md" ]]; then
+            # Strip streamv3. prefix for human guide
+            relaxed_pattern="${pattern#streamv3.}"
+            if ! grep -q "$relaxed_pattern" "$file"; then
+                fail "Missing critical pattern '$pattern' in $file"
+                file_has_all=0
+            fi
+        else
+            if ! grep -q "$pattern" "$file"; then
+                fail "Missing critical pattern '$pattern' in $file"
+                file_has_all=0
+            fi
         fi
     done
 
