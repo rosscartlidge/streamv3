@@ -101,7 +101,7 @@ echo "API Reference: $compiled_api_examples/$total_api_examples examples validat
 section "2. Cross-Referencing Documented Functions"
 
 # Extract function names mentioned in LLM docs
-doc_funcs=$(grep -oh "streamv3\.[A-Z][a-zA-Z]*" doc/ai-code-generation.md doc/ai-code-generation-detailed.md | sort -u | sed 's/streamv3\.//')
+doc_funcs=$(grep -oh "streamv3\.[A-Z][a-zA-Z]*" doc/ai-code-generation.md doc/ai-human-guide.md | sort -u | sed 's/streamv3\.//')
 
 # Get actual exported functions
 actual_funcs=$(go doc github.com/rosscartlidge/streamv3 | grep "^func " | awk '{print $2}' | cut -d'(' -f1 | cut -d'[' -f1 | sort -u)
@@ -134,7 +134,7 @@ fi
 section "4. Checking Consistency Across Documentation"
 
 # Check that all docs use the same API patterns
-docs=("doc/ai-code-generation.md" "doc/ai-code-generation-detailed.md" "doc/ai-human-guide.md" "doc/api-reference.md" "README.md")
+docs=("doc/ai-code-generation.md" "doc/ai-human-guide.md" "doc/api-reference.md" "README.md")
 
 consistent=1
 
