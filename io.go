@@ -245,8 +245,9 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig
 // This is the primary way to load CSV data in StreamV3.
 //
 // CSV values are automatically parsed to appropriate types:
-//   - Numbers become int64 or float64
-//   - "true"/"false" become bool
+//   - Integers (like "1", "42", "-100") become int64
+//   - Decimals (like "1.5", "3.14") become float64
+//   - Explicit "true"/"false" strings become bool (NOT "1"/"0")
 //   - Everything else stays as string
 //
 // Returns error if file cannot be opened.
@@ -662,12 +663,7 @@ func WriteLines(sb iter.Seq[Record], filename string) error {
 func parseValue(s string) any {
 	s = strings.TrimSpace(s)
 
-	// Try boolean
-	if b, err := strconv.ParseBool(s); err == nil {
-		return b
-	}
-
-	// Try integer
+	// Try integer first (before boolean to avoid "1"/"0" being parsed as bool)
 	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
 		return i
 	}
@@ -675,6 +671,13 @@ func parseValue(s string) any {
 	// Try float
 	if f, err := strconv.ParseFloat(s, 64); err == nil {
 		return f
+	}
+
+	// Try boolean (only for explicit true/false, not 1/0)
+	if s == "true" || s == "false" {
+		if b, err := strconv.ParseBool(s); err == nil {
+			return b
+		}
 	}
 
 	// Default to string
