@@ -769,6 +769,80 @@ func TestReadCSVHeaderOnly(t *testing.T) {
 	}
 }
 
+// TestCSVTypeParsing tests that CSV parsing correctly identifies types
+// Regression test for bug where "1" was parsed as bool(true) instead of int64(1)
+func TestCSVTypeParsing(t *testing.T) {
+	csvData := `value,type
+1,integer
+0,integer
+true,boolean
+false,boolean
+1.5,float
+hello,string`
+
+	reader := strings.NewReader(csvData)
+	seq := ReadCSVFromReader(reader)
+	result := slices.Collect(seq)
+
+	if len(result) != 6 {
+		t.Fatalf("Expected 6 records, got %d", len(result))
+	}
+
+	// Test case 1: "1" should be int64, NOT bool
+	val1 := result[0]["value"]
+	if _, ok := val1.(int64); !ok {
+		t.Errorf("Value '1' should parse as int64, got %T(%v)", val1, val1)
+	}
+	if val1 != int64(1) {
+		t.Errorf("Value '1' should equal int64(1), got %v", val1)
+	}
+
+	// Test case 2: "0" should be int64, NOT bool
+	val0 := result[1]["value"]
+	if _, ok := val0.(int64); !ok {
+		t.Errorf("Value '0' should parse as int64, got %T(%v)", val0, val0)
+	}
+	if val0 != int64(0) {
+		t.Errorf("Value '0' should equal int64(0), got %v", val0)
+	}
+
+	// Test case 3: "true" should be bool
+	valTrue := result[2]["value"]
+	if _, ok := valTrue.(bool); !ok {
+		t.Errorf("Value 'true' should parse as bool, got %T(%v)", valTrue, valTrue)
+	}
+	if valTrue != true {
+		t.Errorf("Value 'true' should equal true, got %v", valTrue)
+	}
+
+	// Test case 4: "false" should be bool
+	valFalse := result[3]["value"]
+	if _, ok := valFalse.(bool); !ok {
+		t.Errorf("Value 'false' should parse as bool, got %T(%v)", valFalse, valFalse)
+	}
+	if valFalse != false {
+		t.Errorf("Value 'false' should equal false, got %v", valFalse)
+	}
+
+	// Test case 5: "1.5" should be float64
+	val15 := result[4]["value"]
+	if _, ok := val15.(float64); !ok {
+		t.Errorf("Value '1.5' should parse as float64, got %T(%v)", val15, val15)
+	}
+	if val15 != float64(1.5) {
+		t.Errorf("Value '1.5' should equal float64(1.5), got %v", val15)
+	}
+
+	// Test case 6: "hello" should be string
+	valHello := result[5]["value"]
+	if _, ok := valHello.(string); !ok {
+		t.Errorf("Value 'hello' should parse as string, got %T(%v)", valHello, valHello)
+	}
+	if valHello != "hello" {
+		t.Errorf("Value 'hello' should equal 'hello', got %v", valHello)
+	}
+}
+
 func TestReadEmptyJSON(t *testing.T) {
 	jsonData := ``
 	reader := strings.NewReader(jsonData)
