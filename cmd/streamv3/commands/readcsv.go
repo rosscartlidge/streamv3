@@ -6,7 +6,6 @@ import (
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
-	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
@@ -80,9 +79,6 @@ func (c *readCSVCommand) Description() string {
 	return "Read CSV file and output JSONL stream"
 }
 
-func (c *readCSVCommand) GetGSCommand() *gs.GSCommand {
-	return nil  // No longer using gs
-}
 
 func (c *readCSVCommand) GetCFCommand() *cf.Command {
 	return c.cmd
