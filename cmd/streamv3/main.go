@@ -39,7 +39,7 @@ func main() {
 	allCommands := commands.GetCommands()
 	for _, cmd := range allCommands {
 		if cmd.Name() == subcommand {
-			// Call our custom Execute which handles -help and delegates to gs framework
+			// Call our custom Execute which handles -help and delegates to completionflags framework
 			if err := cmd.Execute(ctx, args); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				os.Exit(1)
@@ -110,8 +110,8 @@ _streamv3_completion() {
     # Get the subcommand
     local subcommand="${words[1]}"
 
-    # For subcommands, delegate to gs framework completion
-    # The subcommand itself handles -complete via gs framework
+    # For subcommands, delegate to completionflags framework completion
+    # The subcommand itself handles -complete via completionflags framework
     # Pass position and all arguments after the subcommand name
     local completions=$(streamv3 "$subcommand" -complete $((cword-2)) "${words[@]:2}" 2>/dev/null)
 

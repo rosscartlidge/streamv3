@@ -6,7 +6,6 @@ import (
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
-	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
@@ -113,9 +112,6 @@ func (c *selectCommand) GetCFCommand() *cf.Command {
 	return c.cmd
 }
 
-func (c *selectCommand) GetGSCommand() *gs.GSCommand {
-	return nil // No longer using gs
-}
 
 func (c *selectCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag before completionflags framework takes over

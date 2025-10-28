@@ -6,7 +6,6 @@ import (
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
-	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
@@ -79,10 +78,6 @@ func (c *limitCommand) Description() string {
 
 func (c *limitCommand) GetCFCommand() *cf.Command {
 	return c.cmd
-}
-
-func (c *limitCommand) GetGSCommand() *gs.GSCommand {
-	return nil // No longer using gs
 }
 
 func (c *limitCommand) Execute(ctx context.Context, args []string) error {
