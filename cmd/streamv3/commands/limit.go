@@ -33,10 +33,10 @@ func newLimitCommand() *limitCommand {
 			Done().
 		Flag("FILE").
 			String().
+			Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
 			Bind(&inputFile).
 			Global().
 			Default("").
-			FilePattern("*.jsonl").
 			Help("Input JSONL file (or stdin if not specified)").
 			Done().
 		Handler(func(ctx *cf.Context) error {

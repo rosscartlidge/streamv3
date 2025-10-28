@@ -34,10 +34,10 @@ func newWriteCSVCommand() *writeCSVCommand {
 			Done().
 		Flag("FILE").
 			String().
+			Completer(&cf.FileCompleter{Pattern: "*.csv"}).
 			Bind(&outputFile).
 			Global().
 			Default("").
-			FilePattern("*.csv").
 			Help("Output CSV file (or stdout if not specified)").
 			Done().
 		Handler(func(ctx *cf.Context) error {

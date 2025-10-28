@@ -37,10 +37,10 @@ func newReadCSVCommand() *readCSVCommand {
 		// Positional argument for input file
 		Flag("FILE").
 			String().
+			Completer(&cf.FileCompleter{Pattern: "*.csv"}).
 			Bind(&inputFile).
 			Global().
 			Default("").
-			FilePattern("*.csv").
 			Help("Input CSV file (or stdin if not specified)").
 			Done().
 
