@@ -230,3 +230,6 @@ streamv3 read-csv -generate data.csv | streamv3 mycommand -generate | streamv3 g
 - source_sink_consistent
 - main_doco_readcsv
 - self_inproving
+- tags
+- doing_cli_port
+- cli_completion

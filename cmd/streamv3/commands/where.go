@@ -1,31 +1,22 @@
 package commands
 
 import (
-	"os"
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
+	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// WhereConfig holds configuration for where command
-type WhereConfig struct {
-	// Match uses multi-argument pattern: -match field op value
-	// Multiple -match in same clause are ANDed, separate clauses (+) are ORed
-	Match    []map[string]interface{} `gs:"multi,local,list,args=field:op:value,help=Filter condition: field operator value"`
-	Generate bool                     `gs:"flag,global,last,help=Generate Go code instead of executing"`
-	Argv     string                   `gs:"file,global,last,help=Input JSONL file (or stdin if not specified),suffix=.jsonl"`
-}
-
 // whereCommand implements the where command
 type whereCommand struct {
-	config *WhereConfig
-	cmd    *gs.GSCommand
+	cmd *cf.Command
 }
 
 func init() {
@@ -33,16 +24,62 @@ func init() {
 }
 
 func newWhereCommand() *whereCommand {
-	config := &WhereConfig{}
-	cmd, err := gs.NewCommand(config)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create where command: %v", err))
-	}
+	var inputFile string
+	var generate bool
 
-	return &whereCommand{
-		config: config,
-		cmd:    cmd,
-	}
+	cmd := cf.NewCommand("where").
+		Description("Filter records based on field conditions").
+		Flag("-match", "-m").
+			String().
+			Local().
+			Help("Filter condition in format: field operator value (space-separated, quote if needed)").
+			Done().
+		Flag("-generate", "-g").
+			Bool().
+			Bind(&generate).
+			Global().
+			Help("Generate Go code instead of executing").
+			Done().
+		Flag("FILE").
+			String().
+			Bind(&inputFile).
+			Global().
+			Default("").
+			FilePattern("*.jsonl").
+			Help("Input JSONL file (or stdin if not specified)").
+			Done().
+		Handler(func(ctx *cf.Context) error {
+			// If -generate flag is set, generate Go code instead of executing
+			if generate {
+				return generateWhereCodeCF(ctx, inputFile)
+			}
+
+			// Normal execution: filter records
+			// Build filter from clauses
+			filter := buildWhereFilterCF(ctx.Clauses)
+
+			// Read JSONL from stdin or file
+			input, err := lib.OpenInput(inputFile)
+			if err != nil {
+				return err
+			}
+			defer input.Close()
+
+			records := lib.ReadJSONL(input)
+
+			// Apply filter
+			filtered := streamv3.Where(filter)(records)
+
+			// Write output as JSONL
+			if err := lib.WriteJSONL(os.Stdout, filtered); err != nil {
+				return fmt.Errorf("writing output: %w", err)
+			}
+
+			return nil
+		}).
+		Build()
+
+	return &whereCommand{cmd: cmd}
 }
 
 func (c *whereCommand) Name() string {
@@ -53,13 +90,16 @@ func (c *whereCommand) Description() string {
 	return "Filter records based on field conditions"
 }
 
-func (c *whereCommand) GetGSCommand() *gs.GSCommand {
+func (c *whereCommand) GetCFCommand() *cf.Command {
 	return c.cmd
 }
 
+func (c *whereCommand) GetGSCommand() *gs.GSCommand {
+	return nil // No longer using gs
+}
+
 func (c *whereCommand) Execute(ctx context.Context, args []string) error {
-	// This method is called by our main router for custom help handling
-	// Handle -help flag before gs framework takes over
+	// Handle -help flag before completionflags framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("where - Filter records based on field conditions")
 		fmt.Println()
@@ -110,14 +150,18 @@ func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	// For actual execution, delegate to gs framework which will call Config.Execute
-	return c.cmd.Execute(ctx, args)
+	return c.cmd.Execute(args)
 }
 
-// buildWhereFilter builds a filter function from parsed clauses
-// Each clause is evaluated independently, results are ORed together
-// Multiple conditions within a clause are ANDed together
-func buildWhereFilter(clauses []gs.ClauseSet) func(streamv3.Record) bool {
+// matchCondition represents a single match condition
+type matchCondition struct {
+	field string
+	op    string
+	value string
+}
+
+// buildWhereFilterCF builds a filter function from completionflags clauses
+func buildWhereFilterCF(clauses []cf.Clause) func(streamv3.Record) bool {
 	return func(r streamv3.Record) bool {
 		if len(clauses) == 0 {
 			return true // No filter conditions
@@ -126,7 +170,7 @@ func buildWhereFilter(clauses []gs.ClauseSet) func(streamv3.Record) bool {
 		// OR logic between clauses (any clause can match)
 		for _, clause := range clauses {
 			// AND logic within clause (all conditions must match)
-			clauseMatches := evaluateClause(r, clause)
+			clauseMatches := evaluateClauseCF(r, clause)
 			if clauseMatches {
 				return true // This clause matched, record passes
 			}
@@ -136,48 +180,37 @@ func buildWhereFilter(clauses []gs.ClauseSet) func(streamv3.Record) bool {
 	}
 }
 
-// evaluateClause evaluates all conditions within a single clause (AND logic)
-func evaluateClause(r streamv3.Record, clause gs.ClauseSet) bool {
-	// Get the Match list from the clause
-	matchListInterface, ok := clause.Fields["Match"]
-	if !ok {
+// evaluateClauseCF evaluates all conditions within a single clause (AND logic)
+func evaluateClauseCF(r streamv3.Record, clause cf.Clause) bool {
+	// Get the -match string from the clause
+	matchStr, ok := clause.Flags["-match"].(string)
+	if !ok || matchStr == "" {
 		return true // No match conditions means everything passes
 	}
 
-	// Convert []interface{} to []map[string]interface{}
-	matchListSlice, ok := matchListInterface.([]interface{})
-	if !ok || len(matchListSlice) == 0 {
-		return true // Empty clause matches everything
+	// Parse match string: "field operator value"
+	parts := strings.Fields(matchStr)
+	if len(parts) != 3 {
+		// Invalid match specification, skip
+		return false
 	}
 
-	// All match conditions must pass (AND logic within clause)
-	for _, matchInterface := range matchListSlice {
-		match, ok := matchInterface.(map[string]interface{})
-		if !ok {
-			continue
-		}
+	field := parts[0]
+	op := parts[1]
+	value := parts[2]
 
-		field, _ := match["field"].(string)
-		op, _ := match["op"].(string)
-		value, _ := match["value"].(string)
-
-		if field == "" || op == "" {
-			continue // Skip incomplete match
-		}
-
-		// Get field value from record
-		fieldValue, exists := r[field]
-		if !exists {
-			return false // Field doesn't exist
-		}
-
-		// Apply operator - if any condition fails, clause fails
-		if !applyOperator(fieldValue, op, value) {
-			return false
-		}
+	if field == "" || op == "" {
+		return false // Invalid match
 	}
 
-	return true // All conditions in clause matched
+	// Get field value from record
+	fieldValue, exists := r[field]
+	if !exists {
+		return false // Field doesn't exist
+	}
+
+	// Apply operator
+	return applyOperator(fieldValue, op, value)
 }
 
 // applyOperator applies a comparison operator
@@ -309,45 +342,8 @@ func contains(str, substr string) bool {
 	return false
 }
 
-// Validate implements gs.Commander interface
-func (c *WhereConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface
-// This is called by the gs framework after parsing arguments into clauses
-func (c *WhereConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
-	// If -generate flag is set, generate Go code instead of executing
-	if c.Generate {
-		return c.generateCode(clauses)
-	}
-
-	// Normal execution: filter records
-	// Read JSONL from stdin or file
-	input, err := lib.OpenInput(c.Argv)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-
-	records := lib.ReadJSONL(input)
-
-	// Build filter from clauses
-	filter := buildWhereFilter(clauses)
-
-	// Apply filter
-	filtered := streamv3.Where(filter)(records)
-
-	// Write output as JSONL
-	if err := lib.WriteJSONL(os.Stdout, filtered); err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
-
-	return nil
-}
-
-// generateCode generates Go code for the where command
-func (c *WhereConfig) generateCode(clauses []gs.ClauseSet) error {
+// generateWhereCodeCF generates Go code for the where command
+func generateWhereCodeCF(ctx *cf.Context, inputFile string) error {
 	// Read all previous code fragments from stdin (if any)
 	fragments, err := lib.ReadAllCodeFragments()
 	if err != nil {
@@ -370,7 +366,7 @@ func (c *WhereConfig) generateCode(clauses []gs.ClauseSet) error {
 	}
 
 	// Generate filter code from clauses
-	filterCode, imports := generateWhereCode(clauses)
+	filterCode, imports := generateWhereCodeFromClauses(ctx.Clauses)
 
 	// Build complete statement
 	outputVar := "filtered"
@@ -383,52 +379,36 @@ func (c *WhereConfig) generateCode(clauses []gs.ClauseSet) error {
 	return lib.WriteCodeFragment(frag)
 }
 
-// generateWhereCode generates the filter function code
-func generateWhereCode(clauses []gs.ClauseSet) (string, []string) {
+// generateWhereCodeFromClauses generates the filter function code
+func generateWhereCodeFromClauses(clauses []cf.Clause) (string, []string) {
 	var imports []string
 	var conditions []string
 
 	// Build conditions for each clause (OR logic between clauses)
-	for clauseIdx, clause := range clauses {
-		matchList, ok := clause.Fields["Match"].([]interface{})
-		if !ok || len(matchList) == 0 {
+	for _, clause := range clauses {
+		matchStr, ok := clause.Flags["-match"].(string)
+		if !ok || matchStr == "" {
 			continue
 		}
 
-		var clauseConditions []string
-
-		// Each match within a clause (AND logic)
-		for _, matchInterface := range matchList {
-			match, ok := matchInterface.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			field, _ := match["field"].(string)
-			op, _ := match["op"].(string)
-			value, _ := match["value"].(string)
-
-			if field == "" || op == "" {
-				continue
-			}
-
-			// Generate condition code
-			cond, imp := generateCondition(field, op, value)
-			clauseConditions = append(clauseConditions, cond)
-			imports = append(imports, imp...)
+		// Parse match string: "field operator value"
+		parts := strings.Fields(matchStr)
+		if len(parts) != 3 {
+			continue
 		}
 
-		// Combine conditions in clause with AND
-		if len(clauseConditions) > 0 {
-			if len(clauseConditions) == 1 {
-				conditions = append(conditions, clauseConditions[0])
-			} else {
-				combined := "(" + joinWithAnd(clauseConditions) + ")"
-				conditions = append(conditions, combined)
-			}
+		field := parts[0]
+		op := parts[1]
+		value := parts[2]
+
+		if field == "" || op == "" {
+			continue
 		}
 
-		_ = clauseIdx // Suppress unused warning
+		// Generate condition code
+		cond, imp := generateCondition(field, op, value)
+		conditions = append(conditions, cond)
+		imports = append(imports, imp...)
 	}
 
 	// Combine clauses with OR

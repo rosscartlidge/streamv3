@@ -4,24 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// ChartConfig holds configuration for chart command
-type ChartConfig struct {
-	X        string `gs:"field,global,last,help=X-axis field"`
-	Y        string `gs:"field,global,last,help=Y-axis field"`
-	Output   string `gs:"file,global,last,help=Output HTML file,suffix=.html"`
-	Generate bool   `gs:"flag,global,last,help=Generate Go code instead of executing"`
-	Argv     string `gs:"file,global,last,help=Input JSONL file (or stdin if not specified),suffix=.jsonl"`
-}
-
 // chartCommand implements the chart command
 type chartCommand struct {
-	config *ChartConfig
-	cmd    *gs.GSCommand
+	cmd *cf.Command
 }
 
 func init() {
@@ -29,16 +20,79 @@ func init() {
 }
 
 func newChartCommand() *chartCommand {
-	config := &ChartConfig{}
-	cmd, err := gs.NewCommand(config)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create chart command: %v", err))
-	}
+	var xField, yField, outputFile, inputFile string
+	var generate bool
 
-	return &chartCommand{
-		config: config,
-		cmd:    cmd,
-	}
+	cmd := cf.NewCommand("chart").
+		Description("Create interactive HTML chart from data").
+		Flag("-x").
+			String().
+			Bind(&xField).
+			Global().
+			Help("X-axis field").
+			Done().
+		Flag("-y").
+			String().
+			Bind(&yField).
+			Global().
+			Help("Y-axis field").
+			Done().
+		Flag("-output", "-o").
+			String().
+			Bind(&outputFile).
+			Global().
+			Default("chart.html").
+			FilePattern("*.html").
+			Help("Output HTML file (default: chart.html)").
+			Done().
+		Flag("-generate", "-g").
+			Bool().
+			Bind(&generate).
+			Global().
+			Help("Generate Go code instead of executing").
+			Done().
+		Flag("FILE").
+			String().
+			Bind(&inputFile).
+			Global().
+			Default("").
+			FilePattern("*.jsonl").
+			Help("Input JSONL file (or stdin if not specified)").
+			Done().
+		Handler(func(ctx *cf.Context) error {
+			// If -generate flag is set, generate Go code instead of executing
+			if generate {
+				return generateChartCode(xField, yField, outputFile, inputFile)
+			}
+
+			// Normal execution: create chart
+			if xField == "" {
+				return fmt.Errorf("X-axis field required (use -x)")
+			}
+			if yField == "" {
+				return fmt.Errorf("Y-axis field required (use -y)")
+			}
+
+			// Read JSONL from stdin or file
+			input, err := lib.OpenInput(inputFile)
+			if err != nil {
+				return err
+			}
+			defer input.Close()
+
+			records := lib.ReadJSONL(input)
+
+			// Create chart using QuickChart
+			if err := streamv3.QuickChart(records, xField, yField, outputFile); err != nil {
+				return fmt.Errorf("creating chart: %w", err)
+			}
+
+			fmt.Printf("Chart created: %s\n", outputFile)
+			return nil
+		}).
+		Build()
+
+	return &chartCommand{cmd: cmd}
 }
 
 func (c *chartCommand) Name() string {
@@ -49,12 +103,16 @@ func (c *chartCommand) Description() string {
 	return "Create interactive HTML chart from data"
 }
 
-func (c *chartCommand) GetGSCommand() *gs.GSCommand {
+func (c *chartCommand) GetCFCommand() *cf.Command {
 	return c.cmd
 }
 
+func (c *chartCommand) GetGSCommand() *gs.GSCommand {
+	return nil // No longer using gs
+}
+
 func (c *chartCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before gs framework takes over
+	// Handle -help flag before completionflags framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("chart - Create interactive HTML chart from data")
 		fmt.Println()
@@ -82,55 +140,11 @@ func (c *chartCommand) Execute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	// Delegate to gs framework which will call Config.Execute
-	return c.cmd.Execute(ctx, args)
+	return c.cmd.Execute(args)
 }
 
-// Validate implements gs.Commander interface
-func (c *ChartConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface
-func (c *ChartConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
-	// If -generate flag is set, generate Go code instead of executing
-	if c.Generate {
-		return c.generateCode(clauses)
-	}
-
-	// Normal execution: create chart
-	if c.X == "" {
-		return fmt.Errorf("X-axis field required (use -x)")
-	}
-	if c.Y == "" {
-		return fmt.Errorf("Y-axis field required (use -y)")
-	}
-
-	outputFile := c.Output
-	if outputFile == "" {
-		outputFile = "chart.html"
-	}
-
-	// Read JSONL from stdin or file
-	input, err := lib.OpenInput(c.Argv)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-
-	records := lib.ReadJSONL(input)
-
-	// Create chart using QuickChart
-	if err := streamv3.QuickChart(records, c.X, c.Y, outputFile); err != nil {
-		return fmt.Errorf("creating chart: %w", err)
-	}
-
-	fmt.Printf("Chart created: %s\n", outputFile)
-	return nil
-}
-
-// generateCode generates Go code for the chart command
-func (c *ChartConfig) generateCode(clauses []gs.ClauseSet) error {
+// generateChartCode generates Go code for the chart command
+func generateChartCode(xField, yField, outputFile, inputFile string) error {
 	// Read all previous code fragments from stdin (if any)
 	fragments, err := lib.ReadAllCodeFragments()
 	if err != nil {
@@ -153,20 +167,19 @@ func (c *ChartConfig) generateCode(clauses []gs.ClauseSet) error {
 	}
 
 	// Validate required fields
-	if c.X == "" {
+	if xField == "" {
 		return fmt.Errorf("X-axis field required (use -x)")
 	}
-	if c.Y == "" {
+	if yField == "" {
 		return fmt.Errorf("Y-axis field required (use -y)")
 	}
 
-	outputFile := c.Output
 	if outputFile == "" {
 		outputFile = "chart.html"
 	}
 
 	// Generate QuickChart call
-	code := fmt.Sprintf(`streamv3.QuickChart(%s, %q, %q, %q)`, inputVar, c.X, c.Y, outputFile)
+	code := fmt.Sprintf(`streamv3.QuickChart(%s, %q, %q, %q)`, inputVar, xField, yField, outputFile)
 
 	// Create final fragment (no output variable, it's a terminal operation)
 	frag := lib.NewFinalFragment(inputVar, code, nil)
