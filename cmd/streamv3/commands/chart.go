@@ -26,12 +26,14 @@ func newChartCommand() *chartCommand {
 		Description("Create interactive HTML chart from data").
 		Flag("-x").
 			String().
+			Completer(cf.NoCompleter{Hint: "<field-name>"}).
 			Bind(&xField).
 			Global().
 			Help("X-axis field").
 			Done().
 		Flag("-y").
 			String().
+			Completer(cf.NoCompleter{Hint: "<field-name>"}).
 			Bind(&yField).
 			Global().
 			Help("Y-axis field").

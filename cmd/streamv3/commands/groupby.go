@@ -27,22 +27,26 @@ func newGroupByCommand() *groupByCommand {
 		Description("Group records by fields and apply aggregations").
 		Flag("-by", "-b").
 			String().
+			Completer(cf.NoCompleter{Hint: "<field-name>"}).
 			Bind(&byField).
 			Global().
 			Help("Field to group by").
 			Done().
 		Flag("-function", "-func").
 			String().
+			Completer(&cf.StaticCompleter{Options: []string{"count", "sum", "avg", "min", "max"}}).
 			Local().
 			Help("Aggregation function (count, sum, avg, min, max)").
 			Done().
 		Flag("-field", "-f").
 			String().
+			Completer(cf.NoCompleter{Hint: "<field-name>"}).
 			Local().
 			Help("Field to aggregate (not needed for count)").
 			Done().
 		Flag("-result", "-r").
 			String().
+			Completer(cf.NoCompleter{Hint: "<field-name>"}).
 			Local().
 			Help("Output field name").
 			Done().
