@@ -26,11 +26,13 @@ func newSelectCommand() *selectCommand {
 		Description("Select and optionally rename fields").
 		Flag("-field", "-f").
 			String().
+			Completer(cf.NoCompleter{Hint: "<field-name>"}).
 			Local().
 			Help("Field to select").
 			Done().
 		Flag("-as", "-a").
 			String().
+			Completer(cf.NoCompleter{Hint: "<new-name>"}).
 			Local().
 			Help("Rename field to (optional)").
 			Done().

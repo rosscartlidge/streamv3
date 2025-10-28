@@ -29,6 +29,7 @@ func newSortCommand() *sortCommand {
 		Description("Sort records by field").
 		Flag("-field", "-f").
 			String().
+			Completer(cf.NoCompleter{Hint: "<field-name>"}).
 			Bind(&field).
 			Local().
 			Help("Field to sort by").
