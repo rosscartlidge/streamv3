@@ -25,10 +25,10 @@ func newGenerateGoCommand() *generateGoCommand {
 		Description("Generate Go code from StreamV3 CLI pipeline").
 		Flag("OUTPUT").
 			String().
+			Completer(&cf.FileCompleter{Pattern: "*.go"}).
 			Bind(&outputFile).
 			Global().
 			Default("").
-			FilePattern("*.go").
 			Help("Output Go file (or stdout if not specified)").
 			Done().
 		Handler(func(ctx *cf.Context) error {

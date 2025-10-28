@@ -40,10 +40,10 @@ func newChartCommand() *chartCommand {
 			Done().
 		Flag("-output", "-o").
 			String().
+			Completer(&cf.FileCompleter{Pattern: "*.html"}).
 			Bind(&outputFile).
 			Global().
 			Default("chart.html").
-			FilePattern("*.html").
 			Help("Output HTML file (default: chart.html)").
 			Done().
 		Flag("-generate", "-g").
@@ -54,10 +54,10 @@ func newChartCommand() *chartCommand {
 			Done().
 		Flag("FILE").
 			String().
+			Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
 			Bind(&inputFile).
 			Global().
 			Default("").
-			FilePattern("*.jsonl").
 			Help("Input JSONL file (or stdin if not specified)").
 			Done().
 		Handler(func(ctx *cf.Context) error {
