@@ -31,9 +31,9 @@ func newWhereCommand() *whereCommand {
 	cmd := cf.NewCommand("where").
 		Description("Filter records based on field conditions").
 		Flag("-match", "-m").
-			Arg("field").Done().
+			Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
 			Arg("operator").Completer(&cf.StaticCompleter{Options: operators}).Done().
-			Arg("value").Done().
+			Arg("value").Completer(cf.NoCompleter{Hint: "<value>"}).Done().
 			Accumulate().
 			Local().
 			Help("Filter condition: -match <field> <operator> <value>").

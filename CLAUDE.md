@@ -150,11 +150,13 @@ When designing CLI commands with completionflags, follow these principles:
    - For flags with multiple related arguments, use `.Arg()` fluent API:
    ```go
    Flag("-match").
-       Arg("field").Done().
+       Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
        Arg("operator").Completer(&cf.StaticCompleter{Options: operators}).Done().
-       Arg("value").Done().
+       Arg("value").Completer(cf.NoCompleter{Hint: "<value>"}).Done().
    ```
    - This enables proper completion for each argument position
+   - Always provide hints via `NoCompleter{Hint: "..."}` when no completion is available
+   - Use `StaticCompleter{Options: [...]}` for constrained values
    - ❌ Don't use `.String()` and require quoting: `-match "field op value"`
    - ✅ Use separate arguments: `-match field op value`
 
