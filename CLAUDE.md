@@ -135,6 +135,39 @@ This library emphasizes functional composition with Go 1.23+ iterators while pro
 
 StreamV3 includes a CLI tool (`cmd/streamv3`) with a self-generating code architecture.
 
+**CLI Flag Design Principles:**
+
+When designing CLI commands with completionflags, follow these principles:
+
+1. **Prefer Named Flags Over Positional Arguments**
+   - ✅ Use: `-file data.csv` or `-input data.csv`
+   - ❌ Avoid: `command data.csv` (positional)
+   - Named flags are self-documenting and enable better tab completion
+   - Positional arguments can consume arguments intended for other flags
+   - Exception: Commands with a single, obvious positional argument (e.g., `cd directory`)
+
+2. **Use Multi-Argument Flags Properly**
+   - For flags with multiple related arguments, use `.Arg()` fluent API:
+   ```go
+   Flag("-match").
+       Arg("field").Done().
+       Arg("operator").Completer(&cf.StaticCompleter{Options: operators}).Done().
+       Arg("value").Done().
+   ```
+   - This enables proper completion for each argument position
+   - ❌ Don't use `.String()` and require quoting: `-match "field op value"`
+   - ✅ Use separate arguments: `-match field op value`
+
+3. **Use `.Accumulate()` for Repeated Flags**
+   - When a flag can appear multiple times (e.g., `-match age gt 30 -match dept eq Sales`)
+   - Enables building complex filters with AND/OR logic
+   - The framework provides a slice of all flag occurrences
+
+4. **Provide Completers for Constrained Arguments**
+   - Use `StaticCompleter` for known options (operators, commands, etc.)
+   - Use `FileCompleter` with patterns for file paths
+   - Improves UX with tab completion
+
 **Self-Generating Commands:**
 - Each CLI command has a `-generate` flag that emits Go code instead of executing
 - Commands communicate via JSONL code fragments on stdin/stdout
