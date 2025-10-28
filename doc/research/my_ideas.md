@@ -15,10 +15,15 @@ List of things to do and general philosophy.
   1. use gogstools (done)
   1. improve cli design to complete better
   1. code generation needs improving better pipeline design
-  1. completion on operators and fields
+  1. (gogstools) completion on operators and fields
   1. error messages with cli
-  1. bufio
-  1. proper registration on the cli subcommands - like -match etc
+  1. bufio (done)
+  1. (gogstools) proper registration on the cli subcommands - like -match etc
+  1. join with maps
+  1. better prompting for join
+  1. Method Chain.
+  1. restartable
+  1. parallelising
 
 
 ## Philosophy

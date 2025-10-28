@@ -5,19 +5,14 @@ import (
 	"fmt"
 	"os"
 
+	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// GenerateGoConfig holds configuration for generate-go command
-type GenerateGoConfig struct {
-	Output string `gs:"file,global,last,help=Output Go file (or stdout if not specified),suffix=.go"`
-}
-
 // generateGoCommand implements the generate-go command
 type generateGoCommand struct {
-	config *GenerateGoConfig
-	cmd    *gs.GSCommand
+	cmd *cf.Command
 }
 
 func init() {
@@ -25,16 +20,40 @@ func init() {
 }
 
 func newGenerateGoCommand() *generateGoCommand {
-	config := &GenerateGoConfig{}
-	cmd, err := gs.NewCommand(config)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create generate-go command: %v", err))
-	}
+	var outputFile string
 
-	return &generateGoCommand{
-		config: config,
-		cmd:    cmd,
-	}
+	cmd := cf.NewCommand("generate-go").
+		Description("Generate Go code from StreamV3 CLI pipeline").
+		Flag("OUTPUT").
+			String().
+			Bind(&outputFile).
+			Global().
+			Default("").
+			FilePattern("*.go").
+			Help("Output Go file (or stdout if not specified)").
+			Done().
+		Handler(func(ctx *cf.Context) error {
+			// Assemble code fragments from stdin
+			code, err := lib.AssembleCodeFragments(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("assembling code fragments: %w", err)
+			}
+
+			// Write to output
+			if outputFile != "" {
+				if err := os.WriteFile(outputFile, []byte(code), 0644); err != nil {
+					return fmt.Errorf("writing output file: %w", err)
+				}
+				fmt.Fprintf(os.Stderr, "Generated Go code written to %s\n", outputFile)
+			} else {
+				fmt.Print(code)
+			}
+
+			return nil
+		}).
+		Build()
+
+	return &generateGoCommand{cmd: cmd}
 }
 
 func (c *generateGoCommand) Name() string {
@@ -45,12 +64,16 @@ func (c *generateGoCommand) Description() string {
 	return "Generate Go code from StreamV3 CLI pipeline"
 }
 
-func (c *generateGoCommand) GetGSCommand() *gs.GSCommand {
+func (c *generateGoCommand) GetCFCommand() *cf.Command {
 	return c.cmd
 }
 
+func (c *generateGoCommand) GetGSCommand() *gs.GSCommand {
+	return nil // No longer using gs
+}
+
 func (c *generateGoCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before gs framework takes over
+	// Handle -help flag before completionflags framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("generate-go - Generate Go code from StreamV3 CLI pipeline")
 		fmt.Println()
@@ -86,46 +109,5 @@ func (c *generateGoCommand) Execute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	// Delegate to gs framework which will call Config.Execute
-	return c.cmd.Execute(ctx, args)
-}
-
-// Validate implements gs.Commander interface
-func (c *GenerateGoConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface
-// This is called by the gs framework after parsing arguments into clauses
-func (c *GenerateGoConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
-	// Get output file from Output field or from bare arguments in clauses
-	outputFile := c.Output
-	if outputFile == "" && len(clauses) > 0 {
-		if output, ok := clauses[0].Fields["Output"].(string); ok && output != "" {
-			outputFile = output
-		}
-		if outputFile == "" {
-			if args, ok := clauses[0].Fields["_args"].([]string); ok && len(args) > 0 {
-				outputFile = args[0]
-			}
-		}
-	}
-
-	// Assemble code fragments from stdin
-	code, err := lib.AssembleCodeFragments(os.Stdin)
-	if err != nil {
-		return fmt.Errorf("assembling code fragments: %w", err)
-	}
-
-	// Write to output
-	if outputFile != "" {
-		if err := os.WriteFile(outputFile, []byte(code), 0644); err != nil {
-			return fmt.Errorf("writing output file: %w", err)
-		}
-		fmt.Fprintf(os.Stderr, "Generated Go code written to %s\n", outputFile)
-	} else {
-		fmt.Print(code)
-	}
-
-	return nil
+	return c.cmd.Execute(args)
 }

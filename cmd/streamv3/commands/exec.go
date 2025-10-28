@@ -6,21 +6,15 @@ import (
 	"os"
 	"strings"
 
+	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// ExecConfig holds configuration for exec command
-type ExecConfig struct {
-	Generate bool `gs:"flag,global,last,help=Generate Go code instead of executing"`
-	// Command and args are extracted from remaining arguments after parsing -generate
-}
-
 // execCommand implements the exec command
 type execCommand struct {
-	config *ExecConfig
-	cmd    *gs.GSCommand
+	cmd *cf.Command
 }
 
 func init() {
@@ -28,16 +22,17 @@ func init() {
 }
 
 func newExecCommand() *execCommand {
-	config := &ExecConfig{}
-	cmd, err := gs.NewCommand(config)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create exec command: %v", err))
-	}
+	// For exec, we don't use normal flag parsing because everything after "--" is the command
+	// We'll handle parsing manually in Execute()
+	cmd := cf.NewCommand("exec").
+		Description("Execute command and parse output as records").
+		Handler(func(ctx *cf.Context) error {
+			// This handler won't be called - we handle everything in Execute()
+			return fmt.Errorf("exec command requires manual argument parsing")
+		}).
+		Build()
 
-	return &execCommand{
-		config: config,
-		cmd:    cmd,
-	}
+	return &execCommand{cmd: cmd}
 }
 
 func (c *execCommand) Name() string {
@@ -48,8 +43,12 @@ func (c *execCommand) Description() string {
 	return "Execute command and parse output as records"
 }
 
-func (c *execCommand) GetGSCommand() *gs.GSCommand {
+func (c *execCommand) GetCFCommand() *cf.Command {
 	return c.cmd
+}
+
+func (c *execCommand) GetGSCommand() *gs.GSCommand {
+	return nil // No longer using gs
 }
 
 func (c *execCommand) Execute(ctx context.Context, args []string) error {
@@ -74,7 +73,7 @@ func (c *execCommand) Execute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	// Parse -generate flag and command separately to avoid gs parsing command flags
+	// Parse -generate flag and command separately to avoid parsing command flags
 	generate := false
 	var cmdAndArgs []string
 
@@ -126,16 +125,6 @@ func (c *execCommand) Execute(ctx context.Context, args []string) error {
 	}
 
 	return nil
-}
-
-// Validate implements gs.Commander interface (not used since we bypass gs)
-func (c *ExecConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface (not used since we bypass gs)
-func (c *ExecConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
-	return fmt.Errorf("should not be called - execute handles args directly")
 }
 
 // generateCodeDirect generates Go code for the exec command

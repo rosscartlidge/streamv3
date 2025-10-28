@@ -1,27 +1,20 @@
 package commands
 
 import (
-	"os"
 	"context"
 	"fmt"
 	"iter"
+	"os"
 
+	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// SortConfig holds configuration for sort command
-type SortConfig struct {
-	Field string `gs:"field,local,last,help=Field to sort by"`
-	Desc  bool   `gs:"flag,local,last,help=Sort descending"`
-	Argv  string `gs:"file,global,last,help=Input JSONL file (or stdin if not specified),suffix=.jsonl"`
-}
-
 // sortCommand implements the sort command
 type sortCommand struct {
-	config *SortConfig
-	cmd    *gs.GSCommand
+	cmd *cf.Command
 }
 
 func init() {
@@ -29,16 +22,74 @@ func init() {
 }
 
 func newSortCommand() *sortCommand {
-	config := &SortConfig{}
-	cmd, err := gs.NewCommand(config)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create sort command: %v", err))
-	}
+	var field string
+	var desc bool
+	var inputFile string
 
-	return &sortCommand{
-		config: config,
-		cmd:    cmd,
-	}
+	cmd := cf.NewCommand("sort").
+		Description("Sort records by field").
+		Flag("-field", "-f").
+			String().
+			Bind(&field).
+			Local().
+			Help("Field to sort by").
+			Done().
+		Flag("-desc", "-d").
+			Bool().
+			Bind(&desc).
+			Local().
+			Help("Sort descending").
+			Done().
+		Flag("FILE").
+			String().
+			Bind(&inputFile).
+			Global().
+			Default("").
+			FilePattern("*.jsonl").
+			Help("Input JSONL file (or stdin if not specified)").
+			Done().
+		Handler(func(ctx *cf.Context) error {
+			if field == "" {
+				return fmt.Errorf("no sort field specified")
+			}
+
+			// Read JSONL from stdin or file
+			input, err := lib.OpenInput(inputFile)
+			if err != nil {
+				return err
+			}
+			defer input.Close()
+
+			records := lib.ReadJSONL(input)
+
+			// Build sort key extractor and apply sort
+			var result iter.Seq[streamv3.Record]
+			if desc {
+				// Descending: negate numeric values
+				sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
+					val, _ := r[field]
+					return -extractNumeric(val)
+				})
+				result = sorter(records)
+			} else {
+				// Ascending
+				sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
+					val, _ := r[field]
+					return extractNumeric(val)
+				})
+				result = sorter(records)
+			}
+
+			// Write output as JSONL
+			if err := lib.WriteJSONL(os.Stdout, result); err != nil {
+				return fmt.Errorf("writing output: %w", err)
+			}
+
+			return nil
+		}).
+		Build()
+
+	return &sortCommand{cmd: cmd}
 }
 
 func (c *sortCommand) Name() string {
@@ -49,12 +100,16 @@ func (c *sortCommand) Description() string {
 	return "Sort records by field"
 }
 
-func (c *sortCommand) GetGSCommand() *gs.GSCommand {
+func (c *sortCommand) GetCFCommand() *cf.Command {
 	return c.cmd
 }
 
+func (c *sortCommand) GetGSCommand() *gs.GSCommand {
+	return nil // No longer using gs
+}
+
 func (c *sortCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before gs framework takes over
+	// Handle -help flag before completionflags framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("sort - Sort records by field")
 		fmt.Println()
@@ -69,8 +124,7 @@ func (c *sortCommand) Execute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	// Delegate to gs framework which will call Config.Execute
-	return c.cmd.Execute(ctx, args)
+	return c.cmd.Execute(args)
 }
 
 // extractNumeric extracts a numeric value for sorting
@@ -86,72 +140,4 @@ func extractNumeric(val any) float64 {
 	default:
 		return 0
 	}
-}
-
-// Validate implements gs.Commander interface
-func (c *SortConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface
-// This is called by the gs framework after parsing arguments into clauses
-func (c *SortConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
-	// Get sort field from first clause
-	var sortField string
-	var descending bool
-	if len(clauses) > 0 {
-		sortField, _ = clauses[0].Fields["Field"].(string)
-		descending, _ = clauses[0].Fields["Desc"].(bool)
-	}
-
-	if sortField == "" {
-		return fmt.Errorf("no sort field specified")
-	}
-
-	// Get input file from Argv field or from bare arguments in clauses
-	inputFile := c.Argv
-	if inputFile == "" && len(clauses) > 0 {
-		if argv, ok := clauses[0].Fields["Argv"].(string); ok && argv != "" {
-			inputFile = argv
-		}
-		if inputFile == "" {
-			if args, ok := clauses[0].Fields["_args"].([]string); ok && len(args) > 0 {
-				inputFile = args[0]
-			}
-		}
-	}
-
-	// Read JSONL from stdin
-	input, err := lib.OpenInput(inputFile)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-
-	records := lib.ReadJSONL(input)
-
-	// Build sort key extractor and apply sort
-	var result iter.Seq[streamv3.Record]
-	if descending {
-		// Descending: negate numeric values
-		sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
-			val, _ := r[sortField]
-			return -extractNumeric(val)
-		})
-		result = sorter(records)
-	} else {
-		// Ascending
-		sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
-			val, _ := r[sortField]
-			return extractNumeric(val)
-		})
-		result = sorter(records)
-	}
-
-	// Write output as JSONL
-	if err := lib.WriteJSONL(os.Stdout, result); err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
-
-	return nil
 }

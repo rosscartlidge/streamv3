@@ -5,29 +5,15 @@ import (
 	"fmt"
 	"os"
 
+	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/gogstools/gs"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// GroupByConfig holds configuration for group-by command
-type GroupByConfig struct {
-	// Group-by field (will be in each clause)
-	By string `gs:"field,global,last,help=Field to group by"`
-
-	// Per-clause: aggregation specification
-	Function string `gs:"string,local,last,help=Aggregation function,enum=count:sum:avg:min:max"`
-	Field    string `gs:"field,local,last,help=Field to aggregate (not needed for count)"`
-	Result   string `gs:"string,local,last,help=Output field name"`
-
-	Generate bool   `gs:"flag,global,last,help=Generate Go code instead of executing"`
-	Argv     string `gs:"file,global,last,help=Input JSONL file (or stdin if not specified),suffix=.jsonl"`
-}
-
 // groupByCommand implements the group-by command
 type groupByCommand struct {
-	config *GroupByConfig
-	cmd    *gs.GSCommand
+	cmd *cf.Command
 }
 
 func init() {
@@ -35,16 +21,109 @@ func init() {
 }
 
 func newGroupByCommand() *groupByCommand {
-	config := &GroupByConfig{}
-	cmd, err := gs.NewCommand(config)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create group-by command: %v", err))
-	}
+	var byField, inputFile string
+	var generate bool
 
-	return &groupByCommand{
-		config: config,
-		cmd:    cmd,
-	}
+	cmd := cf.NewCommand("group-by").
+		Description("Group records by fields and apply aggregations").
+		Flag("-by", "-b").
+			String().
+			Bind(&byField).
+			Global().
+			Help("Field to group by").
+			Done().
+		Flag("-function", "-func").
+			String().
+			Local().
+			Help("Aggregation function (count, sum, avg, min, max)").
+			Done().
+		Flag("-field", "-f").
+			String().
+			Local().
+			Help("Field to aggregate (not needed for count)").
+			Done().
+		Flag("-result", "-r").
+			String().
+			Local().
+			Help("Output field name").
+			Done().
+		Flag("-generate", "-g").
+			Bool().
+			Bind(&generate).
+			Global().
+			Help("Generate Go code instead of executing").
+			Done().
+		Flag("FILE").
+			String().
+			Bind(&inputFile).
+			Global().
+			Default("").
+			FilePattern("*.jsonl").
+			Help("Input JSONL file (or stdin if not specified)").
+			Done().
+		Handler(func(ctx *cf.Context) error {
+			// If -generate flag is set, generate Go code instead of executing
+			if generate {
+				return generateGroupByCode(ctx, byField, inputFile)
+			}
+
+			// Normal execution: apply group-by and aggregations
+			if byField == "" {
+				return fmt.Errorf("no group-by field specified (use -by)")
+			}
+			groupByFields := []string{byField}
+
+			// Parse aggregation specifications from clauses
+			var aggSpecs []aggregationSpec
+			for _, clause := range ctx.Clauses {
+				spec, err := parseAggregationSpecCF(clause)
+				if err != nil {
+					return err
+				}
+				if spec != nil {
+					aggSpecs = append(aggSpecs, *spec)
+				}
+			}
+
+			if len(aggSpecs) == 0 {
+				return fmt.Errorf("no aggregations specified (use -function and -result)")
+			}
+
+			// Read JSONL from stdin or file
+			input, err := lib.OpenInput(inputFile)
+			if err != nil {
+				return err
+			}
+			defer input.Close()
+
+			records := lib.ReadJSONL(input)
+
+			// Apply GroupByFields (use "_group" as sequence field name)
+			grouped := streamv3.GroupByFields("_group", groupByFields...)(records)
+
+			// Build aggregations map
+			aggregations := make(map[string]streamv3.AggregateFunc)
+			for _, spec := range aggSpecs {
+				agg, err := buildAggregator(spec)
+				if err != nil {
+					return err
+				}
+				aggregations[spec.result] = agg
+			}
+
+			// Apply Aggregate
+			aggregated := streamv3.Aggregate("_group", aggregations)(grouped)
+
+			// Write output as JSONL
+			if err := lib.WriteJSONL(os.Stdout, aggregated); err != nil {
+				return fmt.Errorf("writing output: %w", err)
+			}
+
+			return nil
+		}).
+		Build()
+
+	return &groupByCommand{cmd: cmd}
 }
 
 func (c *groupByCommand) Name() string {
@@ -55,12 +134,16 @@ func (c *groupByCommand) Description() string {
 	return "Group records by fields and apply aggregations"
 }
 
-func (c *groupByCommand) GetGSCommand() *gs.GSCommand {
+func (c *groupByCommand) GetCFCommand() *cf.Command {
 	return c.cmd
 }
 
+func (c *groupByCommand) GetGSCommand() *gs.GSCommand {
+	return nil // No longer using gs
+}
+
 func (c *groupByCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before gs framework takes over
+	// Handle -help flag before completionflags framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
 		fmt.Println("group-by - Group records by fields and apply aggregations")
 		fmt.Println()
@@ -107,77 +190,7 @@ func (c *groupByCommand) Execute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	// Delegate to gs framework which will call Config.Execute
-	return c.cmd.Execute(ctx, args)
-}
-
-// Validate implements gs.Commander interface
-func (c *GroupByConfig) Validate() error {
-	return nil
-}
-
-// Execute implements gs.Commander interface
-// This is called by the gs framework after parsing arguments into clauses
-func (c *GroupByConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
-	// If -generate flag is set, generate Go code instead of executing
-	if c.Generate {
-		return c.generateCode(clauses)
-	}
-
-	// Normal execution: apply group-by and aggregations
-	// Get group-by field from config (it's global)
-	if c.By == "" {
-		return fmt.Errorf("no group-by field specified (use -by)")
-	}
-	groupByFields := []string{c.By}
-
-	// Parse aggregation specifications from clauses
-	var aggSpecs []aggregationSpec
-	for _, clause := range clauses {
-		spec, err := parseAggregationSpec(clause)
-		if err != nil {
-			return err
-		}
-		if spec != nil {
-			aggSpecs = append(aggSpecs, *spec)
-		}
-	}
-
-	if len(aggSpecs) == 0 {
-		return fmt.Errorf("no aggregations specified (use -function and -result)")
-	}
-
-	// Read JSONL from stdin or file
-	input, err := lib.OpenInput(c.Argv)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-
-	records := lib.ReadJSONL(input)
-
-	// Apply GroupByFields (use "_group" as sequence field name)
-	grouped := streamv3.GroupByFields("_group", groupByFields...)(records)
-
-	// Build aggregations map
-	aggregations := make(map[string]streamv3.AggregateFunc)
-	for _, spec := range aggSpecs {
-		agg, err := buildAggregator(spec)
-		if err != nil {
-			return err
-		}
-		aggregations[spec.result] = agg
-	}
-
-	// Apply Aggregate
-	aggregated := streamv3.Aggregate("_group", aggregations)(grouped)
-
-	// Write output as JSONL
-	if err := lib.WriteJSONL(os.Stdout, aggregated); err != nil {
-		return fmt.Errorf("writing output: %w", err)
-	}
-
-	return nil
+	return c.cmd.Execute(args)
 }
 
 // aggregationSpec holds parsed aggregation specification
@@ -187,11 +200,11 @@ type aggregationSpec struct {
 	result   string // output field name
 }
 
-// parseAggregationSpec parses an aggregation spec from a clause
-func parseAggregationSpec(clause gs.ClauseSet) (*aggregationSpec, error) {
-	function, _ := clause.Fields["Function"].(string)
-	field, _ := clause.Fields["Field"].(string)
-	result, _ := clause.Fields["Result"].(string)
+// parseAggregationSpecCF parses an aggregation spec from a completionflags clause
+func parseAggregationSpecCF(clause cf.Clause) (*aggregationSpec, error) {
+	function, _ := clause.Flags["-function"].(string)
+	field, _ := clause.Flags["-field"].(string)
+	result, _ := clause.Flags["-result"].(string)
 
 	// Skip empty clauses
 	if function == "" && result == "" {
@@ -244,8 +257,8 @@ func buildAggregator(spec aggregationSpec) (streamv3.AggregateFunc, error) {
 	}
 }
 
-// generateCode generates Go code for the group-by command
-func (c *GroupByConfig) generateCode(clauses []gs.ClauseSet) error {
+// generateGroupByCode generates Go code for the group-by command
+func generateGroupByCode(ctx *cf.Context, byField, inputFile string) error {
 	// Read all previous code fragments from stdin (if any)
 	fragments, err := lib.ReadAllCodeFragments()
 	if err != nil {
@@ -268,15 +281,15 @@ func (c *GroupByConfig) generateCode(clauses []gs.ClauseSet) error {
 	}
 
 	// Get group-by field from config (it's global)
-	if c.By == "" {
+	if byField == "" {
 		return fmt.Errorf("no group-by field specified (use -by)")
 	}
-	groupByFields := []string{c.By}
+	groupByFields := []string{byField}
 
 	// Parse aggregation specifications from clauses
 	var aggSpecs []aggregationSpec
-	for _, clause := range clauses {
-		spec, err := parseAggregationSpec(clause)
+	for _, clause := range ctx.Clauses {
+		spec, err := parseAggregationSpecCF(clause)
 		if err != nil {
 			return err
 		}
