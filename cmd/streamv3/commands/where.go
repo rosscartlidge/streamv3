@@ -26,12 +26,17 @@ func newWhereCommand() *whereCommand {
 	var inputFile string
 	var generate bool
 
+	operators := []string{"eq", "ne", "gt", "ge", "lt", "le", "contains", "startswith", "endswith", "pattern"}
+
 	cmd := cf.NewCommand("where").
 		Description("Filter records based on field conditions").
 		Flag("-match", "-m").
-			String().
+			Arg("field").Done().
+			Arg("operator").Completer(&cf.StaticCompleter{Options: operators}).Done().
+			Arg("value").Done().
+			Accumulate().
 			Local().
-			Help("Filter condition in format: field operator value (space-separated, quote if needed)").
+			Help("Filter condition: -match <field> <operator> <value>").
 			Done().
 		Flag("-generate", "-g").
 			Bool().
@@ -39,7 +44,7 @@ func newWhereCommand() *whereCommand {
 			Global().
 			Help("Generate Go code instead of executing").
 			Done().
-		Flag("FILE").
+		Flag("-file", "-f").
 			String().
 			Bind(&inputFile).
 			Global().
@@ -178,35 +183,46 @@ func buildWhereFilterCF(clauses []cf.Clause) func(streamv3.Record) bool {
 
 // evaluateClauseCF evaluates all conditions within a single clause (AND logic)
 func evaluateClauseCF(r streamv3.Record, clause cf.Clause) bool {
-	// Get the -match string from the clause
-	matchStr, ok := clause.Flags["-match"].(string)
-	if !ok || matchStr == "" {
+	// Get the -match flags from the clause (will be []any where each element is []string{field, op, value})
+	matchesRaw, ok := clause.Flags["-match"]
+	if !ok || matchesRaw == nil {
 		return true // No match conditions means everything passes
 	}
 
-	// Parse match string: "field operator value"
-	parts := strings.Fields(matchStr)
-	if len(parts) != 3 {
-		// Invalid match specification, skip
-		return false
+	// Convert to slice
+	matches, ok := matchesRaw.([]any)
+	if !ok || len(matches) == 0 {
+		return true // No match conditions
 	}
 
-	field := parts[0]
-	op := parts[1]
-	value := parts[2]
+	// AND logic: all matches must pass
+	for _, matchRaw := range matches {
+		matchMap, ok := matchRaw.(map[string]any)
+		if !ok {
+			return false // Invalid match specification
+		}
 
-	if field == "" || op == "" {
-		return false // Invalid match
+		field, _ := matchMap["field"].(string)
+		op, _ := matchMap["operator"].(string)
+		value, _ := matchMap["value"].(string)
+
+		if field == "" || op == "" {
+			return false // Invalid match
+		}
+
+		// Get field value from record
+		fieldValue, exists := r[field]
+		if !exists {
+			return false // Field doesn't exist
+		}
+
+		// Apply operator - if any condition fails, entire clause fails (AND logic)
+		if !applyOperator(fieldValue, op, value) {
+			return false
+		}
 	}
 
-	// Get field value from record
-	fieldValue, exists := r[field]
-	if !exists {
-		return false // Field doesn't exist
-	}
-
-	// Apply operator
-	return applyOperator(fieldValue, op, value)
+	return true // All conditions passed
 }
 
 // applyOperator applies a comparison operator
@@ -378,43 +394,60 @@ func generateWhereCodeCF(ctx *cf.Context, inputFile string) error {
 // generateWhereCodeFromClauses generates the filter function code
 func generateWhereCodeFromClauses(clauses []cf.Clause) (string, []string) {
 	var imports []string
-	var conditions []string
+	var clauseConditions []string
 
 	// Build conditions for each clause (OR logic between clauses)
 	for _, clause := range clauses {
-		matchStr, ok := clause.Flags["-match"].(string)
-		if !ok || matchStr == "" {
+		matchesRaw, ok := clause.Flags["-match"]
+		if !ok || matchesRaw == nil {
 			continue
 		}
 
-		// Parse match string: "field operator value"
-		parts := strings.Fields(matchStr)
-		if len(parts) != 3 {
+		matches, ok := matchesRaw.([]any)
+		if !ok || len(matches) == 0 {
 			continue
 		}
 
-		field := parts[0]
-		op := parts[1]
-		value := parts[2]
+		// AND logic within clause: all matches must pass
+		var andConditions []string
+		for _, matchRaw := range matches {
+			matchMap, ok := matchRaw.(map[string]any)
+			if !ok {
+				continue
+			}
 
-		if field == "" || op == "" {
-			continue
+			field, _ := matchMap["field"].(string)
+			op, _ := matchMap["operator"].(string)
+			value, _ := matchMap["value"].(string)
+
+			if field == "" || op == "" {
+				continue
+			}
+
+			// Generate condition code
+			cond, imp := generateCondition(field, op, value)
+			andConditions = append(andConditions, cond)
+			imports = append(imports, imp...)
 		}
 
-		// Generate condition code
-		cond, imp := generateCondition(field, op, value)
-		conditions = append(conditions, cond)
-		imports = append(imports, imp...)
+		// Combine AND conditions for this clause
+		if len(andConditions) > 0 {
+			if len(andConditions) == 1 {
+				clauseConditions = append(clauseConditions, andConditions[0])
+			} else {
+				clauseConditions = append(clauseConditions, "("+joinWithAnd(andConditions)+")")
+			}
+		}
 	}
 
 	// Combine clauses with OR
 	var finalCondition string
-	if len(conditions) == 0 {
+	if len(clauseConditions) == 0 {
 		finalCondition = "return true"
-	} else if len(conditions) == 1 {
-		finalCondition = "return " + conditions[0]
+	} else if len(clauseConditions) == 1 {
+		finalCondition = "return " + clauseConditions[0]
 	} else {
-		finalCondition = "return " + joinWithOr(conditions)
+		finalCondition = "return " + joinWithOr(clauseConditions)
 	}
 
 	// Build function
