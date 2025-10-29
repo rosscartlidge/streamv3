@@ -200,7 +200,7 @@ streamv3 read-csv data.csv | \
 
 ## Implementation Roadmap
 
-### Phase 1: Essential SQL Commands (v0.7.0)
+### Phase 1: Essential SQL Commands (v0.7.0) ✅ COMPLETED
 **Goal:** Match 80% of common SQL queries
 
 1. ✅ `join` - All JOIN types (INNER, LEFT, RIGHT, FULL)
@@ -208,7 +208,7 @@ streamv3 read-csv data.csv | \
 3. ✅ `offset` - Skip N records
 4. ✅ `union` - Combine datasets
 
-**Estimated:** 2-3 days
+**Status:** COMPLETE (v0.7.0 released)
 **Impact:** High - enables multi-table queries
 
 ### Phase 2: Enhanced Commands (v0.7.1)
@@ -262,14 +262,14 @@ streamv3 read-csv data.csv | \
 | GROUP BY | `group-by` | ✅ Done | ✅ | - |
 | ORDER BY | `sort` | ✅ Done | ✅ | - |
 | LIMIT | `limit` | ✅ Done | ✅ | - |
-| OFFSET | ❌ Missing | P1 | ✅ | Low |
-| DISTINCT | ❌ Missing | P1 | ✅ | Low |
-| INNER JOIN | ❌ Missing | P1 | ✅ | Medium |
-| LEFT JOIN | ❌ Missing | P1 | ✅ | Medium |
-| RIGHT JOIN | ❌ Missing | P1 | ✅ | Medium |
-| FULL JOIN | ❌ Missing | P1 | ✅ | Medium |
-| UNION | ❌ Missing | P1 | ❌ | Medium |
-| UNION ALL | ❌ Missing | P1 | ❌ | Medium |
+| OFFSET | `offset` | ✅ Done | ✅ | - |
+| DISTINCT | `distinct` | ✅ Done | ✅ | - |
+| INNER JOIN | `join` | ✅ Done | ✅ | - |
+| LEFT JOIN | `join` | ✅ Done | ✅ | - |
+| RIGHT JOIN | `join` | ✅ Done | ✅ | - |
+| FULL JOIN | `join` | ✅ Done | ✅ | - |
+| UNION | `union` | ✅ Done | ✅ | - |
+| UNION ALL | `union -all` | ✅ Done | ✅ | - |
 | HAVING | ❌ Missing | P2 | ✅ | Low |
 | Multi-field ORDER BY | ⚠️ Partial | P2 | ✅ | Medium |
 | Computed columns | ❌ Missing | P3 | ❌ | High |
