@@ -139,6 +139,7 @@ func NextVarName(prefix string, input *CodeFragment) string {
 }
 
 // AssembleCodeFragments reads all code fragments from stdin and assembles them into a complete Go program
+// using streamv3.Chain() for better readability
 func AssembleCodeFragments(input io.Reader) (string, error) {
 	// Read all fragments from stdin
 	var fragments []*CodeFragment
@@ -162,10 +163,12 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 	// Collect all imports and deduplicate
 	importSet := make(map[string]bool)
 	importSet["github.com/rosscartlidge/streamv3"] = true // Always needed
+	importSet["fmt"] = true // Needed for error handling
+	importSet["os"] = true // Needed for os.Stderr and os.Exit
 
 	for _, frag := range fragments {
 		for _, imp := range frag.Imports {
-			if imp != "" {
+			if imp != "" && imp != "fmt" && imp != "os" { // Already included above
 				importSet[imp] = true
 			}
 		}
@@ -196,14 +199,184 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 	// Add main function
 	code += "func main() {\n"
 
-	// Add all fragment code statements
+	// Separate init fragments (setup) from stmt fragments (transformations)
+	var initFragments []*CodeFragment
+	var stmtFragments []*CodeFragment
+	var finalFragments []*CodeFragment
+
 	for _, frag := range fragments {
-		code += "\t" + frag.Code + "\n"
+		switch frag.Type {
+		case "init":
+			initFragments = append(initFragments, frag)
+		case "stmt":
+			stmtFragments = append(stmtFragments, frag)
+		case "final":
+			finalFragments = append(finalFragments, frag)
+		}
+	}
+
+	// Add init fragments (with proper error handling)
+	for _, frag := range initFragments {
+		code += "\t" + fixErrorHandling(frag.Code) + "\n"
+	}
+
+	// Build Chain() call if we have multiple stmt fragments
+	if len(stmtFragments) > 1 {
+		// Extract the input variable (from first stmt fragment or last init fragment)
+		var inputVar string
+		if len(initFragments) > 0 {
+			inputVar = initFragments[len(initFragments)-1].Var
+		} else {
+			inputVar = "records"
+		}
+
+		// Extract the output variable (from last stmt fragment)
+		outputVar := stmtFragments[len(stmtFragments)-1].Var
+
+		// Build filters array
+		code += "\t" + outputVar + " := streamv3.Chain(\n"
+		for _, frag := range stmtFragments {
+			// Extract just the filter function from the code
+			// Pattern: "var := filter(input)" -> "filter"
+			filterCode := extractFilter(frag.Code)
+			code += "\t\t" + filterCode + ",\n"
+		}
+		code += "\t)(" + inputVar + ")\n"
+	} else if len(stmtFragments) == 1 {
+		// Single transformation - use directly
+		code += "\t" + fixErrorHandling(stmtFragments[0].Code) + "\n"
+	}
+
+	// Add final fragments (e.g., write-csv)
+	for _, frag := range finalFragments {
+		code += "\t" + fixErrorHandling(frag.Code) + "\n"
 	}
 
 	code += "}\n"
 
 	return code, nil
+}
+
+// extractFilter extracts the filter function from a statement like "var := filter(input)"
+// Returns just "filter" for use in Chain()
+func extractFilter(code string) string {
+	// Pattern: "outputVar := filterCall(inputVar)" or "outputVar := filterCall(...)(inputVar)"
+	// We need to extract everything between ":=" and the final "(inputVar)"
+
+	colonEqIdx := findString(code, ":=")
+	if colonEqIdx == -1 {
+		return code // Fallback: return as-is
+	}
+
+	// Start after ":= "
+	start := colonEqIdx + 2
+	for start < len(code) && (code[start] == ' ' || code[start] == '\t' || code[start] == '\n') {
+		start++
+	}
+
+	// Find the last ")(" pattern which separates the filter from its application
+	// E.g., "streamv3.Where(func...)(records)" - we want everything up to the last "("
+	lastApplyIdx := findLastApplyParen(code)
+	if lastApplyIdx == -1 {
+		// No application found, might be already a filter
+		return code[start:]
+	}
+
+	return code[start:lastApplyIdx]
+}
+
+// findLastApplyParen finds the last "(" that applies the filter to input
+// Looks for ")(" pattern and returns the index of the second "("
+func findLastApplyParen(code string) int {
+	// Search backwards for ")(" pattern
+	for i := len(code) - 1; i > 0; i-- {
+		if code[i] == '(' && i > 0 && code[i-1] == ')' {
+			return i
+		}
+	}
+	return -1
+}
+
+// findString finds substring in string (simple helper)
+func findString(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+// findLastParen finds the last opening parenthesis (for extracting filter from "filter(input)")
+func findLastParen(s string, start int) int {
+	depth := 0
+	lastOpen := -1
+
+	for i := start; i < len(s); i++ {
+		if s[i] == '(' {
+			if depth == 0 {
+				lastOpen = i
+			}
+			depth++
+		} else if s[i] == ')' {
+			depth--
+			if depth == 0 {
+				return lastOpen
+			}
+		}
+	}
+
+	return lastOpen
+}
+
+// fixErrorHandling fixes "return fmt.Errorf(...)" to proper main() error handling
+func fixErrorHandling(code string) string {
+	// Replace "return fmt.Errorf(...)" with proper error handling for main()
+	// Pattern: if err != nil { return fmt.Errorf("...", err) }
+
+	// For now, use simple string replacement
+	// TODO: Use more sophisticated parsing if needed
+
+	replaced := code
+
+	// Pattern 1: return fmt.Errorf("message: %w", err)
+	if findString(replaced, "return fmt.Errorf(") != -1 {
+		replaced = replaceReturnError(replaced)
+	}
+
+	return replaced
+}
+
+// replaceReturnError replaces "return fmt.Errorf(...)" with proper error handling
+func replaceReturnError(code string) string {
+	// Find "return fmt.Errorf(" and replace with proper error handling
+	returnIdx := findString(code, "return fmt.Errorf(")
+	if returnIdx == -1 {
+		return code
+	}
+
+	// Find the full error message (up to the closing paren)
+	msgStart := returnIdx + len("return fmt.Errorf(")
+	depth := 1
+	msgEnd := msgStart
+
+	for msgEnd < len(code) && depth > 0 {
+		if code[msgEnd] == '(' {
+			depth++
+		} else if code[msgEnd] == ')' {
+			depth--
+		}
+		if depth > 0 {
+			msgEnd++
+		}
+	}
+
+	errorMsg := code[msgStart:msgEnd]
+
+	// Build replacement: fmt.Fprintf(os.Stderr, "Error: %v\n", fmt.Errorf(...)) + os.Exit(1)
+	replacement := fmt.Sprintf("fmt.Fprintf(os.Stderr, \"Error: %%v\\n\", fmt.Errorf(%s))\n\t\tos.Exit(1)", errorMsg)
+
+	return code[:returnIdx] + replacement + code[msgEnd+1:]
 }
 
 // sortImports sorts imports with standard library first, then third-party
