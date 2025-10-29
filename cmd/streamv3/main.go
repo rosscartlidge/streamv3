@@ -24,7 +24,7 @@ func main() {
 		printUsage()
 		os.Exit(0)
 	case "-version", "--version", "version":
-		fmt.Println("streamv3 version 0.6.4")
+		fmt.Println("streamv3 version 0.7.0")
 		os.Exit(0)
 	case "-bash-completion":
 		printBashCompletion()
@@ -101,7 +101,7 @@ _streamv3_completion() {
 
     # If we're completing the first argument (command name)
     if [ "$cword" -eq 1 ]; then
-        local commands="read-csv write-csv where select limit sort generate-go help -help --help -version --version -bash-completion"
+        local commands="read-csv write-csv where select limit offset sort distinct join union group-by chart exec generate-go help -help --help -version --version -bash-completion"
         COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
         return 0
     fi
