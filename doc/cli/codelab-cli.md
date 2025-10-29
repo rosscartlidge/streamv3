@@ -17,6 +17,7 @@
 - [Basic Pipeline Operations](#basic-pipeline-operations)
 - [Working with Real Data](#working-with-real-data)
 - [Grouping and Aggregations](#grouping-and-aggregations)
+- [SQL-Like Operations](#sql-like-operations)
 - [Creating Visualizations](#creating-visualizations)
 - [Code Generation](#code-generation)
 - [Complete Example](#complete-example)
@@ -249,6 +250,99 @@ Output:
 
 ---
 
+## SQL-Like Operations
+
+StreamV3 supports common SQL operations for multi-table queries and data manipulation.
+
+### Pagination with OFFSET and LIMIT
+
+Skip and take records for pagination:
+
+```bash
+# Skip first 20 records, take next 10 (records 21-30)
+streamv3 read-csv data.csv | \
+  streamv3 offset -n 20 | \
+  streamv3 limit -n 10
+```
+
+Equivalent SQL:
+```sql
+SELECT * FROM data LIMIT 10 OFFSET 20
+```
+
+### Remove Duplicates with DISTINCT
+
+Remove duplicate records:
+
+```bash
+# Distinct on all fields
+streamv3 read-csv data.csv | streamv3 distinct
+
+# Distinct by specific fields
+streamv3 read-csv employees.csv | \
+  streamv3 distinct -by department -by location
+```
+
+Equivalent SQL:
+```sql
+SELECT DISTINCT department, location FROM employees
+```
+
+### JOIN Operations
+
+Join two data sources on common fields:
+
+```bash
+# Inner join on same field name
+streamv3 read-csv employees.csv | \
+  streamv3 join -type inner -right departments.csv -on dept_id
+
+# Left join with different field names
+streamv3 read-csv orders.csv | \
+  streamv3 join -type left -right customers.csv \
+    -left-field customer_id -right-field id
+
+# Join on multiple fields (composite key)
+streamv3 read-csv sales.csv | \
+  streamv3 join -right products.csv \
+    -on product_id -on region
+```
+
+**Join Types:**
+- `inner` - Only matching records (default)
+- `left` - All left records, matched right records
+- `right` - All right records, matched left records
+- `full` - All records from both sides
+
+Equivalent SQL:
+```sql
+SELECT * FROM employees e
+INNER JOIN departments d ON e.dept_id = d.dept_id
+```
+
+### UNION Operations
+
+Combine multiple data sources:
+
+```bash
+# UNION (remove duplicates)
+streamv3 read-csv customers.csv | \
+  streamv3 union -file suppliers.csv
+
+# UNION ALL (keep duplicates)
+streamv3 read-csv file1.csv | \
+  streamv3 union -all -file file2.csv -file file3.csv
+```
+
+Equivalent SQL:
+```sql
+SELECT * FROM customers
+UNION
+SELECT * FROM suppliers
+```
+
+---
+
 ## Creating Visualizations
 
 Generate interactive HTML charts with Chart.js:
@@ -409,8 +503,14 @@ go build -o monitor monitor.go
 - `where` - Filter records by conditions
 - `select` - Select/rename fields
 - `group-by` - Group and aggregate data
-- `sort` - Sort records (coming soon)
-- `limit` - Take first N records (coming soon)
+- `sort` - Sort records by field
+- `limit` - Take first N records
+- `offset` - Skip first N records (SQL OFFSET)
+- `distinct` - Remove duplicate records (SQL DISTINCT)
+
+### Multi-Table Operations
+- `join` - Join two data sources (SQL JOIN - inner/left/right/full)
+- `union` - Combine multiple data sources (SQL UNION/UNION ALL)
 
 ### Outputs
 - `write-csv [file]` - Write CSV file (or stdout)
@@ -523,12 +623,21 @@ This pattern makes complex commands readable while maintaining type safety and c
 - **[Getting Started Guide](codelab-intro.md)** - Learn the StreamV3 library directly
 - **[Advanced Tutorial](advanced-tutorial.md)** - Production patterns and optimization
 
-### Coming Soon
+### Recently Added (v0.7.0)
+
+StreamV3 now supports essential SQL operations:
+- ✅ `join` - All JOIN types (INNER, LEFT, RIGHT, FULL)
+- ✅ `distinct` - Remove duplicates
+- ✅ `offset` - Skip N records for pagination
+- ✅ `union` - Combine datasets with UNION/UNION ALL
+- ✅ `sort` - Sort by single field
+- ✅ `limit` - Take first N records
+
+### Coming Soon (Phase 2)
 
 The CLI is actively being developed. Upcoming features:
-- `join` - Join multiple data streams
-- `sort` - Sort by fields
-- `limit` - Limit output
+- Multi-field sorting with mixed ASC/DESC order
+- `having` - Post-aggregation filtering (like SQL HAVING)
 - More aggregation functions
 - Better error messages
 - Tab completion improvements
