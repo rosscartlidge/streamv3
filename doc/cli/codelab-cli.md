@@ -457,7 +457,7 @@ streamv3 read-csv <TAB> # Completes .csv files
 
 ### Understanding Command Structure (Advanced)
 
-StreamV3 CLI uses the **gogstools** framework for declarative command definitions. This enables powerful features:
+StreamV3 CLI uses the **completionflags** framework for declarative command definitions. This enables powerful features:
 
 **Clause Pattern:**
 Commands that support multiple items use `+` as a separator to create "clauses". Each clause can have its own set of flags:
