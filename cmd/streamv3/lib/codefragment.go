@@ -196,6 +196,19 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 		code += ")\n\n"
 	}
 
+	// Add helper functions
+	code += "// asFloat64 converts Record values to float64 for numeric comparisons\n"
+	code += "func asFloat64(v any) float64 {\n"
+	code += "\tswitch val := v.(type) {\n"
+	code += "\tcase int64:\n"
+	code += "\t\treturn float64(val)\n"
+	code += "\tcase float64:\n"
+	code += "\t\treturn val\n"
+	code += "\tdefault:\n"
+	code += "\t\treturn 0\n"
+	code += "\t}\n"
+	code += "}\n\n"
+
 	// Add main function
 	code += "func main() {\n"
 

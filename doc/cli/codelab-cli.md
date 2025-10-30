@@ -428,6 +428,161 @@ go mod tidy
 go run analysis.go
 ```
 
+### Advanced Example: Complex Pipeline with Chain()
+
+When you use multiple transformation commands, the generated code automatically uses `streamv3.Chain()` for clean, readable code:
+
+```bash
+# Complex pipeline: filter, select, sort, limit
+streamv3 read-csv -generate sales.csv | \
+  streamv3 where -match revenue gt 1000 -generate | \
+  streamv3 select -field salesperson + -field revenue -generate | \
+  streamv3 sort -field revenue -desc -generate | \
+  streamv3 limit -n 10 -generate | \
+  streamv3 write-csv -generate top_performers.csv | \
+  streamv3 generate-go > report.go
+```
+
+Generated code (`report.go`):
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"github.com/rosscartlidge/streamv3"
+)
+
+// asFloat64 converts Record values to float64 for numeric comparisons
+// Handles both int64 (from CSV parsing integers) and float64
+func asFloat64(v any) float64 {
+	switch val := v.(type) {
+	case int64:
+		return float64(val)
+	case float64:
+		return val
+	default:
+		return 0
+	}
+}
+
+func main() {
+	records, err := streamv3.ReadCSV("sales.csv")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", fmt.Errorf("reading CSV: %w", err))
+		os.Exit(1)
+	}
+
+	// Multiple operations composed with Chain()
+	result := streamv3.Chain(
+		streamv3.Where(func(r streamv3.Record) bool {
+			return asFloat64(r["revenue"]) > 1000
+		}),
+		streamv3.Select(func(r streamv3.Record) streamv3.Record {
+			result := make(streamv3.Record)
+			if val, exists := r["salesperson"]; exists {
+				result["salesperson"] = val
+			}
+			if val, exists := r["revenue"]; exists {
+				result["revenue"] = val
+			}
+			return result
+		}),
+		streamv3.SortBy(func(r streamv3.Record) float64 {
+			val, _ := r["revenue"]
+			switch v := val.(type) {
+			case int64:
+				return -float64(v)  // Negative for descending
+			case float64:
+				return -v
+			default:
+				return 0
+			}
+		}),
+		streamv3.Limit[streamv3.Record](10),
+	)(records)
+
+	streamv3.WriteCSV(result, "top_performers.csv")
+}
+```
+
+Compile and run:
+```bash
+# Setup and run
+go mod init report
+go mod tidy
+go build -o report report.go
+./report
+
+# View results
+cat top_performers.csv
+```
+
+**Key Features of Generated Code:**
+- ✅ **Clean Chain() pattern** - Multiple operations composed functionally
+- ✅ **Type-safe helpers** - `asFloat64()` handles both int64 and float64
+- ✅ **Proper error handling** - Exit codes and stderr for errors
+- ✅ **Production-ready** - Compiles and runs immediately
+- ✅ **Readable** - Easy to understand and modify
+
+### Example with Aggregations
+
+Generate code for GROUP BY with multiple aggregations:
+
+```bash
+streamv3 read-csv -generate sales.csv | \
+  streamv3 group-by -by region \
+    -function count -result num_sales + \
+    -function sum -field revenue -result total_revenue + \
+    -function avg -field revenue -result avg_revenue -generate | \
+  streamv3 sort -field total_revenue -desc -generate | \
+  streamv3 write-csv -generate region_report.csv | \
+  streamv3 generate-go > region_analysis.go
+```
+
+Generated code:
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+	records, err := streamv3.ReadCSV("sales.csv")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	grouped := streamv3.GroupByFields("_group", "region")(records)
+
+	aggregated := streamv3.Aggregate("_group", map[string]streamv3.AggregateFunc{
+		"num_sales": streamv3.Count(),
+		"total_revenue": streamv3.Sum("revenue"),
+		"avg_revenue": streamv3.Avg("revenue"),
+	})(grouped)
+
+	sorted := streamv3.SortBy(func(r streamv3.Record) float64 {
+		val, _ := r["total_revenue"]
+		switch v := val.(type) {
+		case int64:
+			return -float64(v)
+		case float64:
+			return -v
+		default:
+			return 0
+		}
+	})(aggregated)
+
+	streamv3.WriteCSV(sorted, "region_report.csv")
+}
+```
+
+This workflow enables **rapid prototyping** with the CLI, then **instant production deployment** with generated, type-safe Go code!
+
 ---
 
 ## Complete Example
