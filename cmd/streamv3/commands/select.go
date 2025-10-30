@@ -21,6 +21,7 @@ func init() {
 
 func newSelectCommand() *selectCommand {
 	var inputFile string
+	var generate bool
 
 	cmd := cf.NewCommand("select").
 		Description("Select and optionally rename fields").
@@ -36,6 +37,12 @@ func newSelectCommand() *selectCommand {
 			Local().
 			Help("Rename field to (optional)").
 			Done().
+		Flag("-generate", "-g").
+			Bool().
+			Bind(&generate).
+			Global().
+			Help("Generate Go code instead of executing").
+			Done().
 		Flag("FILE").
 			String().
 			Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
@@ -45,6 +52,11 @@ func newSelectCommand() *selectCommand {
 			Help("Input JSONL file (or stdin if not specified)").
 			Done().
 		Handler(func(ctx *cf.Context) error {
+			// If -generate flag is set, generate Go code instead of executing
+			if generate {
+				return generateSelectCode(ctx, inputFile)
+			}
+
 			// Build field mapping from clauses
 			fieldMap := make(map[string]string) // original -> new name
 
@@ -144,4 +156,70 @@ func (c *selectCommand) Execute(ctx context.Context, args []string) error {
 	}
 
 	return c.cmd.Execute(args)
+}
+
+// generateSelectCode generates Go code for the select command
+func generateSelectCode(ctx *cf.Context, inputFile string) error {
+	// Read all previous code fragments from stdin (if any)
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Build field mapping from clauses
+	fieldMap := make(map[string]string) // original -> new name
+	for _, clause := range ctx.Clauses {
+		field, _ := clause.Flags["-field"].(string)
+		if field == "" {
+			continue
+		}
+		asName, _ := clause.Flags["-as"].(string)
+		if asName != "" {
+			fieldMap[field] = asName
+		} else {
+			fieldMap[field] = field // Keep original name
+		}
+	}
+
+	// Generate select code
+	outputVar := "selected"
+	var code string
+	code = fmt.Sprintf("%s := streamv3.Select(func(r streamv3.Record) streamv3.Record {\n", outputVar)
+	code += "\t\tresult := make(streamv3.Record)\n"
+	for origField, newField := range fieldMap {
+		if origField == newField {
+			// No rename
+			code += fmt.Sprintf("\t\tif val, exists := r[%q]; exists {\n", origField)
+			code += fmt.Sprintf("\t\t\tresult[%q] = val\n", origField)
+			code += "\t\t}\n"
+		} else {
+			// With rename
+			code += fmt.Sprintf("\t\tif val, exists := r[%q]; exists {\n", origField)
+			code += fmt.Sprintf("\t\t\tresult[%q] = val\n", newField)
+			code += "\t\t}\n"
+		}
+	}
+	code += "\t\treturn result\n"
+	code += fmt.Sprintf("\t})(%s)", inputVar)
+
+	// Create code fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil)
+
+	// Write to stdout
+	return lib.WriteCodeFragment(frag)
 }
