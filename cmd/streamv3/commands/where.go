@@ -26,7 +26,7 @@ func newWhereCommand() *whereCommand {
 	var inputFile string
 	var generate bool
 
-	operators := []string{"eq", "ne", "gt", "ge", "lt", "le", "contains", "startswith", "endswith", "pattern"}
+	operators := []string{"eq", "ne", "gt", "ge", "lt", "le", "contains", "startswith", "endswith", "pattern", "regexp", "regex"}
 
 	cmd := cf.NewCommand("where").
 		Description("Filter records based on field conditions").
@@ -116,7 +116,7 @@ func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println("  contains     String contains")
 		fmt.Println("  startswith   String starts with")
 		fmt.Println("  endswith     String ends with")
-		fmt.Println("  pattern      Regexp pattern match")
+		fmt.Println("  pattern      Regexp pattern match (aliases: regexp, regex)")
 		fmt.Println()
 		fmt.Println("Clause Logic:")
 		fmt.Println("  Multiple -match in same command: AND (all must match)")
@@ -135,8 +135,11 @@ func (c *whereCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println("  # Complex: (age > 18 AND status = active) OR (department = Engineering)")
 		fmt.Println("  streamv3 where -match age gt 18 -match status eq active + -match department eq Engineering")
 		fmt.Println()
-		fmt.Println("  # Pattern matching: department contains 'fred'")
-		fmt.Println("  streamv3 where -match department pattern \".*fred\"")
+		fmt.Println("  # Regexp matching: department ends with 'ing'")
+		fmt.Println("  streamv3 where -match department regexp \".*ing$\"")
+		fmt.Println()
+		fmt.Println("  # Regexp matching: email pattern")
+		fmt.Println("  streamv3 where -match email regex \"^[a-z]+@[a-z]+\\.com$\"")
 		fmt.Println()
 		fmt.Println("Debugging with jq:")
 		fmt.Println("  # Inspect records before/after filtering")
@@ -246,7 +249,7 @@ func applyOperator(fieldValue any, op string, compareValue string) bool {
 		return compareStartsWith(fieldValue, compareValue)
 	case "endswith":
 		return compareEndsWith(fieldValue, compareValue)
-	case "pattern":
+	case "pattern", "regexp", "regex":
 		return comparePattern(fieldValue, compareValue)
 	default:
 		return false
@@ -500,7 +503,7 @@ func generateCondition(field, op, value string) (string, []string) {
 		imports = append(imports, "strings")
 		return fmt.Sprintf("strings.HasSuffix(r[%q].(string), %q)", field, value), imports
 
-	case "pattern":
+	case "pattern", "regexp", "regex":
 		imports = append(imports, "regexp")
 		return fmt.Sprintf("regexp.MustCompile(%q).MatchString(r[%q].(string))", value, field), imports
 
