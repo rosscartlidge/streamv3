@@ -289,3 +289,4 @@ streamv3 read-csv -generate data.csv | streamv3 mycommand -generate | streamv3 g
 - doing_cli_port
 - cli_completion
 - cli 80% SQL and join optimisation plan
+- regexp added

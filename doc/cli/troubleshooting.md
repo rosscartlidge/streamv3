@@ -45,7 +45,7 @@ streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c
 streamv3 read-csv data.csv | jq 'select(.department == null or .department == "")'
 
 # Inspect GROUP BY output
-streamv3 read-csv data.csv | streamv3 group-by -by dept -function count -result n | jq '.'
+streamv3 read-csv data.csv | streamv3 group -by dept -function count -result n | jq '.'
 ```
 
 ---
@@ -202,7 +202,7 @@ streamv3 read-csv data.csv | jq -r '.status' | sort | uniq -c
 **Symptoms:**
 ```bash
 # GROUP BY shows more groups than expected
-$ streamv3 read-csv data.csv | streamv3 group-by -by department -function count -result n | jq -s 'length'
+$ streamv3 read-csv data.csv | streamv3 group -by department -function count -result n | jq -s 'length'
 12  # Expected only 5 departments
 ```
 
@@ -232,7 +232,7 @@ streamv3 read-csv data.csv | jq -r '.department' | sort -f | uniq -i -c
 # Normalize in jq before GROUP BY
 streamv3 read-csv data.csv | \
   jq '.department |= (. // "" | ascii_downcase | gsub("^\\s+|\\s+$"; ""))' | \
-  streamv3 group-by -by department -function count -result n
+  streamv3 group -by department -function count -result n
 
 # Check grouping manually
 streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c
@@ -285,7 +285,7 @@ streamv3 read-csv data.csv | jq 'select(.age | type == "number")' | streamv3 whe
 **Symptoms:**
 ```bash
 # Pipeline takes minutes instead of seconds
-$ time streamv3 read-csv huge.csv | streamv3 where ... | streamv3 group-by ...
+$ time streamv3 read-csv huge.csv | streamv3 where ... | streamv3 group ...
 # Takes 5+ minutes
 ```
 
@@ -294,7 +294,7 @@ $ time streamv3 read-csv huge.csv | streamv3 where ... | streamv3 group-by ...
 # Profile each stage
 time streamv3 read-csv huge.csv > /dev/null
 time (streamv3 read-csv huge.csv | streamv3 where ... > /dev/null)
-time (streamv3 read-csv huge.csv | streamv3 where ... | streamv3 group-by ... > /dev/null)
+time (streamv3 read-csv huge.csv | streamv3 where ... | streamv3 group ... > /dev/null)
 
 # Check file size
 ls -lh huge.csv
@@ -311,7 +311,7 @@ streamv3 read-csv huge.csv | streamv3 where ... | streamv3 limit -n 100
 
 # Save intermediate results
 streamv3 read-csv huge.csv | streamv3 where ... > /tmp/filtered.jsonl
-streamv3 read-json /tmp/filtered.jsonl | streamv3 group-by ...
+streamv3 read-json /tmp/filtered.jsonl | streamv3 group ...
 
 # For very large files, consider splitting
 split -l 10000 huge.csv chunk_
@@ -446,13 +446,13 @@ command | jq 'select(.field | type != "number")'
 
 ```bash
 # Inspect grouped results
-... | streamv3 group-by ... | jq '.'
+... | streamv3 group ... | jq '.'
 
 # Check specific group
-... | streamv3 group-by ... | jq 'select(.department == "Engineering")'
+... | streamv3 group ... | jq 'select(.department == "Engineering")'
 
 # Count groups
-... | streamv3 group-by ... | jq -s 'length'
+... | streamv3 group ... | jq -s 'length'
 
 # Verify grouping keys manually
 streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c
@@ -489,7 +489,7 @@ streamv3 read-csv huge.csv | head -100 | ...
 
 # Save filtered results
 streamv3 read-csv huge.csv | streamv3 where ... > filtered.jsonl
-streamv3 read-json filtered.jsonl | streamv3 group-by ...
+streamv3 read-json filtered.jsonl | streamv3 group ...
 ```
 
 ### Memory usage
@@ -576,7 +576,7 @@ streamv3 read-csv data.csv | \
 ```bash
 # Command-specific help
 streamv3 where -help
-streamv3 group-by -help
+streamv3 group -help
 streamv3 read-csv -help
 
 # General help

@@ -77,7 +77,7 @@ The StreamV3 CLI brings Unix pipeline philosophy to structured data processing. 
 
 **Command Chaining**
 ```bash
-streamv3 read-csv data.csv | streamv3 where ... | streamv3 group-by ... | streamv3 chart ...
+streamv3 read-csv data.csv | streamv3 where ... | streamv3 group ... | streamv3 chart ...
 ```
 
 **Self-Generating Commands**
@@ -212,7 +212,7 @@ Group data and calculate statistics:
 ```bash
 # Count records by department
 streamv3 read-csv employees.csv | \
-  streamv3 group-by -by department -function count -result total
+  streamv3 group -by department -function count -result total
 ```
 
 Output:
@@ -228,7 +228,7 @@ Use `+` to separate multiple aggregation functions:
 
 ```bash
 streamv3 read-csv employees.csv | \
-  streamv3 group-by -by department \
+  streamv3 group -by department \
     -function count -result employee_count + \
     -function avg -field salary -result avg_salary + \
     -function max -field salary -result max_salary
@@ -364,7 +364,7 @@ Opens `salary_chart.html` with an interactive chart featuring:
 
 ```bash
 streamv3 read-csv employees.csv | \
-  streamv3 group-by -by department \
+  streamv3 group -by department \
     -function avg -field salary -result avg_salary | \
   streamv3 chart -x department -y avg_salary -output dept_salaries.html
 ```
@@ -413,7 +413,7 @@ func main() {
 ```bash
 # Generate code to file
 streamv3 read-csv -generate data.csv | \
-  streamv3 group-by -generate -by region -function sum -field sales -result total | \
+  streamv3 group -generate -by region -function sum -field sales -result total | \
   streamv3 generate-go > analysis.go
 
 # Add package initialization
@@ -531,7 +531,7 @@ Generate code for GROUP BY with multiple aggregations:
 
 ```bash
 streamv3 read-csv -generate sales.csv | \
-  streamv3 group-by -by region \
+  streamv3 group -by region \
     -function count -result num_sales + \
     -function sum -field revenue -result total_revenue + \
     -function avg -field revenue -result avg_revenue -generate | \
@@ -594,7 +594,7 @@ Let's build a comprehensive data analysis pipeline:
 ```bash
 # Execute the pipeline
 streamv3 exec -- ps -efl | \
-  streamv3 group-by -by UID -function count -result process_count | \
+  streamv3 group -by UID -function count -result process_count | \
   streamv3 chart -x UID -y process_count -output /tmp/processes_by_user.html
 ```
 
@@ -612,7 +612,7 @@ Now convert the same pipeline to Go code:
 
 ```bash
 streamv3 exec -generate -- ps -efl | \
-  streamv3 group-by -generate -by UID -function count -result process_count | \
+  streamv3 group -generate -by UID -function count -result process_count | \
   streamv3 chart -generate -x UID -y process_count -output processes.html | \
   streamv3 generate-go > monitor.go
 ```
@@ -657,7 +657,7 @@ go build -o monitor monitor.go
 ### Transformations
 - `where` - Filter records by conditions
 - `select` - Select/rename fields
-- `group-by` - Group and aggregate data
+- `group` - Group and aggregate data
 - `sort` - Sort records by field
 - `limit` - Take first N records
 - `offset` - Skip first N records (SQL OFFSET)
@@ -683,7 +683,7 @@ streamv3 -help
 # Show command-specific help
 streamv3 read-csv -help
 streamv3 where -help
-streamv3 group-by -help
+streamv3 group -help
 streamv3 chart -help
 ```
 
@@ -722,7 +722,7 @@ Commands that support multiple items use `+` as a separator to create "clauses".
 streamv3 where -match age gt 30 + -match salary gt 100000
 
 # Multiple aggregations - each + starts a new aggregation
-streamv3 group-by -by department \
+streamv3 group -by department \
   -function count -result total + \
   -function avg -field salary -result avg_salary + \
   -function max -field salary -result max_salary
@@ -736,7 +736,7 @@ streamv3 group-by -by department \
 
 **Example breakdown:**
 ```bash
-streamv3 group-by -by department \
+streamv3 group -by department \
   -function count -result total + \
   #     └─ Clause 1 ─────────┘   │
   -function avg -field salary -result avg_salary

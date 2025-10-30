@@ -6,7 +6,7 @@
 - `read-csv` - Data source (FROM table)
 - `where` - Filtering (WHERE clause) ✅
 - `select` - Field projection/renaming (SELECT fields) ✅
-- `group-by` - Grouping + aggregations (GROUP BY with COUNT/SUM/AVG/MIN/MAX) ✅
+- `group` - Grouping + aggregations (GROUP BY with COUNT/SUM/AVG/MIN/MAX) ✅
 - `sort` - Ordering (ORDER BY single field, ASC/DESC) ✅
 - `limit` - Result limiting (LIMIT N) ✅
 - `write-csv` - Data sink (INTO OUTFILE)
@@ -139,13 +139,13 @@ streamv3 read-csv data.csv | \
 
 #### 6. HAVING Command (Post-GROUP BY Filter)
 **SQL:** `SELECT dept, COUNT(*) FROM emp GROUP BY dept HAVING COUNT(*) > 5`
-**Current:** Must use `where` after `group-by` (works but not SQL-like naming)
+**Current:** Must use `where` after `group` (works but not SQL-like naming)
 **Library:** ✅ Can use `Where` after `GroupByFields`/`Aggregate`
 
 **Proposed CLI Syntax:**
 ```bash
 streamv3 read-csv data.csv | \
-  streamv3 group-by -by department -function count -result total | \
+  streamv3 group -by department -function count -result total | \
   streamv3 having -match total gt 5
 ```
 
@@ -259,7 +259,7 @@ streamv3 read-csv data.csv | \
 |-------------|-------------|----------|-----------------|--------|
 | SELECT fields | `select` | ✅ Done | ✅ | - |
 | WHERE | `where` | ✅ Done | ✅ | - |
-| GROUP BY | `group-by` | ✅ Done | ✅ | - |
+| GROUP BY | `group` | ✅ Done | ✅ | - |
 | ORDER BY | `sort` | ✅ Done | ✅ | - |
 | LIMIT | `limit` | ✅ Done | ✅ | - |
 | OFFSET | `offset` | ✅ Done | ✅ | - |
@@ -308,7 +308,7 @@ ORDER BY avg_salary DESC
 **StreamV3 CLI (After Implementation):**
 ```bash
 streamv3 read-csv employees.csv | \
-  streamv3 group-by -by department \
+  streamv3 group -by department \
     -function count -result total + \
     -function avg -field salary -result avg_salary | \
   streamv3 having -match total gt 5 | \

@@ -94,7 +94,7 @@ West,Gadget,3100`
 ```bash
 # Prototype with Unix-style pipelines, then generate production Go code
 streamv3 exec -- ps -efl | \
-  streamv3 group-by -by UID -function count -result process_count | \
+  streamv3 group -by UID -function count -result process_count | \
   streamv3 chart -x UID -y process_count -output chart.html
 
 # Debug pipelines with jq (JSONL streaming format)
