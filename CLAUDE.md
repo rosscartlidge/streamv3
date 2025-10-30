@@ -19,6 +19,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Main test files: `example_test.go`, `chart_demo_test.go`, `benchmark_test.go`
 - No custom test runners or frameworks - use standard `go test`
 
+## Release Process
+
+**⚠️ CRITICAL: Always update version in `cmd/streamv3/main.go` BEFORE creating git tags!**
+
+The version string is hardcoded in `cmd/streamv3/main.go` at line 27. This MUST be updated before tagging.
+
+**Correct Release Workflow:**
+1. ✅ Make all code changes and commit them
+2. ✅ **Update `cmd/streamv3/main.go` line 27**: `fmt.Println("streamv3 version X.Y.Z")`
+3. ✅ Commit: `git add cmd/streamv3/main.go && git commit -m "Bump version to vX.Y.Z"`
+4. ✅ Create tag: `git tag -a vX.Y.Z -m "Release notes..."`
+5. ✅ Push: `git push && git push --tags`
+6. ✅ Verify: `streamv3 -version` should show the new version
+
+**Common Mistake:**
+❌ Creating the tag BEFORE updating main.go → Binary will show wrong version
+❌ Using lightweight tags (`git tag vX.Y.Z`) → Use annotated tags (`git tag -a vX.Y.Z -m "..."`)
+
+**See RELEASE.md for complete details.**
+
 ## Architecture Overview
 
 StreamV3 is a modern Go library built on three core abstractions:
