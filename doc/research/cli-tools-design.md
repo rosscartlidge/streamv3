@@ -9,7 +9,7 @@ This document outlines the design and implementation of command-line tools for S
 cat data.csv |
   streamv3 read-csv |
   streamv3 where -match age gt 18 -match status eq active |
-  streamv3 group-by -by age -function count -result count + -function avg -field score -result avg_score |
+  streamv3 group -by age -function count -result count + -function avg -field score -result avg_score |
   streamv3 sort -field count -desc |
   streamv3 write-csv > output.csv
 ```
@@ -178,16 +178,16 @@ type SelectConfig struct {
 - Maps to StreamV3.Select() for field projection
 - Each clause specifies one output field
 
-### 5. group-by
+### 5. group
 **Purpose:** GROUP BY with aggregations
 
 **Usage:**
 ```bash
 # Group by single field with aggregation
-streamv3 group-by - fields department - agg 'count=count()' - agg 'avg_salary=avg(salary)'
+streamv3 group - fields department - agg 'count=count()' - agg 'avg_salary=avg(salary)'
 
 # Group by multiple fields
-streamv3 group-by - fields department - fields location - agg 'total=sum(sales)'
+streamv3 group - fields department - fields location - agg 'total=sum(sales)'
 ```
 
 **Config:**
@@ -455,11 +455,11 @@ func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Fi
    - Test with large datasets
 
 ### Phase 3: Aggregation (Week 3)
-1. **group-by command**
+1. **group command**
    - Parse aggregation expressions
    - Implement all aggregation functions
    - Support multi-field grouping
-   - Test: `streamv3 group-by - fields dept - agg 'count=count()' - agg 'avg=avg(salary)'`
+   - Test: `streamv3 group - fields dept - agg 'count=count()' - agg 'avg=avg(salary)'`
 
 2. **sort command**
    - Single and multi-field sorting
@@ -963,7 +963,7 @@ func main() {
 **CLI Pipeline:**
 ```bash
 streamv3 read-csv sales.csv | \
-  streamv3 group-by -fields region -fields product \
+  streamv3 group -fields region -fields product \
     -agg 'total=sum(amount)' -agg 'count=count()' | \
   streamv3 sort -field total -desc | \
   streamv3 limit -n 10 | \
@@ -1306,7 +1306,7 @@ func main() {
 | select | Simple | Generate projection function |
 | limit | Trivial | Direct function call with type param |
 | sort | Simple | Generate sort key function |
-| group-by | Moderate | Parse aggregation expressions |
+| group | Moderate | Parse aggregation expressions |
 | distinct | Simple | Direct function call |
 
 **Where Command Generation:**
@@ -1525,7 +1525,7 @@ time ./myproject
 
 **Typical Performance Improvements:**
 - Simple pipelines (read → filter → write): **10-30x faster**
-- Complex pipelines (group-by, aggregations): **50-100x faster**
+- Complex pipelines (group, aggregations): **50-100x faster**
 - Large datasets (>1GB): **100-200x faster** (memory efficiency)
 
 ## Success Metrics

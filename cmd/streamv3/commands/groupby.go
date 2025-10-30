@@ -23,7 +23,7 @@ func newGroupByCommand() *groupByCommand {
 	var byField, inputFile string
 	var generate bool
 
-	cmd := cf.NewCommand("group-by").
+	cmd := cf.NewCommand("group").
 		Description("Group records by fields and apply aggregations").
 		Flag("-by", "-b").
 			String().
@@ -130,7 +130,7 @@ func newGroupByCommand() *groupByCommand {
 }
 
 func (c *groupByCommand) Name() string {
-	return "group-by"
+	return "group"
 }
 
 func (c *groupByCommand) Description() string {
@@ -145,9 +145,9 @@ func (c *groupByCommand) GetCFCommand() *cf.Command {
 func (c *groupByCommand) Execute(ctx context.Context, args []string) error {
 	// Handle -help flag before completionflags framework takes over
 	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("group-by - Group records by fields and apply aggregations")
+		fmt.Println("group - Group records by fields and apply aggregations")
 		fmt.Println()
-		fmt.Println("Usage: streamv3 group-by -by <field> -function <func> -result <name>")
+		fmt.Println("Usage: streamv3 group -by <field> -function <func> -result <name>")
 		fmt.Println()
 		fmt.Println("Group-by Fields:")
 		fmt.Println("  -by <field>      Field to group by (can specify multiple)")
@@ -166,27 +166,27 @@ func (c *groupByCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  # Count by department")
-		fmt.Println("  streamv3 group-by -by department -function count -result count")
+		fmt.Println("  streamv3 group -by department -function count -result count")
 		fmt.Println()
 		fmt.Println("  # Multiple aggregations")
-		fmt.Println("  streamv3 group-by -by department \\")
+		fmt.Println("  streamv3 group -by department \\")
 		fmt.Println("    -function count -result count + \\")
 		fmt.Println("    -function sum -field salary -result total + \\")
 		fmt.Println("    -function avg -field salary -result avg_salary")
 		fmt.Println()
 		fmt.Println("  # Group by multiple fields")
-		fmt.Println("  streamv3 group-by -by department -by state \\")
+		fmt.Println("  streamv3 group -by department -by state \\")
 		fmt.Println("    -function count -result count")
 		fmt.Println()
 		fmt.Println("Debugging with jq:")
 		fmt.Println("  # Inspect GROUP BY results")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 group-by -by dept -function count -result n | jq '.'")
+		fmt.Println("  streamv3 read-csv data.csv | streamv3 group -by dept -function count -result n | jq '.'")
 		fmt.Println()
 		fmt.Println("  # Verify grouping keys")
 		fmt.Println("  streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c")
 		fmt.Println()
 		fmt.Println("  # Check specific group")
-		fmt.Println("  streamv3 ... | streamv3 group-by ... | jq 'select(.department == \"Engineering\")'")
+		fmt.Println("  streamv3 ... | streamv3 group ... | jq 'select(.department == \"Engineering\")'")
 		return nil
 	}
 

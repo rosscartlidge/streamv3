@@ -133,7 +133,7 @@ func (c *chartCommand) Execute(ctx context.Context, args []string) error {
 		fmt.Println()
 		fmt.Println("  # After aggregation")
 		fmt.Println("  streamv3 read-csv sales.csv | \\")
-		fmt.Println("    streamv3 group-by -by region -function sum -field amount -result total | \\")
+		fmt.Println("    streamv3 group -by region -function sum -field amount -result total | \\")
 		fmt.Println("    streamv3 chart -x region -y total -output sales.html")
 		return nil
 	}
