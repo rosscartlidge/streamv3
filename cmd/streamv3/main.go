@@ -24,7 +24,7 @@ func main() {
 		printUsage()
 		os.Exit(0)
 	case "-version", "--version", "version":
-		fmt.Println("streamv3 version 0.7.3")
+		fmt.Println("streamv3 version 0.7.4")
 		os.Exit(0)
 	case "-bash-completion":
 		printBashCompletion()
@@ -112,7 +112,7 @@ _streamv3_completion() {
     # For subcommands, delegate to completionflags framework completion
     # The subcommand itself handles -complete via completionflags framework
     # Pass position and all arguments after the subcommand name
-    local completions=$(streamv3 "$subcommand" -complete $((cword-2)) "${words[@]:2}" 2>/dev/null)
+    local completions=$(streamv3 "$subcommand" -complete $((cword)) "${words[@]:2}" 2>/dev/null)
 
     if [ -n "$completions" ]; then
         COMPREPLY=( $(compgen -W "$completions" -- "$cur") )
