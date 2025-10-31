@@ -469,27 +469,27 @@ func generateCondition(field, op, value string) (string, []string) {
 	switch op {
 	case "eq":
 		if isNum {
-			return fmt.Sprintf("asFloat64(r[%q]) == %s", field, value), nil
+			return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) == %s", field, value), nil
 		}
 		return fmt.Sprintf("r[%q] == %q", field, value), nil
 
 	case "ne":
 		if isNum {
-			return fmt.Sprintf("asFloat64(r[%q]) != %s", field, value), nil
+			return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) != %s", field, value), nil
 		}
 		return fmt.Sprintf("r[%q] != %q", field, value), nil
 
 	case "gt":
-		return fmt.Sprintf("asFloat64(r[%q]) > %s", field, value), nil
+		return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) > %s", field, value), nil
 
 	case "ge":
-		return fmt.Sprintf("asFloat64(r[%q]) >= %s", field, value), nil
+		return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) >= %s", field, value), nil
 
 	case "lt":
-		return fmt.Sprintf("asFloat64(r[%q]) < %s", field, value), nil
+		return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) < %s", field, value), nil
 
 	case "le":
-		return fmt.Sprintf("asFloat64(r[%q]) <= %s", field, value), nil
+		return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) <= %s", field, value), nil
 
 	case "contains":
 		imports = append(imports, "strings")
