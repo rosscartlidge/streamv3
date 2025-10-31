@@ -93,20 +93,23 @@ func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
 func generateReadCSVCode(filename string) error {
 	// Generate ReadCSV call with error handling
 	var code string
+	var imports []string
+
 	if filename == "" {
-		code = `records, err := streamv3.ReadCSV("")
-	if err != nil {
-		return fmt.Errorf("reading CSV: %w", err)
-	}`
+		// Reading from stdin - use ReadCSVFromReader
+		code = `records := streamv3.ReadCSVFromReader(os.Stdin)`
+		imports = []string{"os"}
 	} else {
+		// Reading from file - use ReadCSV with error handling
 		code = fmt.Sprintf(`records, err := streamv3.ReadCSV(%q)
 	if err != nil {
 		return fmt.Errorf("reading CSV: %%w", err)
 	}`, filename)
+		imports = []string{"fmt"}
 	}
 
 	// Create init fragment (first in pipeline)
-	frag := lib.NewInitFragment("records", code, []string{"fmt"})
+	frag := lib.NewInitFragment("records", code, imports)
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)
