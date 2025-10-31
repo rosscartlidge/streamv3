@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"iter"
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
@@ -50,10 +51,18 @@ func newReadCSVCommand() *readCSVCommand {
 				return generateReadCSVCode(inputFile)
 			}
 
-			// Normal execution: Read CSV file (empty string means stdin)
-			records, err := streamv3.ReadCSV(inputFile)
-			if err != nil {
-				return fmt.Errorf("reading CSV: %w", err)
+			// Normal execution: Read CSV from file or stdin
+			var records iter.Seq[streamv3.Record]
+			if inputFile == "" {
+				// Read from stdin
+				records = streamv3.ReadCSVFromReader(os.Stdin)
+			} else {
+				// Read from file
+				var err error
+				records, err = streamv3.ReadCSV(inputFile)
+				if err != nil {
+					return fmt.Errorf("reading CSV: %w", err)
+				}
 			}
 
 			// Write as JSONL to stdout
