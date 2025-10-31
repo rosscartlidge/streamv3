@@ -149,6 +149,60 @@ record := streamv3.NewRecord().
 
 This hybrid approach balances ergonomics (flexible sequences) with consistency (canonical scalars).
 
+## Record Field Access (CRITICAL)
+
+**⚠️ ALWAYS use `Get()` or `GetOr()` methods to read fields from Records. NEVER use direct map access or type assertions.**
+
+**Why:**
+- Direct access `r["field"]` requires type assertions: `r["field"].(string)` → **panics if field missing or wrong type**
+- Type assertions `r["field"].(string)` are unsafe and fragile
+- `Get()` and `GetOr()` handle type conversion, missing fields, and type mismatches gracefully
+
+**Correct Field Access:**
+```go
+// ✅ CORRECT - Use GetOr with appropriate default
+name := streamv3.GetOr(r, "name", "")                    // String field
+age := streamv3.GetOr(r, "age", int64(0))                // Numeric field
+price := streamv3.GetOr(r, "price", float64(0.0))        // Float field
+
+// ✅ CORRECT - Use in generated code
+strings.Contains(streamv3.GetOr(r, "email", ""), "@")
+regexp.MustCompile("pattern").MatchString(streamv3.GetOr(r, "name", ""))
+streamv3.GetOr(r, "salary", float64(0)) > 50000
+```
+
+**Wrong Field Access:**
+```go
+// ❌ WRONG - Direct map access with type assertion (WILL PANIC!)
+name := r["name"].(string)                               // Panic if field missing or wrong type
+r["email"].(string)                                      // Panic if field missing
+asFloat64(r["price"])                                    // Don't create helper functions - use GetOr!
+
+// ❌ WRONG - Direct map access in comparisons
+r["status"] == "active"                                  // May work, but inconsistent
+```
+
+**Code Generation Rules:**
+- **String operations**: Always use `streamv3.GetOr(r, field, "")` with empty string default
+- **Numeric operations**: Always use `streamv3.GetOr(r, field, float64(0))` or `int64(0)` default
+- **Never generate**: Type assertions like `r[field].(string)`
+- **Never generate**: Custom helper functions like `asFloat64()`
+
+**Examples in Generated Code:**
+```go
+// String operators (contains, startswith, endswith, regexp)
+strings.Contains(streamv3.GetOr(r, "name", ""), "test")
+strings.HasPrefix(streamv3.GetOr(r, "email", ""), "admin")
+regexp.MustCompile("^[A-Z]").MatchString(streamv3.GetOr(r, "code", ""))
+
+// Numeric operators (eq, ne, gt, ge, lt, le)
+streamv3.GetOr(r, "age", float64(0)) > 18
+streamv3.GetOr(r, "salary", float64(0)) >= 50000
+streamv3.GetOr(r, "count", float64(0)) == 42
+```
+
+This approach eliminates runtime panics and makes generated code robust and maintainable.
+
 This library emphasizes functional composition with Go 1.23+ iterators while providing comprehensive data visualization capabilities.
 
 ## CLI Tools Architecture
