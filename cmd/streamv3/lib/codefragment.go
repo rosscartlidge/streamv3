@@ -182,7 +182,6 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 
 	// If there are no final fragments, we'll auto-add JSONL output
 	if len(finalFragments) == 0 {
-		importSet["encoding/json"] = true
 		importSet["os"] = true
 		importSet["fmt"] = true
 	}
@@ -269,14 +268,11 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 			outputVar = "records"
 		}
 
-		// Add JSONL output code
+		// Add JSONL output code using streamv3.WriteJSONToWriter
 		code += "\t// Output records as JSONL\n"
-		code += "\tencoder := json.NewEncoder(os.Stdout)\n"
-		code += fmt.Sprintf("\tfor record := range %s {\n", outputVar)
-		code += "\t\tif err := encoder.Encode(record); err != nil {\n"
-		code += "\t\t\tfmt.Fprintf(os.Stderr, \"Error encoding record: %v\\n\", err)\n"
-		code += "\t\t\tos.Exit(1)\n"
-		code += "\t\t}\n"
+		code += fmt.Sprintf("\tif err := streamv3.WriteJSONToWriter(%s, os.Stdout); err != nil {\n", outputVar)
+		code += "\t\tfmt.Fprintf(os.Stderr, \"Error writing output: %v\\n\", err)\n"
+		code += "\t\tos.Exit(1)\n"
 		code += "\t}\n"
 	}
 
