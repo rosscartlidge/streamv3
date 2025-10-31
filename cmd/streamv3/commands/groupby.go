@@ -302,35 +302,33 @@ func generateGroupByCode(ctx *cf.Context, byField, inputFile string) error {
 		return fmt.Errorf("no aggregations specified (use -function and -result)")
 	}
 
-	// Generate complete group-by + aggregate code as single fragment
-	code := generateGroupByAggregateCode(inputVar, groupByFields, aggSpecs)
-	outputVar := "aggregated"
-	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil)
-	return lib.WriteCodeFragment(frag)
-}
+	// Generate TWO fragments: one for GroupByFields, one for Aggregate
+	// This allows each to be extracted cleanly for Chain()
 
-// generateGroupByAggregateCode generates the complete group-by + aggregate pipeline
-func generateGroupByAggregateCode(inputVar string, fields []string, specs []aggregationSpec) string {
-	var code string
-
-	// Generate GroupByFields call
-	code = "grouped := streamv3.GroupByFields(\"_group\""
-	for _, field := range fields {
-		code += fmt.Sprintf(", %q", field)
+	// Fragment 1: GroupByFields
+	groupCode := "grouped := streamv3.GroupByFields(\"_group\""
+	for _, field := range groupByFields {
+		groupCode += fmt.Sprintf(", %q", field)
 	}
-	code += fmt.Sprintf(")(%s)\n\t", inputVar)
+	groupCode += fmt.Sprintf(")(%s)", inputVar)
 
-	// Generate Aggregate call with map
-	code += "aggregated := streamv3.Aggregate(\"_group\", map[string]streamv3.AggregateFunc{\n"
-	for i, spec := range specs {
+	frag1 := lib.NewStmtFragment("grouped", inputVar, groupCode, nil)
+	if err := lib.WriteCodeFragment(frag1); err != nil {
+		return fmt.Errorf("writing GroupByFields fragment: %w", err)
+	}
+
+	// Fragment 2: Aggregate
+	aggCode := "aggregated := streamv3.Aggregate(\"_group\", map[string]streamv3.AggregateFunc{\n"
+	for i, spec := range aggSpecs {
 		if i > 0 {
-			code += ",\n"
+			aggCode += ",\n"
 		}
-		code += fmt.Sprintf("\t\t%q: %s", spec.result, generateAggregatorCode(spec))
+		aggCode += fmt.Sprintf("\t\t%q: %s", spec.result, generateAggregatorCode(spec))
 	}
-	code += ",\n\t})(grouped)"
+	aggCode += ",\n\t})(grouped)"
 
-	return code
+	frag2 := lib.NewStmtFragment("aggregated", "grouped", aggCode, nil)
+	return lib.WriteCodeFragment(frag2)
 }
 
 // generateAggregatorCode generates code for a single aggregator
