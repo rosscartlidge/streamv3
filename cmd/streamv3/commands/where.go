@@ -493,19 +493,19 @@ func generateCondition(field, op, value string) (string, []string) {
 
 	case "contains":
 		imports = append(imports, "strings")
-		return fmt.Sprintf("strings.Contains(r[%q].(string), %q)", field, value), imports
+		return fmt.Sprintf("strings.Contains(streamv3.GetOr(r, %q, \"\"), %q)", field, value), imports
 
 	case "startswith":
 		imports = append(imports, "strings")
-		return fmt.Sprintf("strings.HasPrefix(r[%q].(string), %q)", field, value), imports
+		return fmt.Sprintf("strings.HasPrefix(streamv3.GetOr(r, %q, \"\"), %q)", field, value), imports
 
 	case "endswith":
 		imports = append(imports, "strings")
-		return fmt.Sprintf("strings.HasSuffix(r[%q].(string), %q)", field, value), imports
+		return fmt.Sprintf("strings.HasSuffix(streamv3.GetOr(r, %q, \"\"), %q)", field, value), imports
 
 	case "pattern", "regexp", "regex":
 		imports = append(imports, "regexp")
-		return fmt.Sprintf("regexp.MustCompile(%q).MatchString(r[%q].(string))", value, field), imports
+		return fmt.Sprintf("regexp.MustCompile(%q).MatchString(streamv3.GetOr(r, %q, \"\"))", value, field), imports
 
 	default:
 		return "false", nil
