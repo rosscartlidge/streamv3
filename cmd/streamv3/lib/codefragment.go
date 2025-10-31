@@ -163,12 +163,10 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 	// Collect all imports and deduplicate
 	importSet := make(map[string]bool)
 	importSet["github.com/rosscartlidge/streamv3"] = true // Always needed
-	importSet["fmt"] = true // Needed for error handling
-	importSet["os"] = true // Needed for os.Stderr and os.Exit
 
 	for _, frag := range fragments {
 		for _, imp := range frag.Imports {
-			if imp != "" && imp != "fmt" && imp != "os" { // Already included above
+			if imp != "" {
 				importSet[imp] = true
 			}
 		}
