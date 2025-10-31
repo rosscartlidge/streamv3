@@ -160,9 +160,32 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 		return "", fmt.Errorf("no code fragments received")
 	}
 
+	// Separate init fragments (setup) from stmt fragments (transformations)
+	var initFragments []*CodeFragment
+	var stmtFragments []*CodeFragment
+	var finalFragments []*CodeFragment
+
+	for _, frag := range fragments {
+		switch frag.Type {
+		case "init":
+			initFragments = append(initFragments, frag)
+		case "stmt":
+			stmtFragments = append(stmtFragments, frag)
+		case "final":
+			finalFragments = append(finalFragments, frag)
+		}
+	}
+
 	// Collect all imports and deduplicate
 	importSet := make(map[string]bool)
 	importSet["github.com/rosscartlidge/streamv3"] = true // Always needed
+
+	// If there are no final fragments, we'll auto-add JSONL output
+	if len(finalFragments) == 0 {
+		importSet["encoding/json"] = true
+		importSet["os"] = true
+		importSet["fmt"] = true
+	}
 
 	for _, frag := range fragments {
 		for _, imp := range frag.Imports {
@@ -197,22 +220,6 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 	// Add main function
 	code += "func main() {\n"
 
-	// Separate init fragments (setup) from stmt fragments (transformations)
-	var initFragments []*CodeFragment
-	var stmtFragments []*CodeFragment
-	var finalFragments []*CodeFragment
-
-	for _, frag := range fragments {
-		switch frag.Type {
-		case "init":
-			initFragments = append(initFragments, frag)
-		case "stmt":
-			stmtFragments = append(stmtFragments, frag)
-		case "final":
-			finalFragments = append(finalFragments, frag)
-		}
-	}
-
 	// Add init fragments (with proper error handling)
 	for _, frag := range initFragments {
 		code += "\t" + fixErrorHandling(frag.Code) + "\n"
@@ -246,8 +253,31 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 	}
 
 	// Add final fragments (e.g., write-csv)
-	for _, frag := range finalFragments {
-		code += "\t" + fixErrorHandling(frag.Code) + "\n"
+	if len(finalFragments) > 0 {
+		for _, frag := range finalFragments {
+			code += "\t" + fixErrorHandling(frag.Code) + "\n"
+		}
+	} else {
+		// No final fragment - auto-add JSONL output
+		// Find the last output variable
+		var outputVar string
+		if len(stmtFragments) > 0 {
+			outputVar = stmtFragments[len(stmtFragments)-1].Var
+		} else if len(initFragments) > 0 {
+			outputVar = initFragments[len(initFragments)-1].Var
+		} else {
+			outputVar = "records"
+		}
+
+		// Add JSONL output code
+		code += "\t// Output records as JSONL\n"
+		code += "\tencoder := json.NewEncoder(os.Stdout)\n"
+		code += fmt.Sprintf("\tfor record := range %s {\n", outputVar)
+		code += "\t\tif err := encoder.Encode(record); err != nil {\n"
+		code += "\t\t\tfmt.Fprintf(os.Stderr, \"Error encoding record: %v\\n\", err)\n"
+		code += "\t\t\tos.Exit(1)\n"
+		code += "\t\t}\n"
+		code += "\t}\n"
 	}
 
 	code += "}\n"
