@@ -134,12 +134,12 @@ func main() {
 }
 
 func printRecord(record streamv3.Record, indent string) {
-	for key, value := range record {
+	for key, value := range record.All() {
 		switch v := value.(type) {
 		case streamv3.JSONString:
 			fmt.Printf("%s%s: %s (JSONString)\n", indent, key, v)
 		case streamv3.Record:
-			fmt.Printf("%s%s: {Record with %d fields}\n", indent, key, len(v))
+			fmt.Printf("%s%s: {Record with %d fields}\n", indent, key, v.Len())
 		case iter.Seq[string]:
 			fmt.Printf("%s%s: [", indent, key)
 			first := true
@@ -186,8 +186,8 @@ func compareRecords(original, reconstructed streamv3.Record) bool {
 	matches := true
 
 	// Check each field in original
-	for key, originalValue := range original {
-		reconstructedValue, exists := reconstructed[key]
+	for key, originalValue := range original.All() {
+		reconstructedValue, exists := streamv3.Get[any](reconstructed, key)
 		if !exists {
 			fmt.Printf("  ❌ Missing field: %s\n", key)
 			matches = false
@@ -203,8 +203,8 @@ func compareRecords(original, reconstructed streamv3.Record) bool {
 	}
 
 	// Check for extra fields in reconstructed (ignore ReadJSON metadata)
-	for key := range reconstructed {
-		if _, exists := original[key]; !exists {
+	for key := range reconstructed.All() {
+		if _, exists := streamv3.Get[any](original, key); !exists {
 			if key == "_line_number" {
 				fmt.Printf("  ℹ️  %s: Added by ReadJSON (expected)\n", key)
 				// Don't count metadata fields as failures
@@ -247,7 +247,7 @@ func compareValues(fieldName string, original, reconstructed any) bool {
 
 		// Convert Record to map[string]any for comparison
 		originalMap := make(map[string]any)
-		for k, v := range originalRecord {
+		for k, v := range originalRecord.All() {
 			originalMap[k] = v
 		}
 		return reflect.DeepEqual(originalMap, reconstructedMap)

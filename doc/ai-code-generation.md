@@ -102,13 +102,56 @@ if err != nil {
 - ❌ `Filter(predicate)` → ✅ `Where(predicate)`
 - ❌ `Take(n)` → ✅ `Limit(n)`
 
-### Record Access
+### Record Creation and Access (v1.0+)
+
+**🚨 CRITICAL: Record fields are NOT directly accessible!**
+
+Record is an **encapsulated struct**, not a map. You MUST use the provided API:
+
+**❌ WRONG - Direct field access (will not compile):**
+```go
+// These will NOT work - Record is not map[string]any
+record["name"] = "Alice"              // ❌ Compile error!
+value := record["age"]                // ❌ Compile error!
+for k, v := range record {            // ❌ Compile error!
+```
+
+**✅ CORRECT - Use the builder pattern and accessor functions:**
 
 ```go
-streamv3.Get[T](record, "key")                    // → (T, bool)
-streamv3.GetOr(record, "key", defaultValue)       // → T
-streamv3.SetImmutable(record, "key", value)       // → new record (immutable)
+// Creating Records - Use MutableRecord builder
+record := streamv3.MakeMutableRecord().
+    String("name", "Alice").
+    Int("age", int64(30)).
+    Float("score", 95.5).
+    Freeze()  // Returns immutable Record
+
+// Reading fields - Use Get/GetOr
+name := streamv3.GetOr(record, "name", "")           // With default
+age, exists := streamv3.Get[int64](record, "age")    // With existence check
+
+// Modifying (creates new record) - Use SetImmutable
+updated := streamv3.SetImmutable(record, "score", 98.0)
+
+// Iterating - Use .All() method
+for key, value := range record.All() {
+    fmt.Printf("%s: %v\n", key, value)
+}
+
+// Getting keys - Use .KeysIter()
+for key := range record.KeysIter() {
+    fmt.Println(key)
+}
+
+// Length - Use .Len() method
+count := record.Len()
 ```
+
+**This applies to ALL code outside the streamv3 package** - including:
+- ✅ User code
+- ✅ LLM-generated code
+- ✅ Example programs
+- ✅ Test files that import streamv3
 
 ### Aggregation Functions
 
@@ -575,14 +618,15 @@ When processing natural language requests, map phrases to StreamV3 operations:
 
 ## Critical Reminders
 
-1. **Error Handling**: ALWAYS check errors from `ReadCSV()`, `ReadJSON()`, etc.
-2. **CSV Types**: Numeric CSV values are `int64`/`float64`, not strings
-3. **SQL Names**: Use `Select`, `Where`, `Limit` (not Map, Filter, Take)
-4. **Imports**: Only import packages actually used in the code
-5. **Chain()**: Prefer `Chain()` for multi-step pipelines on same type
-6. **Count()**: Parameterless! Field name is the map key
-7. **Namespaces**: Must match between `GroupByFields` and `Aggregate`
-8. **Separate Steps**: `GroupByFields` and `Aggregate` are separate operations
+1. **🚨 Record Access**: CANNOT use `record["field"]` - MUST use `MakeMutableRecord()` to create, `GetOr()` to read
+2. **Error Handling**: ALWAYS check errors from `ReadCSV()`, `ReadJSON()`, etc.
+3. **CSV Types**: Numeric CSV values are `int64`/`float64`, not strings
+4. **SQL Names**: Use `Select`, `Where`, `Limit` (not Map, Filter, Take)
+5. **Imports**: Only import packages actually used in the code
+6. **Chain()**: Prefer `Chain()` for multi-step pipelines on same type
+7. **Count()**: Parameterless! Field name is the map key
+8. **Namespaces**: Must match between `GroupByFields` and `Aggregate`
+9. **Separate Steps**: `GroupByFields` and `Aggregate` are separate operations
 
 ---
 

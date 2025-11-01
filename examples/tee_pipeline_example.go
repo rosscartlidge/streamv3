@@ -57,16 +57,16 @@ func generateSalesData() {
 
 	// Generate realistic sales data
 	salesData := []streamv3.Record{
-		{"date": "2024-01-01", "region": "North", "product": "Laptop", "amount": 1299.99, "salesperson": "Alice", "customer_type": "enterprise"},
-		{"date": "2024-01-01", "region": "South", "product": "Phone", "amount": 899.99, "salesperson": "Bob", "customer_type": "consumer"},
-		{"date": "2024-01-02", "region": "East", "product": "Tablet", "amount": 649.99, "salesperson": "Carol", "customer_type": "education"},
-		{"date": "2024-01-02", "region": "West", "product": "Laptop", "amount": 1199.99, "salesperson": "David", "customer_type": "enterprise"},
-		{"date": "2024-01-03", "region": "North", "product": "Phone", "amount": 799.99, "salesperson": "Eva", "customer_type": "consumer"},
-		{"date": "2024-01-03", "region": "South", "product": "Headphones", "amount": 299.99, "salesperson": "Frank", "customer_type": "consumer"},
-		{"date": "2024-01-04", "region": "East", "product": "Watch", "amount": 399.99, "salesperson": "Grace", "customer_type": "consumer"},
-		{"date": "2024-01-04", "region": "West", "product": "Tablet", "amount": 599.99, "salesperson": "Henry", "customer_type": "education"},
-		{"date": "2024-01-05", "region": "North", "product": "Laptop", "amount": 1399.99, "salesperson": "Iris", "customer_type": "enterprise"},
-		{"date": "2024-01-05", "region": "South", "product": "Phone", "amount": 949.99, "salesperson": "Jack", "customer_type": "consumer"},
+		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "North").String("product", "Laptop").Float("amount", 1299.99).String("salesperson", "Alice").String("customer_type", "enterprise").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "South").String("product", "Phone").Float("amount", 899.99).String("salesperson", "Bob").String("customer_type", "consumer").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "East").String("product", "Tablet").Float("amount", 649.99).String("salesperson", "Carol").String("customer_type", "education").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "West").String("product", "Laptop").Float("amount", 1199.99).String("salesperson", "David").String("customer_type", "enterprise").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-03").String("region", "North").String("product", "Phone").Float("amount", 799.99).String("salesperson", "Eva").String("customer_type", "consumer").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-03").String("region", "South").String("product", "Headphones").Float("amount", 299.99).String("salesperson", "Frank").String("customer_type", "consumer").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-04").String("region", "East").String("product", "Watch").Float("amount", 399.99).String("salesperson", "Grace").String("customer_type", "consumer").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-04").String("region", "West").String("product", "Tablet").Float("amount", 599.99).String("salesperson", "Henry").String("customer_type", "education").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-05").String("region", "North").String("product", "Laptop").Float("amount", 1399.99).String("salesperson", "Iris").String("customer_type", "enterprise").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-05").String("region", "South").String("product", "Phone").Float("amount", 949.99).String("salesperson", "Jack").String("customer_type", "consumer").Freeze(),
 	}
 
 	// Output as JSON to stdout for piping
@@ -219,11 +219,11 @@ func runFullDemo() {
 
 	// Generate data
 	salesData := []streamv3.Record{
-		{"date": "2024-01-01", "region": "North", "product": "Laptop", "amount": 1299.99, "salesperson": "Alice", "customer_type": "enterprise"},
-		{"date": "2024-01-01", "region": "South", "product": "Phone", "amount": 899.99, "salesperson": "Bob", "customer_type": "consumer"},
-		{"date": "2024-01-02", "region": "East", "product": "Tablet", "amount": 649.99, "salesperson": "Carol", "customer_type": "education"},
-		{"date": "2024-01-02", "region": "West", "product": "Laptop", "amount": 1199.99, "salesperson": "David", "customer_type": "enterprise"},
-		{"date": "2024-01-03", "region": "North", "product": "Phone", "amount": 799.99, "salesperson": "Eva", "customer_type": "consumer"},
+		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "North").String("product", "Laptop").Float("amount", 1299.99).String("salesperson", "Alice").String("customer_type", "enterprise").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "South").String("product", "Phone").Float("amount", 899.99).String("salesperson", "Bob").String("customer_type", "consumer").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "East").String("product", "Tablet").Float("amount", 649.99).String("salesperson", "Carol").String("customer_type", "education").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "West").String("product", "Laptop").Float("amount", 1199.99).String("salesperson", "David").String("customer_type", "enterprise").Freeze(),
+		streamv3.MakeMutableRecord().String("date", "2024-01-03").String("region", "North").String("product", "Phone").Float("amount", 799.99).String("salesperson", "Eva").String("customer_type", "consumer").Freeze(),
 	}
 
 	// Create stream and use Tee for parallel analysis

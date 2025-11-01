@@ -45,14 +45,14 @@ func testIntegratedStrategies() {
 	// Create infinite IoT data generator
 	iotDataGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 1; ; i++ { // Infinite stream
-			record := streamv3.Record{
-				"sensor_id":   fmt.Sprintf("SENSOR-%03d", (i%10)+1),
-				"temperature": 20.0 + float64(i%50)*0.5, // Simulated sensor reading
-				"humidity":    45.0 + float64(i%30)*1.2,
-				"timestamp":   time.Now().Add(time.Duration(i) * time.Second),
-				"batch_id":    i,
-				"status":      getRandomStatus(i),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("sensor_id", fmt.Sprintf("SENSOR-%03d", (i%10)+1)).
+				Float("temperature", 20.0+float64(i%50)*0.5).
+				Float("humidity", 45.0+float64(i%30)*1.2).
+				SetAny("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
+				Int("batch_id", int64(i)).
+				String("status", getRandomStatus(i)).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -154,11 +154,11 @@ func testWindowingStrategy() {
 	timeSeriesGenerator := func(yield func(streamv3.Record) bool) {
 		baseTime := time.Now()
 		for i := 0; i < 15; i++ {
-			record := streamv3.Record{
-				"metric_id": fmt.Sprintf("M%03d", i+1),
-				"value":     float64(100 + i*5),
-				"timestamp": baseTime.Add(time.Duration(i*30) * time.Second),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("metric_id", fmt.Sprintf("M%03d", i+1)).
+				Float("value", float64(100+i*5)).
+				SetAny("timestamp", baseTime.Add(time.Duration(i*30)*time.Second)).
+				Freeze()
 			if !yield(record) {
 				return
 			}
@@ -172,13 +172,9 @@ func testWindowingStrategy() {
 	for window := range windowedStream {
 		fmt.Printf("  📊 Time Window: %d metrics\n", len(window))
 		if len(window) > 0 {
-			if firstTime, exists := window[0]["timestamp"]; exists {
-				if lastTime, exists := window[len(window)-1]["timestamp"]; exists {
-					if t1, ok1 := firstTime.(time.Time); ok1 {
-						if t2, ok2 := lastTime.(time.Time); ok2 {
-							fmt.Printf("    ⏰ From %s to %s\n", t1.Format("15:04:05"), t2.Format("15:04:05"))
-						}
-					}
+			if t1, ok := streamv3.Get[time.Time](window[0], "timestamp"); ok {
+				if t2, ok := streamv3.Get[time.Time](window[len(window)-1], "timestamp"); ok {
+					fmt.Printf("    ⏰ From %s to %s\n", t1.Format("15:04:05"), t2.Format("15:04:05"))
 				}
 			}
 		}
@@ -191,11 +187,11 @@ func testLazyTeeStrategy() {
 	// Create data generator
 	dataGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 1; i <= 10; i++ {
-			record := streamv3.Record{
-				"id":    i,
-				"value": i * 10,
-				"type":  getDataType(i),
-			}
+			record := streamv3.MakeMutableRecord().
+				Int("id", int64(i)).
+				Int("value", int64(i*10)).
+				String("type", getDataType(i)).
+				Freeze()
 			if !yield(record) {
 				return
 			}
@@ -237,11 +233,11 @@ func testStreamingAggregationsStrategy() {
 		metrics := []float64{85.5, 92.1, 78.3, 95.7, 88.9, 91.2, 87.6, 93.4}
 
 		for i, metric := range metrics {
-			record := streamv3.Record{
-				"metric_id": fmt.Sprintf("SYS%03d", i+1),
-				"cpu_load":  metric,
-				"timestamp": time.Now().Add(time.Duration(i) * time.Second),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("metric_id", fmt.Sprintf("SYS%03d", i+1)).
+				Float("cpu_load", metric).
+				SetAny("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
+				Freeze()
 			if !yield(record) {
 				return
 			}
@@ -269,11 +265,11 @@ func testEarlyTerminationStrategy() {
 	// Create potentially infinite generator
 	potentiallyInfiniteGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 1; i <= 1000; i++ { // Large but finite for demo
-			record := streamv3.Record{
-				"request_id": fmt.Sprintf("REQ%04d", i),
-				"response_time": float64(50 + i%100),
-				"status_code": getStatusCode(i),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("request_id", fmt.Sprintf("REQ%04d", i)).
+				Float("response_time", float64(50+i%100)).
+				Int("status_code", int64(getStatusCode(i))).
+				Freeze()
 			if !yield(record) {
 				return
 			}

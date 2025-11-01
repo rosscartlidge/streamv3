@@ -51,7 +51,7 @@ func main() {
 		count := streamv3.GetOr(result, "count", int64(0))
 
 		// Try to show what the grouping key looks like
-		if tagsField, exists := result["tags"]; exists {
+		if tagsField, ok := streamv3.Get[iter.Seq[string]](result, "tags"); ok {
 			fmt.Printf("  Group %d: %d records, tags field = %T\n", groupCount, count, tagsField)
 		}
 	}

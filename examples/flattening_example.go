@@ -127,7 +127,7 @@ func main() {
 
 	fmt.Println("\nFlattened nested record:")
 	for result := range nestedResults {
-		for key, value := range result {
+		for key, value := range result.All() {
 			fmt.Printf("  %s: %v\n", key, value)
 		}
 		break // Only one result expected

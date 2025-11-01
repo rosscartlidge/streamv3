@@ -17,26 +17,26 @@ func main() {
 	// Create test data that represents realistic pipeline data
 	// (after JSON round-trip, iter.Seq becomes []interface{})
 	testData := []streamv3.Record{
-		{
-			"id":          "PRODUCT-001",
-			"name":        "iPhone 15 Pro Max",
-			"category":    "electronics",
-			"price":       1199.99,
-			"stock":       int64(150),
-			"description": "Latest flagship smartphone with advanced camera system and A17 Pro chip",
-			"tags":        []interface{}{"electronics", "mobile", "premium"},
-			"_line_number": int64(0),
-		},
-		{
-			"id":          "PRODUCT-002",
-			"name":        "MacBook Pro 16-inch",
-			"category":    "computers",
-			"price":       2499.99,
-			"stock":       int64(75),
-			"description": "Professional laptop with M3 Max chip, 32GB RAM, and 1TB SSD storage",
-			"tags":        []interface{}{"electronics", "computer", "professional"},
-			"_line_number": int64(1),
-		},
+		streamv3.MakeMutableRecord().
+			String("id", "PRODUCT-001").
+			String("name", "iPhone 15 Pro Max").
+			String("category", "electronics").
+			Float("price", 1199.99).
+			Int("stock", int64(150)).
+			String("description", "Latest flagship smartphone with advanced camera system and A17 Pro chip").
+			SetAny("tags", []interface{}{"electronics", "mobile", "premium"}).
+			Int("_line_number", int64(0)).
+			Freeze(),
+		streamv3.MakeMutableRecord().
+			String("id", "PRODUCT-002").
+			String("name", "MacBook Pro 16-inch").
+			String("category", "computers").
+			Float("price", 2499.99).
+			Int("stock", int64(75)).
+			String("description", "Professional laptop with M3 Max chip, 32GB RAM, and 1TB SSD storage").
+			SetAny("tags", []interface{}{"electronics", "computer", "professional"}).
+			Int("_line_number", int64(1)).
+			Freeze(),
 	}
 
 	// Add more records to make the comparison meaningful
@@ -135,7 +135,7 @@ func testGob(data []streamv3.Record) (int, time.Duration) {
 	var serializable []map[string]interface{}
 	for _, record := range data {
 		converted := make(map[string]interface{})
-		for k, v := range record {
+		for k, v := range record.All() {
 			// Convert iter.Seq to slice
 			if isIterSeq(v) {
 				converted[k] = materializeSequence(v)
@@ -167,9 +167,9 @@ func testSimpleBinary(data []streamv3.Record) (int, time.Duration) {
 
 	for _, record := range data {
 		// Write field count
-		writeUint32(&buf, uint32(len(record)))
+		writeUint32(&buf, uint32(record.Len()))
 
-		for key, value := range record {
+		for key, value := range record.All() {
 			// Write key
 			writeString(&buf, key)
 

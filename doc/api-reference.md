@@ -145,13 +145,159 @@ iter.Seq2[T, error]   // Iterator with error handling
 ```
 
 ### Record
-A flexible map-based data structure for heterogeneous data.
+A flexible data structure for heterogeneous data.
 
 ```go
-type Record map[string]any
+type Record struct {
+    // fields are private - use the provided API to access
+}
 ```
 
-**Supported value types:** `int`, `int64`, `float64`, `string`, `bool`, `time.Time`, nested `Record`, and slices.
+**🚨 CRITICAL (v1.0+): Record is an encapsulated struct, NOT a map**
+
+Record fields are **NOT directly accessible**. You MUST use the provided API:
+
+**❌ WRONG - Direct field access (will not compile):**
+```go
+record["name"] = "Alice"        // ❌ Compile error!
+value := record["age"]          // ❌ Compile error!
+for k, v := range record {      // ❌ Compile error!
+```
+
+**✅ CORRECT - Use the builder pattern and accessor functions:**
+```go
+// Creating - Use MakeMutableRecord builder
+record := streamv3.MakeMutableRecord().
+    String("name", "Alice").
+    Int("age", int64(30)).
+    Float("score", 95.5).
+    Freeze()
+
+// Reading - Use Get/GetOr
+name := streamv3.GetOr(record, "name", "")
+age, exists := streamv3.Get[int64](record, "age")
+
+// Modifying - Use SetImmutable (creates new record)
+updated := streamv3.SetImmutable(record, "score", 98.0)
+
+// Iterating - Use .All() method
+for key, value := range record.All() {
+    fmt.Printf("%s: %v\n", key, value)
+}
+```
+
+**Supported value types:** `int64`, `float64`, `string`, `bool`, `time.Time`, nested `Record`, `iter.Seq[T]`, and slices.
+
+### MutableRecord
+A mutable record type optimized for efficient building.
+
+```go
+type MutableRecord struct {
+    // fields are private - use the provided methods
+}
+```
+
+MutableRecord is the recommended way to build new records efficiently. Unlike Record methods which create copies, MutableRecord methods modify the same underlying map, avoiding unnecessary allocations.
+
+**Building with MutableRecord:**
+```go
+// Efficient building with mutation
+record := streamv3.MakeMutableRecord().
+    String("name", "Alice").
+    Int("age", int64(30)).
+    Float("salary", 95000.50).
+    Bool("active", true).
+    Freeze()  // Convert to immutable Record
+
+// For use in slices, always call .Freeze()
+records := []streamv3.Record{
+    streamv3.MakeMutableRecord().
+        String("id", "001").
+        Int("count", 42).
+        Freeze(),
+}
+```
+
+**Available Methods:**
+- `.String(field, value)` - Set string field
+- `.Int(field, value)` - Set int64 field
+- `.Float(field, value)` - Set float64 field
+- `.Bool(field, value)` - Set boolean field
+- `.Time(field, value)` - Set time.Time field
+- `.Nested(field, value)` - Set nested Record field
+- `.JSONString(field, value)` - Set JSONString field
+- `.IntSeq(field, value)` - Set int sequence field (also Int8Seq, Int16Seq, Int32Seq, Int64Seq, UintSeq, etc.)
+- `.FloatSeq(field, value)` - Set float sequence (Float32Seq, Float64Seq)
+- `.StringSeq(field, value)` - Set string sequence
+- `.RecordSeq(field, value)` - Set Record sequence
+- `.SetAny(field, value)` - Set any value type
+- `.Delete(field)` - Remove a field
+- `.Freeze()` - Convert to immutable Record
+- `.Len()` - Get number of fields
+
+### JSONString
+A string type containing valid JSON data.
+
+```go
+type JSONString string
+```
+
+JSONString provides type safety and rich methods for working with JSON-structured data that needs to be embedded in Records.
+
+**Example:**
+```go
+// Create JSONString from Go value
+jsonStr, err := streamv3.NewJSONString(map[string]any{
+    "status": "active",
+    "count": 42,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// Use in Record
+record := streamv3.MakeMutableRecord().
+    String("id", "user123").
+    JSONString("metadata", jsonStr).
+    Freeze()
+
+// Parse back to Go value
+metadata := streamv3.GetOr(record, "metadata", streamv3.JSONString(""))
+value, err := metadata.Parse()
+
+// Pretty print
+fmt.Println(metadata.Pretty())
+```
+
+**Methods:**
+- `NewJSONString(value any) (JSONString, error)` - Create from Go value
+- `.Parse() (any, error)` - Parse to Go value
+- `.MustParse() any` - Parse or panic
+- `.IsValid() bool` - Check if valid JSON
+- `.Pretty() string` - Pretty-printed JSON
+- `.String() string` - Raw JSON string
+
+### Value Interface
+Type constraint for Record values.
+
+```go
+type Value interface {
+    ~int64 | ~float64 |
+    ~bool | string | time.Time |
+    JSONString | Record |
+    iter.Seq[int] | iter.Seq[int8] | iter.Seq[int16] | iter.Seq[int32] | iter.Seq[int64] |
+    iter.Seq[uint] | iter.Seq[uint8] | iter.Seq[uint16] | iter.Seq[uint32] | iter.Seq[uint64] |
+    iter.Seq[float32] | iter.Seq[float64] |
+    iter.Seq[bool] | iter.Seq[string] | iter.Seq[time.Time] |
+    iter.Seq[Record]
+}
+```
+
+This interface defines all valid types that can be stored in a Record. Uses a **hybrid approach**:
+- **Canonical scalars**: `int64` and `float64` only (not `int`, `int32`, `float32`, etc.)
+- **Flexible sequences**: Any numeric iterator type allowed (e.g., `iter.Seq[int]`, `iter.Seq[int32]`, etc.)
+
+This design eliminates type ambiguity for scalar values while maintaining compatibility with Go's standard library for sequences.
 
 ### Filter Types
 Function types for stream transformations:
@@ -516,6 +662,27 @@ Terminates based on time field values in records.
 
 ### Join Operations
 
+#### JoinPredicate Type
+
+```go
+type JoinPredicate func(left, right Record) bool
+```
+
+JoinPredicate defines the condition for joining two records. Returns true if the left and right records should be joined together.
+
+**Example:**
+```go
+// Using OnFields helper
+predicate := streamv3.OnFields("user_id")
+
+// Custom predicate
+customPredicate := streamv3.OnCondition(func(left, right streamv3.Record) bool {
+    leftID := streamv3.GetOr(left, "user_id", "")
+    rightID := streamv3.GetOr(right, "customer_id", "")
+    return leftID == rightID
+})
+```
+
 #### InnerJoin
 ```go
 func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record, Record]
@@ -582,6 +749,16 @@ grouped := streamv3.GroupByFields("sales_data", "region", "product")(records)
 ```
 
 ### Aggregation Functions
+
+#### AggregateFunc Type
+
+```go
+type AggregateFunc func([]Record) any
+```
+
+AggregateFunc defines an aggregation function over a group of records. Takes a slice of records and returns an aggregated value.
+
+**Built-in Aggregation Functions:**
 
 #### Count
 ```go
@@ -1087,14 +1264,30 @@ Creates default chart configuration.
 #### ChartConfig
 ```go
 type ChartConfig struct {
-    Title       string
-    Width       int
-    Height      int
-    ChartType   string // "line", "bar", "scatter", "pie"
-    Theme       string // "light", "dark"
-    // ... more options
+    Title              string            // Chart title
+    Width              int               // Chart width in pixels
+    Height             int               // Chart height in pixels
+    ChartType          string            // "line", "bar", "scatter", "pie", "doughnut", "radar", "polarArea"
+    TimeFormat         string            // Time format for time-based X axis
+    XAxisType          string            // "linear", "logarithmic", "time", "category"
+    YAxisType          string            // "linear", "logarithmic"
+    ShowLegend         bool              // Show chart legend
+    ShowTooltips       bool              // Enable hover tooltips
+    EnableZoom         bool              // Enable zoom functionality
+    EnablePan          bool              // Enable pan functionality
+    EnableAnimations   bool              // Enable chart animations
+    ShowDataLabels     bool              // Show data value labels
+    EnableInteractive  bool              // Enable field selection UI
+    EnableCalculations bool              // Enable running averages, etc.
+    ColorScheme        string            // "default", "vibrant", "pastel", "monochrome"
+    Theme              string            // "light", "dark"
+    ExportFormats      []string          // Export options: "png", "svg", "pdf", "csv"
+    CustomCSS          string            // Custom CSS for chart styling
+    Fields             map[string]string // Field name -> data type hints
 }
 ```
+
+ChartConfig provides comprehensive control over chart appearance, behavior, and export options. Use `DefaultChartConfig()` to get sensible defaults, then customize as needed.
 
 ### Chart Creation
 

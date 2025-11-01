@@ -68,11 +68,9 @@ func main() {
 		groupCount++
 		count := streamv3.GetOr(result, "count", int64(0))
 
-		if profileField, exists := result["profile"]; exists {
-			if profile, ok := profileField.(streamv3.Record); ok {
-				role := streamv3.GetOr(profile, "role", "")
-				fmt.Printf("  Group %d: %d records, role = %s\n", groupCount, count, role)
-			}
+		if profile, ok := streamv3.Get[streamv3.Record](result, "profile"); ok {
+			role := streamv3.GetOr(profile, "role", "")
+			fmt.Printf("  Group %d: %d records, role = %s\n", groupCount, count, role)
 		}
 	}
 

@@ -20,15 +20,21 @@ func main() {
 
 		// Process the stream - add calculated fields
 		processedStream := streamv3.Select(func(record streamv3.Record) streamv3.Record {
+			// Create a new mutable record and copy all fields from the input
+			result := streamv3.MakeMutableRecord()
+			for k, v := range record.All() {
+				result = result.SetAny(k, v)
+			}
+
 			// Add processed timestamp
-			record["processed_at"] = "2024-01-01T10:00:00Z"
+			result = result.String("processed_at", "2024-01-01T10:00:00Z")
 
 			// Convert string field to uppercase if it exists
 			if name, ok := streamv3.Get[string](record, "name"); ok {
-				record["name_upper"] = strings.ToUpper(name)
+				result = result.String("name_upper", strings.ToUpper(name))
 			}
 
-			return record
+			return result.Freeze()
 		})(csvStream)
 
 		// Write JSON to stdout
@@ -101,13 +107,19 @@ func main() {
 	// Step 2: Process Stream (simulating: program1 | program2)
 	var processedRecords []streamv3.Record
 	for record := range stream1 {
+		// Create new record with category field added
+		result := streamv3.MakeMutableRecord()
+		for k, v := range record.All() {
+			result = result.SetAny(k, v)
+		}
+
 		// Add processing
 		if age, ok := streamv3.Get[int64](record, "age"); ok && age >= 30 {
-			record["category"] = "senior"
+			result = result.String("category", "senior")
 		} else {
-			record["category"] = "junior"
+			result = result.String("category", "junior")
 		}
-		processedRecords = append(processedRecords, record)
+		processedRecords = append(processedRecords, result.Freeze())
 	}
 
 	// Step 3: Stream → JSON (simulating: program2 | program3 > output.json)

@@ -43,12 +43,12 @@ func demonstrateMixedPipeline() {
 
 	// Start with normal data
 	transactions := []streamv3.Record{
-		{"id": "TXN001", "amount_str": "125.50", "category": "electronics"},
-		{"id": "TXN002", "amount_str": "invalid", "category": "books"},
-		{"id": "TXN003", "amount_str": "89.99", "category": "clothing"},
-		{"id": "TXN004", "amount_str": "250.00", "category": "electronics"},
-		{"id": "TXN005", "amount_str": "45.bad", "category": "food"},
-		{"id": "TXN006", "amount_str": "180.25", "category": "electronics"},
+		streamv3.MakeMutableRecord().String("id", "TXN001").String("amount_str", "125.50").String("category", "electronics").Freeze(),
+		streamv3.MakeMutableRecord().String("id", "TXN002").String("amount_str", "invalid").String("category", "books").Freeze(),
+		streamv3.MakeMutableRecord().String("id", "TXN003").String("amount_str", "89.99").String("category", "clothing").Freeze(),
+		streamv3.MakeMutableRecord().String("id", "TXN004").String("amount_str", "250.00").String("category", "electronics").Freeze(),
+		streamv3.MakeMutableRecord().String("id", "TXN005").String("amount_str", "45.bad").String("category", "food").Freeze(),
+		streamv3.MakeMutableRecord().String("id", "TXN006").String("amount_str", "180.25").String("category", "electronics").Freeze(),
 	}
 
 	// Start with normal iterator
@@ -67,7 +67,7 @@ func demonstrateMixedPipeline() {
 		amountStr := streamv3.GetOr(r, "amount_str", "")
 		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
-			return streamv3.Record{}, fmt.Errorf("invalid amount '%s' in record %s",
+			return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid amount '%s' in record %s",
 				amountStr, streamv3.GetOr(r, "id", "unknown"))
 		}
 
@@ -236,7 +236,7 @@ func processFailFast(filename string) (err error) {
 		// Note: CSV parsing auto-converts "1250.50" to float64(1250.50)
 		balance, balanceOk := streamv3.Get[float64](r, "balance")
 		if !balanceOk {
-			return streamv3.Record{}, fmt.Errorf("invalid balance in account %s",
+			return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid balance in account %s",
 				streamv3.GetOr(r, "account", "unknown"))
 		}
 
@@ -307,13 +307,13 @@ Webcam,89.99,18`,
 			// Note: CSV parsing auto-converts "999.99" to float64(999.99) and "15" to int64(15)
 			price, priceOk := streamv3.Get[float64](r, "price")
 			if !priceOk {
-				return streamv3.Record{}, fmt.Errorf("invalid price for %s",
+				return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid price for %s",
 					streamv3.GetOr(r, "product", "unknown"))
 			}
 
 			stock, stockOk := streamv3.Get[int64](r, "stock")
 			if !stockOk {
-				return streamv3.Record{}, fmt.Errorf("invalid stock for %s",
+				return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid stock for %s",
 					streamv3.GetOr(r, "product", "unknown"))
 			}
 

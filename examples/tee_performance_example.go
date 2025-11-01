@@ -42,14 +42,14 @@ func generateLargeDataset(size int) []streamv3.Record {
 	products := []string{"Laptop", "Phone", "Tablet", "Watch", "Headphones"}
 
 	for i := 0; i < size; i++ {
-		data[i] = streamv3.Record{
-			"id":       fmt.Sprintf("TXN-%06d", i),
-			"amount":   float64(100 + (i*7)%900), // Vary amounts
-			"region":   regions[i%len(regions)],
-			"product":  products[i%len(products)],
-			"quarter":  fmt.Sprintf("Q%d", (i%4)+1),
-			"priority": i%3, // 0=low, 1=medium, 2=high
-		}
+		data[i] = streamv3.MakeMutableRecord().
+			String("id", fmt.Sprintf("TXN-%06d", i)).
+			Float("amount", float64(100+(i*7)%900)).
+			String("region", regions[i%len(regions)]).
+			String("product", products[i%len(products)]).
+			String("quarter", fmt.Sprintf("Q%d", (i%4)+1)).
+			Int("priority", int64(i%3)).
+			Freeze()
 	}
 
 	return data

@@ -39,12 +39,12 @@ func testInfiniteCountWindow() {
 	// Simulate an infinite stream using a generator
 	dataGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 0; i < 50; i++ { // Simulate first 50 records
-			record := streamv3.Record{
-				"id":        i,
-				"value":     float64(100 + i*5),
-				"timestamp": time.Now().Add(time.Duration(i) * time.Second).Format("2006-01-02 15:04:05"),
-				"sensor":    fmt.Sprintf("sensor_%d", i%3),
-			}
+			record := streamv3.MakeMutableRecord().
+				Int("id", int64(i)).
+				Float("value", float64(100+i*5)).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("2006-01-02 15:04:05")).
+				String("sensor", fmt.Sprintf("sensor_%d", i%3)).
+				Freeze()
 
 			if !yield(record) {
 				return // Stream consumer stopped
@@ -71,7 +71,8 @@ func testInfiniteCountWindow() {
 		var ids []any
 		for _, record := range window {
 			sum += streamv3.GetOr(record, "value", 0.0)
-			ids = append(ids, record["id"])
+			id := streamv3.GetOr(record, "id", int64(0))
+			ids = append(ids, id)
 		}
 
 		avgValue := sum / float64(len(window))
@@ -88,13 +89,13 @@ func testTimeWindowProcessing() {
 			// Spread data across 3 minutes
 			timestamp := baseTime.Add(time.Duration(i*6) * time.Second)
 
-			record := streamv3.Record{
-				"id":          i,
-				"temperature": 20.0 + float64(i%10), // Varying temperature
-				"humidity":    50.0 + float64(i%5)*2,
-				"timestamp":   timestamp.Format("2006-01-02 15:04:05"),
-				"location":    fmt.Sprintf("room_%d", i%3),
-			}
+			record := streamv3.MakeMutableRecord().
+				Int("id", int64(i)).
+				Float("temperature", 20.0+float64(i%10)).
+				Float("humidity", 50.0+float64(i%5)*2).
+				String("timestamp", timestamp.Format("2006-01-02 15:04:05")).
+				String("location", fmt.Sprintf("room_%d", i%3)).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -147,12 +148,12 @@ func testSlidingWindowAnalysis() {
 			change := float64(i%5-2) * 2.5 // -5, -2.5, 0, 2.5, 5
 			basePrice += change
 
-			record := streamv3.Record{
-				"tick":      i,
-				"price":     basePrice,
-				"volume":    1000 + i*50,
-				"timestamp": time.Now().Add(time.Duration(i) * time.Minute).Format("15:04:05"),
-			}
+			record := streamv3.MakeMutableRecord().
+				Int("tick", int64(i)).
+				Float("price", basePrice).
+				Int("volume", int64(1000+i*50)).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Minute).Format("15:04:05")).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -181,7 +182,8 @@ func testSlidingWindowAnalysis() {
 
 		for _, record := range window {
 			priceSum += streamv3.GetOr(record, "price", 0.0)
-			ticks = append(ticks, record["tick"])
+			tick := streamv3.GetOr(record, "tick", int64(0))
+			ticks = append(ticks, tick)
 		}
 
 		movingAvg := priceSum / float64(len(window))

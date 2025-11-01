@@ -40,10 +40,10 @@ func main() {
 
 	fmt.Println("High-value sales (>= $1000) by region:")
 	for result := range totals {
-		fmt.Printf("  %s: $%.0f (%d sales)\n",
-			result["region"],
-			result["total_sales"],
-			result["count"])
+		region := streamv3.GetOr(result, "region", "Unknown")
+		totalSales := streamv3.GetOr(result, "total_sales", 0.0)
+		count := streamv3.GetOr(result, "count", int64(0))
+		fmt.Printf("  %s: $%.0f (%d sales)\n", region, totalSales, count)
 	}
 
 	fmt.Println("\n✅ Pipeline composition works!")
