@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/rosscartlidge/streamv3/internal/version"
+	"github.com/rosscartlidge/streamv3/cmd/streamv3/version"
 )
 
 // CodeFragment represents a piece of generated Go code in a pipeline

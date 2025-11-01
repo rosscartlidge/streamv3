@@ -28,16 +28,16 @@ The version is automatically extracted from `git describe --tags` and embedded i
 **Correct Release Workflow:**
 1. ✅ Make all code changes and commit them
 2. ✅ Run: `./scripts/generate-version.sh` (updates version.txt from git tag)
-3. ✅ Commit version files: `git add cmd/streamv3/version.txt internal/version/version.txt && git commit -m "Update version to vX.Y.Z"`
+3. ✅ Commit version file: `git add cmd/streamv3/version/version.txt && git commit -m "Update version to vX.Y.Z"`
 4. ✅ Create tag: `git tag -a vX.Y.Z -m "Release notes..."`
 5. ✅ Push: `git push && git push --tags`
 6. ✅ Build and verify: `go install ./cmd/streamv3 && streamv3 -version`
 
 **How It Works:**
-- Version is stored in `internal/version/version.go` (embedded from `version.txt`)
-- `scripts/generate-version.sh` runs `git describe --tags` and writes to version.txt files
+- Version is stored in `cmd/streamv3/version/version.go` (embedded from `version.txt`)
+- `scripts/generate-version.sh` runs `git describe --tags` and writes to `cmd/streamv3/version/version.txt`
 - Both the binary (`streamv3 -version`) and generated code comments use this version
-- Version files are tracked in git to ensure consistent builds
+- Version file is tracked in git to ensure consistent builds
 
 **Common Mistake:**
 ❌ Using lightweight tags (`git tag vX.Y.Z`) → Use annotated tags (`git tag -a vX.Y.Z -m "..."`)
