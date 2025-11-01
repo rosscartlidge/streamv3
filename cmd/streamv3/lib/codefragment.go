@@ -8,7 +8,7 @@ import (
 )
 
 // Version is the streamv3 version - keep in sync with cmd/streamv3/main.go
-const Version = "0.10.4"
+const Version = "0.10.5"
 
 // CodeFragment represents a piece of generated Go code in a pipeline
 type CodeFragment struct {
@@ -230,6 +230,7 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 			code += " |\n"
 		}
 		code += "streamv3 generate-go\n"
+		code += "unset STREAMV3_GENERATE_GO\n"
 		code += "*/\n\n"
 	}
 
