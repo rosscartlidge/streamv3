@@ -318,6 +318,7 @@ func generateGroupByCode(ctx *cf.Context, byField, inputFile string) error {
 	}
 
 	// Fragment 2: Aggregate
+	// Note: Empty command string since this is part of the same CLI command as Fragment 1
 	aggCode := "aggregated := streamv3.Aggregate(\"_group\", map[string]streamv3.AggregateFunc{\n"
 	for i, spec := range aggSpecs {
 		if i > 0 {
@@ -327,7 +328,7 @@ func generateGroupByCode(ctx *cf.Context, byField, inputFile string) error {
 	}
 	aggCode += ",\n\t})(grouped)"
 
-	frag2 := lib.NewStmtFragment("aggregated", "grouped", aggCode, nil, getCommandString())
+	frag2 := lib.NewStmtFragment("aggregated", "grouped", aggCode, nil, "")
 	return lib.WriteCodeFragment(frag2)
 }
 
