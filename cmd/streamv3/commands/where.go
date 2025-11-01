@@ -53,8 +53,8 @@ func newWhereCommand() *whereCommand {
 			Help("Input JSONL file (or stdin if not specified)").
 			Done().
 		Handler(func(ctx *cf.Context) error {
-			// If -generate flag is set, generate Go code instead of executing
-			if generate {
+			// If -generate flag or STREAMV3_GENERATE_GO env var is set, generate Go code instead of executing
+			if shouldGenerate(generate) {
 				return generateWhereCodeCF(ctx, inputFile)
 			}
 

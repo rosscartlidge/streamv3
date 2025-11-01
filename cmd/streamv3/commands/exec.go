@@ -104,7 +104,7 @@ func (c *execCommand) Execute(ctx context.Context, args []string) error {
 	cmdArgs := cmdAndArgs[1:]
 
 	// If -generate flag is set, generate Go code instead of executing
-	if generate {
+	if shouldGenerate(generate) {
 		return c.generateCodeDirect(command, cmdArgs)
 	}
 

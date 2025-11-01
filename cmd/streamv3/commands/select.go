@@ -53,7 +53,7 @@ func newSelectCommand() *selectCommand {
 			Done().
 		Handler(func(ctx *cf.Context) error {
 			// If -generate flag is set, generate Go code instead of executing
-			if generate {
+			if shouldGenerate(generate) {
 				return generateSelectCode(ctx, inputFile)
 			}
 
