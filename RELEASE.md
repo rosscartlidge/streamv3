@@ -13,31 +13,17 @@ Before creating a new release tag, ensure:
 
 ## Release Steps
 
-### 1. Generate Version Files
+**⚠️ CRITICAL: Follow these steps in EXACT order to avoid version mismatch issues!**
 
-**Version is automatically derived from git tags using `git describe --tags`.**
-
-The version is embedded in `cmd/streamv3/version/version.txt` and accessed via the version package.
+### Complete Release Workflow
 
 ```bash
-# Generate version file from current git state
-./scripts/generate-version.sh
-```
+# 1. Make all code changes and commit them
+git add .
+git commit -m "Description of changes"
 
-This will show the current version (e.g., `v1.0.0` or `v1.0.0-1-g15c5228` if there are commits after the tag).
-
-### 2. Commit Version File
-
-```bash
-git add cmd/streamv3/version/version.txt
-git commit -m "Update version to vX.Y.Z"
-```
-
-### 3. Create and Push Tag
-
-```bash
-# Create annotated tag
-git tag -a vX.Y.NEW -m "vX.Y.NEW: Brief description
+# 2. Create annotated tag (this sets the version for git describe)
+git tag -a vX.Y.Z -m "vX.Y.Z: Brief description
 
 ## What's New
 - Feature 1
@@ -45,27 +31,53 @@ git tag -a vX.Y.NEW -m "vX.Y.NEW: Brief description
 
 ## Bug Fixes
 - Fix 1
+"
 
-## Examples
-..."
+# 3. Generate version.txt from the tag
+./scripts/generate-version.sh
+# This will output: "Version updated to: vX.Y.Z"
 
-# Push commit and tag together
+# 4. Commit the version.txt file
+git add cmd/streamv3/version/version.txt
+git commit -m "Update version to vX.Y.Z"
+
+# 5. Move the tag to the new commit (so tag includes version.txt)
+git tag -d vX.Y.Z
+git tag -a vX.Y.Z -m "vX.Y.Z: Brief description
+
+## What's New
+- Feature 1
+- Feature 2
+"
+
+# 6. VERIFY the tag contains correct version.txt
+git cat-file -p vX.Y.Z:cmd/streamv3/version/version.txt
+# Must show: vX.Y.Z (NOT vX.Y.Z-1-gabcd123)
+
+# 7. Push commit and tag
 git push && git push --tags
-```
 
-### 4. Verify Release
-
-```bash
-# Verify tag is correct
-git describe --tags
-
-# Test installation
-GOPROXY=direct go install github.com/rosscartlidge/streamv3/cmd/streamv3@latest
-
-# Verify version
+# 8. Wait a moment for GitHub to process, then verify
+sleep 3
+GOPROXY=direct go install github.com/rosscartlidge/streamv3/cmd/streamv3@vX.Y.Z
 streamv3 -version
-# Should show: streamv3 version X.Y.NEW
+# Must show: streamv3 version vX.Y.Z
 ```
+
+### Why This Order Matters
+
+The workflow creates a chicken-and-egg situation:
+- `git describe --tags` needs a tag to generate the correct version
+- But the tag should point to a commit that includes the correct version.txt
+
+**Solution:** Create tag → generate version → commit version → move tag
+
+**Common Mistakes:**
+- ❌ Committing version.txt before creating tag → version will be `vX.Y.Z-1-gabcd123` (includes commit hash)
+- ❌ Not moving tag to new commit → tag points to commit without version.txt
+- ❌ Reusing version numbers after failed release → Go checksum database will reject it
+- ❌ Using `git commit --amend` after creating tag → tag points to old commit
+
 
 ## Version Numbering
 
