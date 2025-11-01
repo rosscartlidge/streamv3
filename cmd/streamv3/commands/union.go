@@ -332,7 +332,7 @@ func generateUnionCode(ctx *cf.Context, unionAll bool, inputFile string) error {
 
 	// Create code fragment
 	imports := []string{"fmt", "os", "strings"}
-	frag := lib.NewStmtFragment("result", inputVar, finalCode, imports)
+	frag := lib.NewStmtFragment("result", inputVar, finalCode, imports, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

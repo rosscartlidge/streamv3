@@ -180,6 +180,6 @@ func generateChartCode(xField, yField, outputFile, inputFile string) error {
 	code := fmt.Sprintf(`streamv3.QuickChart(%s, %q, %q, %q)`, inputVar, xField, yField, outputFile)
 
 	// Create final fragment (no output variable, it's a terminal operation)
-	frag := lib.NewFinalFragment(inputVar, code, nil)
+	frag := lib.NewFinalFragment(inputVar, code, nil, getCommandString())
 	return lib.WriteCodeFragment(frag)
 }
