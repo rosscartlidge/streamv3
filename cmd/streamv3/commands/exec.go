@@ -142,7 +142,7 @@ func (c *execCommand) generateCodeDirect(command string, args []string) error {
 	}`, command, argsStr)
 
 	// Create init fragment (first in pipeline)
-	frag := lib.NewInitFragment("records", code, []string{"fmt"})
+	frag := lib.NewInitFragment("records", code, []string{"fmt"}, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

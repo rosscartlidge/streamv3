@@ -206,7 +206,7 @@ func generateSortCode(field string, desc bool, inputFile string) error {
 	}
 
 	// Create code fragment
-	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

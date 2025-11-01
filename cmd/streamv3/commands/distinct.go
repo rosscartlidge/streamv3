@@ -261,7 +261,7 @@ func generateDistinctCode(ctx *cf.Context, inputFile string) error {
 
 	// Create code fragment with imports
 	imports := []string{"fmt", "strings"}
-	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

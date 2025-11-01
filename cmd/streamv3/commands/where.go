@@ -388,7 +388,7 @@ func generateWhereCodeCF(ctx *cf.Context, inputFile string) error {
 	code := fmt.Sprintf("%s := streamv3.Where(%s)(%s)", outputVar, filterCode, inputVar)
 
 	// Create code fragment
-	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

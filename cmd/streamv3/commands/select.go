@@ -218,7 +218,7 @@ func generateSelectCode(ctx *cf.Context, inputFile string) error {
 	code += fmt.Sprintf("\t})(%s)", inputVar)
 
 	// Create code fragment
-	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

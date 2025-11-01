@@ -136,7 +136,7 @@ func generateLimitCode(n int, inputFile string) error {
 	code := fmt.Sprintf("%s := streamv3.Limit[streamv3.Record](%d)(%s)", outputVar, n, inputVar)
 
 	// Create code fragment
-	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

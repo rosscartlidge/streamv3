@@ -369,7 +369,7 @@ func generateJoinCode(ctx *cf.Context, joinType, rightFile, inputFile string) er
 
 	// Create code fragment
 	imports := []string{"fmt", "os"}
-	frag := lib.NewStmtFragment("joined", inputVar, code, imports)
+	frag := lib.NewStmtFragment("joined", inputVar, code, imports, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

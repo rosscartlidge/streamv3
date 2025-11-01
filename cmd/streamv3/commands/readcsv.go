@@ -118,7 +118,7 @@ func generateReadCSVCode(filename string) error {
 	}
 
 	// Create init fragment (first in pipeline)
-	frag := lib.NewInitFragment("records", code, imports)
+	frag := lib.NewInitFragment("records", code, imports, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)

@@ -312,7 +312,7 @@ func generateGroupByCode(ctx *cf.Context, byField, inputFile string) error {
 	}
 	groupCode += fmt.Sprintf(")(%s)", inputVar)
 
-	frag1 := lib.NewStmtFragment("grouped", inputVar, groupCode, nil)
+	frag1 := lib.NewStmtFragment("grouped", inputVar, groupCode, nil, getCommandString())
 	if err := lib.WriteCodeFragment(frag1); err != nil {
 		return fmt.Errorf("writing GroupByFields fragment: %w", err)
 	}
@@ -327,7 +327,7 @@ func generateGroupByCode(ctx *cf.Context, byField, inputFile string) error {
 	}
 	aggCode += ",\n\t})(grouped)"
 
-	frag2 := lib.NewStmtFragment("aggregated", "grouped", aggCode, nil)
+	frag2 := lib.NewStmtFragment("aggregated", "grouped", aggCode, nil, getCommandString())
 	return lib.WriteCodeFragment(frag2)
 }
 

@@ -245,7 +245,7 @@ func generateWriteCSVCode(filename string) error {
 	}
 
 	// Create final fragment (no output variable)
-	frag := lib.NewFinalFragment(inputVar, code, imports)
+	frag := lib.NewFinalFragment(inputVar, code, imports, getCommandString())
 
 	// Write to stdout
 	return lib.WriteCodeFragment(frag)
