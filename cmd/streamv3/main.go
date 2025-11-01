@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/commands"
-	"github.com/rosscartlidge/streamv3/internal/version"
+	"github.com/rosscartlidge/streamv3/cmd/streamv3/version"
 )
 
 func main() {
