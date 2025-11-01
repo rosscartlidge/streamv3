@@ -48,14 +48,12 @@ func main() {
 		count := streamv3.GetOr(result, "count", int64(0))
 
 		// Try to show what the grouping key looks like
-		if locationField, exists := result["location"]; exists {
-			if loc, ok := locationField.(streamv3.Record); ok {
-				city := streamv3.GetOr(loc, "city", "")
-				country := streamv3.GetOr(loc, "country", "")
-				fmt.Printf("  Group %d: %d records, location = %s, %s\n", groupCount, count, city, country)
-			} else {
-				fmt.Printf("  Group %d: %d records, location field = %T\n", groupCount, count, locationField)
-			}
+		if loc, ok := streamv3.Get[streamv3.Record](result, "location"); ok {
+			city := streamv3.GetOr(loc, "city", "")
+			country := streamv3.GetOr(loc, "country", "")
+			fmt.Printf("  Group %d: %d records, location = %s, %s\n", groupCount, count, city, country)
+		} else {
+			fmt.Printf("  Group %d: %d records\n", groupCount, count)
 		}
 	}
 

@@ -82,21 +82,21 @@ func main() {
 		originalPriority, originalPriority, reconstructedPriority, reconstructedPriority)
 
 	// Check complex fields exist and have correct structure
-	if _, exists := reconstructed["tags"]; exists {
+	if _, exists := streamv3.Get[any](reconstructed, "tags"); exists {
 		fmt.Println("✅ Tags: iter.Seq[string] → []interface{} (converted to array)")
 	}
 
-	if _, exists := reconstructed["scores"]; exists {
+	if _, exists := streamv3.Get[any](reconstructed, "scores"); exists {
 		fmt.Println("✅ Scores: iter.Seq[int] → []interface{} (converted to array)")
 	}
 
-	if metaMap, ok := reconstructed["metadata"].(map[string]interface{}); ok {
+	if metaMap, ok := streamv3.Get[map[string]interface{}](reconstructed, "metadata"); ok {
 		if priority, exists := metaMap["priority"]; exists {
 			fmt.Printf("✅ Metadata: Record → map[string]interface{} (nested field 'priority': %v)\n", priority)
 		}
 	}
 
-	if configMap, ok := reconstructed["config"].(map[string]interface{}); ok {
+	if configMap, ok := streamv3.Get[map[string]interface{}](reconstructed, "config"); ok {
 		if timeout, exists := configMap["timeout"]; exists {
 			fmt.Printf("✅ Config: JSONString → map[string]interface{} (parsed, timeout: %v)\n", timeout)
 		}
@@ -120,7 +120,7 @@ func main() {
 }
 
 func printSimpleRecord(record streamv3.Record) {
-	for key, value := range record {
+	for key, value := range record.All() {
 		if key == "_line_number" {
 			continue // Skip ReadJSON metadata for cleaner output
 		}

@@ -167,7 +167,7 @@ func main() {
 	count = 1
 	for result := range dotResults3 {
 		fmt.Printf("  Record %d fields:\n", count)
-		for key, value := range result {
+		for key, value := range result.All() {
 			fmt.Printf("    %s: %v\n", key, value)
 		}
 		count++

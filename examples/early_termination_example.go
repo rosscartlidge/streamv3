@@ -54,11 +54,11 @@ func testLimit() {
 	// Simulate infinite sensor readings
 	sensorGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 1; ; i++ { // Infinite loop
-			record := streamv3.Record{
-				"reading_id": fmt.Sprintf("SENSOR-%04d", i),
-				"value":      20.0 + float64(i%10)*2.5, // Cycling values
-				"timestamp":  time.Now().Add(time.Duration(i) * time.Second).Format("15:04:05"),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("reading_id", fmt.Sprintf("SENSOR-%04d", i)).
+				Float("value", 20.0+float64(i%10)*2.5).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("15:04:05")).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -92,12 +92,12 @@ func testTakeWhile() {
 		prices := []float64{100.0, 102.5, 105.2, 108.1, 95.3, 92.8, 98.7, 101.2}
 
 		for i, price := range prices {
-			record := streamv3.Record{
-				"symbol":    "TECH",
-				"price":     price,
-				"tick":      i + 1,
-				"timestamp": time.Now().Add(time.Duration(i) * time.Minute).Format("15:04"),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("symbol", "TECH").
+				Float("price", price).
+				Int("tick", int64(i+1)).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Minute).Format("15:04")).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -133,12 +133,12 @@ func testTakeUntil() {
 		statuses := []string{"OK", "OK", "WARNING", "OK", "ERROR", "OK", "OK"}
 
 		for i, status := range statuses {
-			record := streamv3.Record{
-				"check_id":   fmt.Sprintf("SYS-%03d", i+1),
-				"status":     status,
-				"cpu_usage":  float64(30 + i*5),
-				"timestamp":  time.Now().Add(time.Duration(i) * time.Second).Format("15:04:05"),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("check_id", fmt.Sprintf("SYS-%03d", i+1)).
+				String("status", status).
+				Float("cpu_usage", float64(30+i*5)).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("15:04:05")).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -172,10 +172,10 @@ func testTimeout() {
 	// Simulate slow data source
 	slowGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 1; i <= 10; i++ {
-			record := streamv3.Record{
-				"data_id": fmt.Sprintf("DATA-%03d", i),
-				"value":   i * 10,
-			}
+			record := streamv3.MakeMutableRecord().
+				String("data_id", fmt.Sprintf("DATA-%03d", i)).
+				Int("value", int64(i*10)).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -213,11 +213,11 @@ func testTimeBasedTimeout() {
 		baseTime := time.Now()
 
 		for i := 0; i < 10; i++ {
-			record := streamv3.Record{
-				"event_id":  fmt.Sprintf("EVT-%03d", i+1),
-				"value":     float64(100 + i*5),
-				"timestamp": baseTime.Add(time.Duration(i) * time.Second),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("event_id", fmt.Sprintf("EVT-%03d", i+1)).
+				Float("value", float64(100+i*5)).
+				SetAny("timestamp", baseTime.Add(time.Duration(i)*time.Second)).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -235,12 +235,8 @@ func testTimeBasedTimeout() {
 		eventId := streamv3.GetOr(record, "event_id", "unknown")
 		value := streamv3.GetOr(record, "value", 0.0)
 
-		if timestamp, exists := record["timestamp"]; exists {
-			if t, ok := timestamp.(time.Time); ok {
-				fmt.Printf("  %s: %.1f at %s\n", eventId, value, t.Format("15:04:05"))
-			} else {
-				fmt.Printf("  %s: %.1f\n", eventId, value)
-			}
+		if t, ok := streamv3.Get[time.Time](record, "timestamp"); ok {
+			fmt.Printf("  %s: %.1f at %s\n", eventId, value, t.Format("15:04:05"))
 		} else {
 			fmt.Printf("  %s: %.1f\n", eventId, value)
 		}
@@ -264,11 +260,11 @@ func testSkipPatterns() {
 		}
 
 		for i, line := range lines {
-			record := streamv3.Record{
-				"line_no": i + 1,
-				"content": line,
-				"type":    getLogType(line),
-			}
+			record := streamv3.MakeMutableRecord().
+				Int("line_no", int64(i+1)).
+				String("content", line).
+				String("type", getLogType(line)).
+				Freeze()
 
 			if !yield(record) {
 				return

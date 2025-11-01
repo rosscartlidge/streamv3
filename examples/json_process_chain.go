@@ -141,9 +141,16 @@ func filterData() {
 		if price >= 500.0 {
 			// Add calculated fields
 			quantity := streamv3.GetOr(record, "quantity", int64(0))
-			record["total_value"] = price * float64(quantity)
-			record["tier"] = "premium"
-			records = append(records, record)
+			totalValue := price * float64(quantity)
+
+			// Create new record with additional fields
+			mutable := streamv3.MakeMutableRecord()
+			for k, v := range record.All() {
+				mutable.SetAny(k, v)
+			}
+			mutable.Float("total_value", totalValue)
+			mutable.String("tier", "premium")
+			records = append(records, mutable.Freeze())
 		}
 	}
 
@@ -273,9 +280,16 @@ func runChainDemo() {
 		price := streamv3.GetOr(record, "price", float64(0))
 		if price >= 500.0 {
 			quantity := streamv3.GetOr(record, "quantity", int64(0))
-			record["total_value"] = price * float64(quantity)
-			record["tier"] = "premium"
-			filteredRecords = append(filteredRecords, record)
+			totalValue := price * float64(quantity)
+
+			// Create new record with additional fields
+			mutable := streamv3.MakeMutableRecord()
+			for k, v := range record.All() {
+				mutable.SetAny(k, v)
+			}
+			mutable.Float("total_value", totalValue)
+			mutable.String("tier", "premium")
+			filteredRecords = append(filteredRecords, mutable.Freeze())
 		}
 	}
 

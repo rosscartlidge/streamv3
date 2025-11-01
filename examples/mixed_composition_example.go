@@ -49,11 +49,11 @@ func main() {
 
 	fmt.Println("High-value non-tablet sales by region:")
 	for result := range results {
-		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n",
-			result["region"],
-			result["total_revenue"],
-			result["avg_deal"],
-			result["count"])
+		region := streamv3.GetOr(result, "region", "Unknown")
+		totalRevenue := streamv3.GetOr(result, "total_revenue", 0.0)
+		avgDeal := streamv3.GetOr(result, "avg_deal", 0.0)
+		count := streamv3.GetOr(result, "count", int64(0))
+		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n", region, totalRevenue, avgDeal, count)
 	}
 
 	fmt.Println("\n✨ What happened:")
@@ -83,10 +83,10 @@ func main() {
 		"count":         streamv3.Count(),
 	})(grouped2)
 	for result := range functionalResults {
-		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n",
-			result["region"],
-			result["total_revenue"],
-			result["avg_deal"],
-			result["count"])
+		region := streamv3.GetOr(result, "region", "Unknown")
+		totalRevenue := streamv3.GetOr(result, "total_revenue", 0.0)
+		avgDeal := streamv3.GetOr(result, "avg_deal", 0.0)
+		count := streamv3.GetOr(result, "count", int64(0))
+		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n", region, totalRevenue, avgDeal, count)
 	}
 }

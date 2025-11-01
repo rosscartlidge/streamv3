@@ -88,8 +88,29 @@ go doc github.com/rosscartlidge/streamv3.FunctionName
 - Use SQL-style names: `Select`, `Where`, `Limit` (not Map, Filter, Take)
 - Always handle errors from ReadCSV, ReadJSON, etc.
 - CSV auto-parses numbers: use `GetOr(r, "age", int64(0))` not `GetOr(r, "age", "")`
-- Record creation: `MakeMutableRecord().String(...).Freeze()`
+- **🚨 CRITICAL**: Record fields are NOT directly accessible - use `MakeMutableRecord()` to create, `GetOr()` to read
 - Only import packages actually used
+
+## 🚨 Record Access (v1.0+)
+
+**CRITICAL: Record is an encapsulated struct, NOT map[string]any**
+
+```go
+// ❌ WRONG - Direct field access will NOT compile
+record["name"] = "Alice"
+value := record["age"]
+
+// ✅ CORRECT - Use builder and accessors
+record := streamv3.MakeMutableRecord().
+    String("name", "Alice").
+    Int("age", int64(30)).
+    Freeze()
+
+name := streamv3.GetOr(record, "name", "")
+age, exists := streamv3.Get[int64](record, "age")
+```
+
+This applies to ALL external code (user code, LLM-generated code, examples).
 
 ## Important Patterns
 

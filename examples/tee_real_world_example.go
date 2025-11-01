@@ -55,17 +55,17 @@ func generateTransactionData() []streamv3.Record {
 	var transactions []streamv3.Record
 
 	for i := 0; i < 100; i++ {
-		transaction := streamv3.Record{
-			"transaction_id": fmt.Sprintf("TXN-%04d", i+1),
-			"customer":       customers[i%len(customers)],
-			"product":        products[i%len(products)],
-			"amount":         float64(50 + (i*17)%500), // Varying amounts
-			"quantity":       int64(1 + i%5),           // 1-5 items
-			"region":         regions[i%len(regions)],
-			"timestamp":      time.Now().Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:04:05"),
-			"customer_tier":  getTier(i),
-			"category":       getCategory(products[i%len(products)]),
-		}
+		transaction := streamv3.MakeMutableRecord().
+			String("transaction_id", fmt.Sprintf("TXN-%04d", i+1)).
+			String("customer", customers[i%len(customers)]).
+			String("product", products[i%len(products)]).
+			Float("amount", float64(50+(i*17)%500)).
+			Int("quantity", int64(1+i%5)).
+			String("region", regions[i%len(regions)]).
+			String("timestamp", time.Now().Add(-time.Duration(i)*time.Hour).Format("2006-01-02 15:04:05")).
+			String("customer_tier", getTier(i)).
+			String("category", getCategory(products[i%len(products)])).
+			Freeze()
 		transactions = append(transactions, transaction)
 	}
 

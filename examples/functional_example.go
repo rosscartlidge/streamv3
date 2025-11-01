@@ -41,10 +41,10 @@ func main() {
 	})(groups1)
 
 	for result := range regionTotals {
-		fmt.Printf("   %s: $%.0f (%d sales)\n",
-			result["region"],
-			result["total_sales"],
-			result["count"])
+		region := streamv3.GetOr(result, "region", "Unknown")
+		totalSales := streamv3.GetOr(result, "total_sales", 0.0)
+		count := streamv3.GetOr(result, "count", int64(0))
+		fmt.Printf("   %s: $%.0f (%d sales)\n", region, totalSales, count)
 	}
 
 	fmt.Println("\n2. All sales by product category:")
@@ -58,11 +58,11 @@ func main() {
 	})(groups2)
 
 	for result := range productTotals {
-		fmt.Printf("   %s: $%.0f total, $%.0f avg (%d sales)\n",
-			result["product"],
-			result["total_revenue"],
-			result["avg_price"],
-			result["sales_count"])
+		product := streamv3.GetOr(result, "product", "Unknown")
+		totalRevenue := streamv3.GetOr(result, "total_revenue", 0.0)
+		avgPrice := streamv3.GetOr(result, "avg_price", 0.0)
+		salesCount := streamv3.GetOr(result, "sales_count", int64(0))
+		fmt.Printf("   %s: $%.0f total, $%.0f avg (%d sales)\n", product, totalRevenue, avgPrice, salesCount)
 	}
 
 	fmt.Println("\n3. Chain everything together - North region laptop sales:")
@@ -87,8 +87,9 @@ func main() {
 
 	hasResults := false
 	for result := range northLaptopTotals {
-		fmt.Printf("   North region laptop sales: $%.0f (%d sales)\n",
-			result["total"], result["count"])
+		total := streamv3.GetOr(result, "total", 0.0)
+		count := streamv3.GetOr(result, "count", int64(0))
+		fmt.Printf("   North region laptop sales: $%.0f (%d sales)\n", total, count)
 		hasResults = true
 	}
 

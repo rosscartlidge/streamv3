@@ -13,9 +13,9 @@ func main() {
 
 	// Create sample data
 	data := []streamv3.Record{
-		{"id": "1", "name": "Alice", "score": 95.5},
-		{"id": "2", "name": "Bob", "score": 87.2},
-		{"id": "3", "name": "Carol", "score": 92.8},
+		streamv3.MakeMutableRecord().String("id", "1").String("name", "Alice").Float("score", 95.5).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "2").String("name", "Bob").Float("score", 87.2).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "3").String("name", "Carol").Float("score", 92.8).Freeze(),
 	}
 
 	fmt.Println("Original data:")
@@ -99,10 +99,10 @@ func main() {
 
 	bigData := make([]streamv3.Record, 0, 1000)
 	for i := 0; i < 1000; i++ {
-		bigData = append(bigData, streamv3.Record{
-			"id":    fmt.Sprintf("item_%d", i),
-			"value": float64(i),
-		})
+		bigData = append(bigData, streamv3.MakeMutableRecord().
+			String("id", fmt.Sprintf("item_%d", i)).
+			Float("value", float64(i)).
+			Freeze())
 	}
 
 	streams2 := streamv3.Tee(slices.Values(bigData), 2)

@@ -44,14 +44,14 @@ func main() {
 func testCountWindow() {
 	// Create test data
 	data := []streamv3.Record{
-		{"id": 1, "value": 10},
-		{"id": 2, "value": 20},
-		{"id": 3, "value": 30},
-		{"id": 4, "value": 40},
-		{"id": 5, "value": 50},
-		{"id": 6, "value": 60},
-		{"id": 7, "value": 70},
-		{"id": 8, "value": 80},
+		streamv3.MakeMutableRecord().Int("id", 1).Int("value", 10).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 2).Int("value", 20).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 3).Int("value", 30).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 4).Int("value", 40).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 5).Int("value", 50).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 6).Int("value", 60).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 7).Int("value", 70).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 8).Int("value", 80).Freeze(),
 	}
 
 	fmt.Println("Input data:", len(data), "records")
@@ -64,7 +64,9 @@ func testCountWindow() {
 	for window := range windows {
 		fmt.Printf("  Window %d: %d records\n", windowNum, len(window))
 		for _, record := range window {
-			fmt.Printf("    ID: %v, Value: %v\n", record["id"], record["value"])
+			id := streamv3.GetOr(record, "id", int64(0))
+			value := streamv3.GetOr(record, "value", int64(0))
+			fmt.Printf("    ID: %v, Value: %v\n", id, value)
 		}
 		windowNum++
 	}
@@ -73,11 +75,11 @@ func testCountWindow() {
 func testSlidingCountWindow() {
 	// Create test data
 	data := []streamv3.Record{
-		{"id": 1, "value": 100},
-		{"id": 2, "value": 200},
-		{"id": 3, "value": 300},
-		{"id": 4, "value": 400},
-		{"id": 5, "value": 500},
+		streamv3.MakeMutableRecord().Int("id", 1).Int("value", 100).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 2).Int("value", 200).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 3).Int("value", 300).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 4).Int("value", 400).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 5).Int("value", 500).Freeze(),
 	}
 
 	fmt.Println("Input data:", len(data), "records")
@@ -91,7 +93,8 @@ func testSlidingCountWindow() {
 		fmt.Printf("  Sliding Window %d: %d records\n", windowNum, len(window))
 		var ids []any
 		for _, record := range window {
-			ids = append(ids, record["id"])
+			id := streamv3.GetOr(record, "id", int64(0))
+			ids = append(ids, id)
 		}
 		fmt.Printf("    IDs: %v\n", ids)
 		windowNum++
@@ -102,12 +105,12 @@ func testTimeWindow() {
 	// Create test data with timestamps
 	baseTime := time.Now().Truncate(time.Minute)
 	data := []streamv3.Record{
-		{"id": 1, "value": 10, "timestamp": baseTime.Format("2006-01-02 15:04:05")},
-		{"id": 2, "value": 20, "timestamp": baseTime.Add(15 * time.Second).Format("2006-01-02 15:04:05")},
-		{"id": 3, "value": 30, "timestamp": baseTime.Add(30 * time.Second).Format("2006-01-02 15:04:05")},
-		{"id": 4, "value": 40, "timestamp": baseTime.Add(70 * time.Second).Format("2006-01-02 15:04:05")}, // Next minute
-		{"id": 5, "value": 50, "timestamp": baseTime.Add(90 * time.Second).Format("2006-01-02 15:04:05")},
-		{"id": 6, "value": 60, "timestamp": baseTime.Add(130 * time.Second).Format("2006-01-02 15:04:05")}, // Next minute
+		streamv3.MakeMutableRecord().Int("id", 1).Int("value", 10).String("timestamp", baseTime.Format("2006-01-02 15:04:05")).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 2).Int("value", 20).String("timestamp", baseTime.Add(15*time.Second).Format("2006-01-02 15:04:05")).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 3).Int("value", 30).String("timestamp", baseTime.Add(30*time.Second).Format("2006-01-02 15:04:05")).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 4).Int("value", 40).String("timestamp", baseTime.Add(70*time.Second).Format("2006-01-02 15:04:05")).Freeze(), // Next minute
+		streamv3.MakeMutableRecord().Int("id", 5).Int("value", 50).String("timestamp", baseTime.Add(90*time.Second).Format("2006-01-02 15:04:05")).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 6).Int("value", 60).String("timestamp", baseTime.Add(130*time.Second).Format("2006-01-02 15:04:05")).Freeze(), // Next minute
 	}
 
 	fmt.Println("Input data:", len(data), "records with timestamps")
@@ -120,7 +123,9 @@ func testTimeWindow() {
 	for window := range windows {
 		fmt.Printf("  Time Window %d: %d records\n", windowNum, len(window))
 		for _, record := range window {
-			fmt.Printf("    ID: %v, Time: %v\n", record["id"], record["timestamp"])
+			id := streamv3.GetOr(record, "id", int64(0))
+			timestamp := streamv3.GetOr(record, "timestamp", "")
+			fmt.Printf("    ID: %v, Time: %v\n", id, timestamp)
 		}
 		windowNum++
 	}
@@ -130,11 +135,11 @@ func testSlidingTimeWindow() {
 	// Create test data spread over time
 	baseTime := time.Now().Truncate(time.Minute)
 	data := []streamv3.Record{
-		{"id": 1, "event": "login", "timestamp": baseTime.Format(time.RFC3339)},
-		{"id": 2, "event": "page_view", "timestamp": baseTime.Add(45 * time.Second).Format(time.RFC3339)},
-		{"id": 3, "event": "click", "timestamp": baseTime.Add(90 * time.Second).Format(time.RFC3339)},
-		{"id": 4, "event": "purchase", "timestamp": baseTime.Add(135 * time.Second).Format(time.RFC3339)},
-		{"id": 5, "event": "logout", "timestamp": baseTime.Add(180 * time.Second).Format(time.RFC3339)},
+		streamv3.MakeMutableRecord().Int("id", 1).String("event", "login").String("timestamp", baseTime.Format(time.RFC3339)).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 2).String("event", "page_view").String("timestamp", baseTime.Add(45*time.Second).Format(time.RFC3339)).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 3).String("event", "click").String("timestamp", baseTime.Add(90*time.Second).Format(time.RFC3339)).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 4).String("event", "purchase").String("timestamp", baseTime.Add(135*time.Second).Format(time.RFC3339)).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 5).String("event", "logout").String("timestamp", baseTime.Add(180*time.Second).Format(time.RFC3339)).Freeze(),
 	}
 
 	fmt.Println("Input data:", len(data), "records over 3 minutes")
@@ -147,7 +152,9 @@ func testSlidingTimeWindow() {
 	for window := range windows {
 		fmt.Printf("  Sliding Time Window %d: %d records\n", windowNum, len(window))
 		for _, record := range window {
-			fmt.Printf("    Event: %v at %v\n", record["event"], record["timestamp"])
+			event := streamv3.GetOr(record, "event", "")
+			timestamp := streamv3.GetOr(record, "timestamp", "")
+			fmt.Printf("    Event: %v at %v\n", event, timestamp)
 		}
 		windowNum++
 	}

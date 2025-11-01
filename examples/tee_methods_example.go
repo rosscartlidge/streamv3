@@ -13,9 +13,9 @@ func main() {
 
 	// Create sample data
 	data := []streamv3.Record{
-		{"id": "1", "name": "Alice", "score": 95.5},
-		{"id": "2", "name": "Bob", "score": 87.2},
-		{"id": "3", "name": "Carol", "score": 92.8},
+		streamv3.MakeMutableRecord().String("id", "1").String("name", "Alice").Float("score", 95.5).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "2").String("name", "Bob").Float("score", 87.2).Freeze(),
+		streamv3.MakeMutableRecord().String("id", "3").String("name", "Carol").Float("score", 92.8).Freeze(),
 	}
 
 	fmt.Println("📋 Method 1: Using standalone Tee function")

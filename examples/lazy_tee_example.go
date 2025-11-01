@@ -45,11 +45,11 @@ func main() {
 func testFiniteStream() {
 	// Small finite dataset
 	data := []streamv3.Record{
-		{"id": 1, "value": 10},
-		{"id": 2, "value": 20},
-		{"id": 3, "value": 30},
-		{"id": 4, "value": 40},
-		{"id": 5, "value": 50},
+		streamv3.MakeMutableRecord().Int("id", 1).Int("value", 10).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 2).Int("value", 20).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 3).Int("value", 30).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 4).Int("value", 40).Freeze(),
+		streamv3.MakeMutableRecord().Int("id", 5).Int("value", 50).Freeze(),
 	}
 
 	stream := streamv3.From(data)
@@ -98,11 +98,11 @@ func testInfiniteStream() {
 	// Create a simulated infinite stream generator
 	infiniteGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 0; i < 1000; i++ { // Simulate infinite with large number
-			record := streamv3.Record{
-				"id":        i,
-				"value":     float64(i * 2),
-				"timestamp": time.Now().Add(time.Duration(i) * time.Millisecond).Format("15:04:05.000"),
-			}
+			record := streamv3.MakeMutableRecord().
+				Int("id", int64(i)).
+				Float("value", float64(i*2)).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Millisecond).Format("15:04:05.000")).
+				Freeze()
 
 			if !yield(record) {
 				fmt.Printf("  Generator stopped at record %d\n", i)
@@ -172,10 +172,10 @@ func testDifferentSpeeds() {
 	// Generator that produces data at steady rate
 	slowGenerator := func(yield func(streamv3.Record) bool) {
 		for i := 0; i < 20; i++ {
-			record := streamv3.Record{
-				"batch": i,
-				"data":  fmt.Sprintf("item_%d", i),
-			}
+			record := streamv3.MakeMutableRecord().
+				Int("batch", int64(i)).
+				String("data", fmt.Sprintf("item_%d", i)).
+				Freeze()
 
 			if !yield(record) {
 				return

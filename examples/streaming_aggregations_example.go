@@ -52,12 +52,12 @@ func testRunningSum() {
 		regions := []string{"North", "South", "East", "West", "North", "South", "East", "West"}
 
 		for i, amount := range sales {
-			record := streamv3.Record{
-				"transaction_id": fmt.Sprintf("TXN-%03d", i+1),
-				"amount":         amount,
-				"region":         regions[i],
-				"timestamp":      time.Now().Add(time.Duration(i) * time.Minute).Format("15:04"),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("transaction_id", fmt.Sprintf("TXN-%03d", i+1)).
+				Float("amount", amount).
+				String("region", regions[i]).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Minute).Format("15:04")).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -89,12 +89,12 @@ func testRunningAverage() {
 		temperatures := []float64{22.5, 23.1, 22.8, 24.2, 25.0, 24.8, 23.9, 22.7, 21.8, 22.3}
 
 		for i, temp := range temperatures {
-			record := streamv3.Record{
-				"sensor_id":   "TEMP-001",
-				"temperature": temp,
-				"reading_id":  i + 1,
-				"timestamp":   time.Now().Add(time.Duration(i) * time.Second).Format("15:04:05"),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("sensor_id", "TEMP-001").
+				Float("temperature", temp).
+				Int("reading_id", int64(i+1)).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("15:04:05")).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -125,12 +125,12 @@ func testExponentialMovingAverage() {
 		prices := []float64{100.0, 102.5, 101.8, 105.2, 103.7, 106.1, 104.9, 107.3, 105.8, 108.2}
 
 		for i, price := range prices {
-			record := streamv3.Record{
-				"symbol": "TECH",
-				"price":  price,
-				"tick":   i + 1,
-				"time":   fmt.Sprintf("09:%02d", 30+i),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("symbol", "TECH").
+				Float("price", price).
+				Int("tick", int64(i+1)).
+				String("time", fmt.Sprintf("09:%02d", 30+i)).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -160,12 +160,12 @@ func testRunningMinMax() {
 		cpuUsages := []float64{45.2, 67.8, 34.1, 89.5, 23.7, 91.2, 56.3, 78.9, 42.6, 85.1}
 
 		for i, cpu := range cpuUsages {
-			record := streamv3.Record{
-				"metric_id":  fmt.Sprintf("CPU-%03d", i+1),
-				"cpu_usage":  cpu,
-				"server":     fmt.Sprintf("srv-%d", (i%3)+1),
-				"timestamp":  time.Now().Add(time.Duration(i) * time.Second).Format("15:04:05"),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("metric_id", fmt.Sprintf("CPU-%03d", i+1)).
+				Float("cpu_usage", cpu).
+				String("server", fmt.Sprintf("srv-%d", (i%3)+1)).
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("15:04:05")).
+				Freeze()
 
 			if !yield(record) {
 				return
@@ -197,12 +197,12 @@ func testRunningCount() {
 		regions := []string{"US", "EU", "ASIA", "US", "EU", "US", "ASIA", "ASIA", "EU", "US"}
 
 		for i, region := range regions {
-			record := streamv3.Record{
-				"request_id": fmt.Sprintf("REQ-%03d", i+1),
-				"region":     region,
-				"method":     "GET",
-				"timestamp":  time.Now().Add(time.Duration(i) * time.Second).Format("15:04:05"),
-			}
+			record := streamv3.MakeMutableRecord().
+				String("request_id", fmt.Sprintf("REQ-%03d", i+1)).
+				String("region", region).
+				String("method", "GET").
+				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("15:04:05")).
+				Freeze()
 
 			if !yield(record) {
 				return
