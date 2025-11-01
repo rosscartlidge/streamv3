@@ -25,13 +25,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The version is automatically extracted from `git describe --tags` and embedded into the binary at build time. No manual version updates needed!
 
-**Correct Release Workflow:**
-1. ✅ Make all code changes and commit them
-2. ✅ Run: `./scripts/generate-version.sh` (updates version.txt from git tag)
-3. ✅ Commit version file: `git add cmd/streamv3/version/version.txt && git commit -m "Update version to vX.Y.Z"`
-4. ✅ Create tag: `git tag -a vX.Y.Z -m "Release notes..."`
-5. ✅ Push: `git push && git push --tags`
-6. ✅ Build and verify: `go install ./cmd/streamv3 && streamv3 -version`
+**Correct Release Workflow (CRITICAL - Follow Exact Order):**
+
+```bash
+# 1. Make all code changes and commit them
+git add .
+git commit -m "Description of changes"
+
+# 2. Create annotated tag (this sets the version)
+git tag -a vX.Y.Z -m "Release notes..."
+
+# 3. Generate version.txt from the tag
+./scripts/generate-version.sh
+
+# 4. Commit the version.txt file
+git add cmd/streamv3/version/version.txt
+git commit -m "Update version to vX.Y.Z"
+
+# 5. Move the tag to the new commit (with version.txt)
+git tag -d vX.Y.Z
+git tag -a vX.Y.Z -m "Release notes..."
+
+# 6. Verify the tag contains correct version
+git cat-file -p vX.Y.Z:cmd/streamv3/version/version.txt  # Should show vX.Y.Z
+
+# 7. Push everything
+git push && git push --tags
+
+# 8. Verify install works
+GOPROXY=direct go install github.com/rosscartlidge/streamv3/cmd/streamv3@vX.Y.Z
+streamv3 -version  # Should show: streamv3 version vX.Y.Z
+```
+
+**⚠️ CRITICAL:**
+- The tag MUST point to a commit that contains the correct version.txt
+- Generate version AFTER creating tag, then move tag to new commit
+- NEVER reuse a version number - if something goes wrong, increment to next version
+- Verify `git cat-file -p vX.Y.Z:cmd/streamv3/version/version.txt` before pushing
 
 **How It Works:**
 - Version is stored in `cmd/streamv3/version/version.go` (embedded from `version.txt`)
