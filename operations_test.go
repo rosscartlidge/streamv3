@@ -357,9 +357,9 @@ func TestLazyTee(t *testing.T) {
 
 func TestRunningSum(t *testing.T) {
 	input := slices.Values([]Record{
-		{"value": 10.0},
-		{"value": 20.0},
-		{"value": 30.0},
+		{fields: map[string]any{"value": 10.0}},
+		{fields: map[string]any{"value": 20.0}},
+		{fields: map[string]any{"value": 30.0}},
 	})
 
 	filter := RunningSum("value")
@@ -370,23 +370,23 @@ func TestRunningSum(t *testing.T) {
 	}
 
 	// Check running sums
-	if result[0]["running_sum"] != 10.0 {
-		t.Errorf("First running_sum should be 10.0, got %v", result[0]["running_sum"])
+	if result[0].fields["running_sum"] != 10.0 {
+		t.Errorf("First running_sum should be 10.0, got %v", result[0].fields["running_sum"])
 	}
-	if result[1]["running_sum"] != 30.0 {
-		t.Errorf("Second running_sum should be 30.0, got %v", result[1]["running_sum"])
+	if result[1].fields["running_sum"] != 30.0 {
+		t.Errorf("Second running_sum should be 30.0, got %v", result[1].fields["running_sum"])
 	}
-	if result[2]["running_sum"] != 60.0 {
-		t.Errorf("Third running_sum should be 60.0, got %v", result[2]["running_sum"])
+	if result[2].fields["running_sum"] != 60.0 {
+		t.Errorf("Third running_sum should be 60.0, got %v", result[2].fields["running_sum"])
 	}
 }
 
 func TestRunningAverage(t *testing.T) {
 	input := slices.Values([]Record{
-		{"value": 10.0},
-		{"value": 20.0},
-		{"value": 30.0},
-		{"value": 40.0},
+		{fields: map[string]any{"value": 10.0}},
+		{fields: map[string]any{"value": 20.0}},
+		{fields: map[string]any{"value": 30.0}},
+		{fields: map[string]any{"value": 40.0}},
 	})
 
 	filter := RunningAverage("value", 2)
@@ -397,26 +397,26 @@ func TestRunningAverage(t *testing.T) {
 	}
 
 	// First window: [10]
-	if result[0]["moving_avg"] != 10.0 {
-		t.Errorf("First moving_avg should be 10.0, got %v", result[0]["moving_avg"])
+	if result[0].fields["moving_avg"] != 10.0 {
+		t.Errorf("First moving_avg should be 10.0, got %v", result[0].fields["moving_avg"])
 	}
 
 	// Second window: [10, 20]
-	if result[1]["moving_avg"] != 15.0 {
-		t.Errorf("Second moving_avg should be 15.0, got %v", result[1]["moving_avg"])
+	if result[1].fields["moving_avg"] != 15.0 {
+		t.Errorf("Second moving_avg should be 15.0, got %v", result[1].fields["moving_avg"])
 	}
 
 	// Third window: [20, 30]
-	if result[2]["moving_avg"] != 25.0 {
-		t.Errorf("Third moving_avg should be 25.0, got %v", result[2]["moving_avg"])
+	if result[2].fields["moving_avg"] != 25.0 {
+		t.Errorf("Third moving_avg should be 25.0, got %v", result[2].fields["moving_avg"])
 	}
 }
 
 func TestExponentialMovingAverage(t *testing.T) {
 	input := slices.Values([]Record{
-		{"value": 10.0},
-		{"value": 20.0},
-		{"value": 30.0},
+		{fields: map[string]any{"value": 10.0}},
+		{fields: map[string]any{"value": 20.0}},
+		{fields: map[string]any{"value": 30.0}},
 	})
 
 	filter := ExponentialMovingAverage("value", 0.5)
@@ -427,22 +427,22 @@ func TestExponentialMovingAverage(t *testing.T) {
 	}
 
 	// First EMA is initialized to first value
-	if result[0]["ema"] != 10.0 {
-		t.Errorf("First EMA should be 10.0, got %v", result[0]["ema"])
+	if result[0].fields["ema"] != 10.0 {
+		t.Errorf("First EMA should be 10.0, got %v", result[0].fields["ema"])
 	}
 
 	// Second EMA: 0.5*20 + 0.5*10 = 15
-	if result[1]["ema"] != 15.0 {
-		t.Errorf("Second EMA should be 15.0, got %v", result[1]["ema"])
+	if result[1].fields["ema"] != 15.0 {
+		t.Errorf("Second EMA should be 15.0, got %v", result[1].fields["ema"])
 	}
 }
 
 func TestRunningMinMax(t *testing.T) {
 	input := slices.Values([]Record{
-		{"value": 10.0},
-		{"value": 5.0},
-		{"value": 15.0},
-		{"value": 3.0},
+		{fields: map[string]any{"value": 10.0}},
+		{fields: map[string]any{"value": 5.0}},
+		{fields: map[string]any{"value": 15.0}},
+		{fields: map[string]any{"value": 3.0}},
 	})
 
 	filter := RunningMinMax("value")
@@ -454,23 +454,23 @@ func TestRunningMinMax(t *testing.T) {
 
 	// After all values, min should be 3.0, max should be 15.0
 	last := result[3]
-	if last["running_min"] != 3.0 {
-		t.Errorf("Running min should be 3.0, got %v", last["running_min"])
+	if last.fields["running_min"] != 3.0 {
+		t.Errorf("Running min should be 3.0, got %v", last.fields["running_min"])
 	}
-	if last["running_max"] != 15.0 {
-		t.Errorf("Running max should be 15.0, got %v", last["running_max"])
+	if last.fields["running_max"] != 15.0 {
+		t.Errorf("Running max should be 15.0, got %v", last.fields["running_max"])
 	}
-	if last["running_range"] != 12.0 {
-		t.Errorf("Running range should be 12.0, got %v", last["running_range"])
+	if last.fields["running_range"] != 12.0 {
+		t.Errorf("Running range should be 12.0, got %v", last.fields["running_range"])
 	}
 }
 
 func TestRunningCount(t *testing.T) {
 	input := slices.Values([]Record{
-		{"category": "A"},
-		{"category": "B"},
-		{"category": "A"},
-		{"category": "A"},
+		{fields: map[string]any{"category": "A"}},
+		{fields: map[string]any{"category": "B"}},
+		{fields: map[string]any{"category": "A"}},
+		{fields: map[string]any{"category": "A"}},
 	})
 
 	filter := RunningCount("category")
@@ -481,11 +481,11 @@ func TestRunningCount(t *testing.T) {
 	}
 
 	last := result[3]
-	if last["total_count"] != int64(4) {
-		t.Errorf("Total count should be 4, got %v", last["total_count"])
+	if last.fields["total_count"] != int64(4) {
+		t.Errorf("Total count should be 4, got %v", last.fields["total_count"])
 	}
-	if last["distinct_values"] != int64(2) {
-		t.Errorf("Distinct values should be 2, got %v", last["distinct_values"])
+	if last.fields["distinct_values"] != int64(2) {
+		t.Errorf("Distinct values should be 2, got %v", last.fields["distinct_values"])
 	}
 }
 
@@ -548,10 +548,10 @@ func TestSlidingCountWindow(t *testing.T) {
 func TestTimeWindow(t *testing.T) {
 	now := time.Now()
 	input := slices.Values([]Record{
-		{"time": now, "value": 1},
-		{"time": now.Add(1 * time.Second), "value": 2},
-		{"time": now.Add(5 * time.Second), "value": 3},
-		{"time": now.Add(6 * time.Second), "value": 4},
+		{fields: map[string]any{"time": now, "value": 1}},
+		{fields: map[string]any{"time": now.Add(1 * time.Second), "value": 2}},
+		{fields: map[string]any{"time": now.Add(5 * time.Second), "value": 3}},
+		{fields: map[string]any{"time": now.Add(6 * time.Second), "value": 4}},
 	})
 
 	filter := TimeWindow[Record](5*time.Second, "time")
@@ -566,10 +566,10 @@ func TestTimeWindow(t *testing.T) {
 func TestSlidingTimeWindow(t *testing.T) {
 	now := time.Now()
 	input := slices.Values([]Record{
-		{"time": now, "value": 1},
-		{"time": now.Add(1 * time.Second), "value": 2},
-		{"time": now.Add(2 * time.Second), "value": 3},
-		{"time": now.Add(3 * time.Second), "value": 4},
+		{fields: map[string]any{"time": now, "value": 1}},
+		{fields: map[string]any{"time": now.Add(1 * time.Second), "value": 2}},
+		{fields: map[string]any{"time": now.Add(2 * time.Second), "value": 3}},
+		{fields: map[string]any{"time": now.Add(3 * time.Second), "value": 4}},
 	})
 
 	filter := SlidingTimeWindow[Record](2*time.Second, 1*time.Second, "time")
@@ -637,10 +637,10 @@ func TestTimeout(t *testing.T) {
 func TestTimeBasedTimeout(t *testing.T) {
 	now := time.Now()
 	input := slices.Values([]Record{
-		{"time": now, "value": 1},
-		{"time": now.Add(1 * time.Second), "value": 2},
-		{"time": now.Add(2 * time.Second), "value": 3},
-		{"time": now.Add(6 * time.Second), "value": 4}, // Exceeds 5 second limit
+		{fields: map[string]any{"time": now, "value": 1}},
+		{fields: map[string]any{"time": now.Add(1 * time.Second), "value": 2}},
+		{fields: map[string]any{"time": now.Add(2 * time.Second), "value": 3}},
+		{fields: map[string]any{"time": now.Add(6 * time.Second), "value": 4}}, // Exceeds 5 second limit
 	})
 
 	filter := TimeBasedTimeout("time", 5*time.Second)
@@ -696,9 +696,9 @@ func TestComplexPipeline(t *testing.T) {
 
 func TestRecordPipeline(t *testing.T) {
 	input := slices.Values([]Record{
-		{"name": "Alice", "age": int64(30), "score": 85.0},
-		{"name": "Bob", "age": int64(25), "score": 90.0},
-		{"name": "Charlie", "age": int64(35), "score": 75.0},
+		{fields: map[string]any{"name": "Alice", "age": int64(30), "score": 85.0}},
+		{fields: map[string]any{"name": "Bob", "age": int64(25), "score": 90.0}},
+		{fields: map[string]any{"name": "Charlie", "age": int64(35), "score": 75.0}},
 	})
 
 	// Filter age > 26, add bonus field, sort by score descending
@@ -708,12 +708,12 @@ func TestRecordPipeline(t *testing.T) {
 	})(input)
 
 	withBonus := Select(func(r Record) Record {
-		result := make(Record)
-		for k, v := range r {
-			result[k] = v
+		result := Record{fields: make(map[string]any)}
+		for k, v := range r.fields {
+			result.fields[k] = v
 		}
 		score := GetOr(r, "score", 0.0)
-		result["bonus"] = score * 0.1
+		result.fields["bonus"] = score * 0.1
 		return result
 	})(filtered)
 
@@ -728,10 +728,10 @@ func TestRecordPipeline(t *testing.T) {
 	}
 
 	// Alice should be first (score 85), Charlie second (score 75)
-	if result[0]["name"] != "Alice" {
-		t.Errorf("First record should be Alice, got %v", result[0]["name"])
+	if result[0].fields["name"] != "Alice" {
+		t.Errorf("First record should be Alice, got %v", result[0].fields["name"])
 	}
-	if result[1]["name"] != "Charlie" {
-		t.Errorf("Second record should be Charlie, got %v", result[1]["name"])
+	if result[1].fields["name"] != "Charlie" {
+		t.Errorf("Second record should be Charlie, got %v", result[1].fields["name"])
 	}
 }

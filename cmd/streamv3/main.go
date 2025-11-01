@@ -24,7 +24,7 @@ func main() {
 		printUsage()
 		os.Exit(0)
 	case "-version", "--version", "version":
-		fmt.Println("streamv3 version 0.10.5")
+		fmt.Println("streamv3 version 1.0.0")
 		os.Exit(0)
 	case "-bash-completion":
 		printBashCompletion()
@@ -122,6 +122,5 @@ _streamv3_completion() {
     fi
 }
 
-complete -F _streamv3_completion streamv3
-`)
+complete -F _streamv3_completion streamv3`)
 }

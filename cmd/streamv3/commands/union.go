@@ -212,7 +212,7 @@ func unionRecordToKey(r streamv3.Record) string {
 	// Create a stable string representation of the record
 	// Sort keys to ensure consistency and exclude _row_number
 	var keys []string
-	for k := range r {
+	for k := range r.KeysIter() {
 		if k != "_row_number" {
 			keys = append(keys, k)
 		}
@@ -223,7 +223,7 @@ func unionRecordToKey(r streamv3.Record) string {
 
 	var parts []string
 	for _, k := range keys {
-		parts = append(parts, fmt.Sprintf("%s=%v", k, r[k]))
+		parts = append(parts, fmt.Sprintf("%s=%v", k, streamv3.GetOr(r, k, "")))
 	}
 	return strings.Join(parts, "|")
 }
@@ -323,7 +323,7 @@ func generateUnionCode(ctx *cf.Context, unionAll bool, inputFile string) error {
 	%s
 	result := streamv3.DistinctBy(func(r streamv3.Record) string {
 		var parts []string
-		for k, v := range r {
+		for k, v := range r.All() {
 			parts = append(parts, fmt.Sprintf("%%s=%%v", k, v))
 		}
 		return strings.Join(parts, "|")

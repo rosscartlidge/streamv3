@@ -63,7 +63,7 @@ func newWriteCSVCommand() *writeCSVCommand {
 			for record := range records {
 				// Collect field names from first record
 				if len(fieldOrder) == 0 {
-					for k := range record {
+					for k := range record.All() {
 						if !fieldSet[k] {
 							fieldOrder = append(fieldOrder, k)
 							fieldSet[k] = true
@@ -98,7 +98,7 @@ func newWriteCSVCommand() *writeCSVCommand {
 			for _, record := range recordSlice {
 				values := make([]string, len(fieldOrder))
 				for i, field := range fieldOrder {
-					if val, ok := record[field]; ok {
+					if val, ok := streamv3.Get[any](record, field); ok {
 						values[i] = formatCSVValue(val)
 					} else {
 						values[i] = ""

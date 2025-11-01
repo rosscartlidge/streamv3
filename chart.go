@@ -290,7 +290,7 @@ func analyzeData(records []Record, _ ChartConfig) ChartData {
 	// Collect all field names
 	fieldSet := make(map[string]bool)
 	for _, record := range records {
-		for field := range record {
+		for field := range record.All() {
 			if !strings.HasPrefix(field, "_") { // Skip metadata fields
 				fieldSet[field] = true
 			}
@@ -348,7 +348,7 @@ func analyzeData(records []Record, _ ChartConfig) ChartData {
 func extractFieldValues(records []Record, field string) []any {
 	values := make([]any, 0, len(records))
 	for _, record := range records {
-		if value, exists := record[field]; exists {
+		if value, exists := record.fields[field]; exists {
 			values = append(values, value)
 		}
 	}
@@ -507,7 +507,7 @@ func getNumericValue(value any) float64 {
 
 // getFieldAsTime safely converts a field value to time.Time
 func getFieldAsTime(record Record, field string) time.Time {
-	value, exists := record[field]
+	value, exists := record.fields[field]
 	if !exists {
 		return time.Time{}
 	}

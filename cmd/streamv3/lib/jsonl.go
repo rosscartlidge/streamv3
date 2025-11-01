@@ -37,12 +37,12 @@ func ReadJSONL(r io.Reader) iter.Seq[streamv3.Record] {
 			}
 
 			// Convert to Record directly (not using TypedRecord builder)
-			record := make(streamv3.Record)
+			record := streamv3.MakeMutableRecord()
 			for k, v := range data {
-				record[k] = convertJSONValue(v)
+				record = record.SetAny(k, convertJSONValue(v))
 			}
 
-			if !yield(record) {
+			if !yield(record.Freeze()) {
 				return
 			}
 		}
@@ -59,7 +59,7 @@ func WriteJSONL(w io.Writer, records iter.Seq[streamv3.Record]) error {
 		data := make(map[string]interface{})
 
 		// Extract all fields from record
-		for k, v := range record {
+		for k, v := range record.All() {
 			data[k] = convertRecordValue(v)
 		}
 
@@ -134,14 +134,14 @@ func convertJSONValue(v interface{}) interface{} {
 		return val
 	case map[string]interface{}:
 		// Nested object - convert to Record
-		record := make(streamv3.Record)
+		record := streamv3.MakeMutableRecord()
 		for k, subv := range val {
-			record[k] = convertJSONValue(subv)
+			record = record.SetAny(k, convertJSONValue(subv))
 		}
-		return record
+		return record.Freeze()
 	default:
-		// For unknown types, return as-is
-		return v
+		// For sequences and other types, try to convert to simple representation
+		return fmt.Sprintf("%v", v)
 	}
 }
 
@@ -151,7 +151,7 @@ func convertRecordValue(v interface{}) interface{} {
 	case streamv3.Record:
 		// Convert nested Record to map
 		result := make(map[string]interface{})
-		for k, subv := range val {
+		for k, subv := range val.All() {
 			result[k] = convertRecordValue(subv)
 		}
 		return result

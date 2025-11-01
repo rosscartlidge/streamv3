@@ -79,14 +79,14 @@ func newSortCommand() *sortCommand {
 			if desc {
 				// Descending: negate numeric values
 				sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
-					val, _ := r[field]
+					val, _ := streamv3.Get[any](r, field)
 					return -extractNumeric(val)
 				})
 				result = sorter(records)
 			} else {
 				// Ascending
 				sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
-					val, _ := r[field]
+					val, _ := streamv3.Get[any](r, field)
 					return extractNumeric(val)
 				})
 				result = sorter(records)
@@ -180,7 +180,7 @@ func generateSortCode(field string, desc bool, inputFile string) error {
 	if desc {
 		// Descending sort
 		code = fmt.Sprintf("%s := streamv3.SortBy(func(r streamv3.Record) float64 {\n", outputVar)
-		code += fmt.Sprintf("\t\tval, _ := r[%q]\n", field)
+		code += fmt.Sprintf("\t\tval, _ := streamv3.Get[any](r, %q)\n", field)
 		code += "\t\tswitch v := val.(type) {\n"
 		code += "\t\tcase int64:\n"
 		code += "\t\t\treturn -float64(v)\n"
@@ -193,7 +193,7 @@ func generateSortCode(field string, desc bool, inputFile string) error {
 	} else {
 		// Ascending sort
 		code = fmt.Sprintf("%s := streamv3.SortBy(func(r streamv3.Record) float64 {\n", outputVar)
-		code += fmt.Sprintf("\t\tval, _ := r[%q]\n", field)
+		code += fmt.Sprintf("\t\tval, _ := streamv3.Get[any](r, %q)\n", field)
 		code += "\t\tswitch v := val.(type) {\n"
 		code += "\t\tcase int64:\n"
 		code += "\t\t\treturn float64(v)\n"

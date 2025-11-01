@@ -48,9 +48,24 @@ func TestInteractiveChart(t *testing.T) {
 
 	// Create test data
 	input := slices.Values([]Record{
-		{"x": int64(1), "y": int64(10)},
-		{"x": int64(2), "y": int64(20)},
-		{"x": int64(3), "y": int64(15)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(1)
+			r.fields["y"] = int64(10)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(2)
+			r.fields["y"] = int64(20)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(3)
+			r.fields["y"] = int64(15)
+			return r.Freeze()
+		}(),
 	})
 
 	config := DefaultChartConfig()
@@ -90,9 +105,24 @@ func TestInteractiveChartCustomConfig(t *testing.T) {
 	filename := filepath.Join(tmpDir, "custom_chart.html")
 
 	input := slices.Values([]Record{
-		{"category": "A", "value": int64(100)},
-		{"category": "B", "value": int64(200)},
-		{"category": "C", "value": int64(150)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["category"] = "A"
+			r.fields["value"] = int64(100)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["category"] = "B"
+			r.fields["value"] = int64(200)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["category"] = "C"
+			r.fields["value"] = int64(150)
+			return r.Freeze()
+		}(),
 	})
 
 	config := DefaultChartConfig()
@@ -127,9 +157,27 @@ func TestInteractiveChartMultipleYFields(t *testing.T) {
 	filename := filepath.Join(tmpDir, "multi_series.html")
 
 	input := slices.Values([]Record{
-		{"month": "Jan", "sales": int64(1000), "profit": int64(200)},
-		{"month": "Feb", "sales": int64(1200), "profit": int64(300)},
-		{"month": "Mar", "sales": int64(1100), "profit": int64(250)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["month"] = "Jan"
+			r.fields["sales"] = int64(1000)
+			r.fields["profit"] = int64(200)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["month"] = "Feb"
+			r.fields["sales"] = int64(1200)
+			r.fields["profit"] = int64(300)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["month"] = "Mar"
+			r.fields["sales"] = int64(1100)
+			r.fields["profit"] = int64(250)
+			return r.Freeze()
+		}(),
 	})
 
 	config := DefaultChartConfig()
@@ -153,9 +201,24 @@ func TestQuickChart(t *testing.T) {
 	filename := filepath.Join(tmpDir, "quick_chart.html")
 
 	input := slices.Values([]Record{
-		{"x": int64(1), "y": int64(10)},
-		{"x": int64(2), "y": int64(20)},
-		{"x": int64(3), "y": int64(15)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(1)
+			r.fields["y"] = int64(10)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(2)
+			r.fields["y"] = int64(20)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(3)
+			r.fields["y"] = int64(15)
+			return r.Freeze()
+		}(),
 	})
 
 	err := QuickChart(input, "x", "y", filename)
@@ -186,9 +249,24 @@ func TestQuickChartFloatValues(t *testing.T) {
 	filename := filepath.Join(tmpDir, "float_chart.html")
 
 	input := slices.Values([]Record{
-		{"time": 1.0, "value": 10.5},
-		{"time": 2.0, "value": 20.3},
-		{"time": 3.0, "value": 15.7},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["time"] = 1.0
+			r.fields["value"] = 10.5
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["time"] = 2.0
+			r.fields["value"] = 20.3
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["time"] = 3.0
+			r.fields["value"] = 15.7
+			return r.Freeze()
+		}(),
 	})
 
 	err := QuickChart(input, "time", "value", filename)
@@ -211,9 +289,24 @@ func TestTimeSeriesChart(t *testing.T) {
 
 	now := time.Now()
 	input := slices.Values([]Record{
-		{"timestamp": now, "value": int64(100)},
-		{"timestamp": now.Add(1 * time.Hour), "value": int64(150)},
-		{"timestamp": now.Add(2 * time.Hour), "value": int64(120)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["timestamp"] = now
+			r.fields["value"] = int64(100)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["timestamp"] = now.Add(1 * time.Hour)
+			r.fields["value"] = int64(150)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["timestamp"] = now.Add(2 * time.Hour)
+			r.fields["value"] = int64(120)
+			return r.Freeze()
+		}(),
 	})
 
 	err := TimeSeriesChart(input, "timestamp", []string{"value"}, filename)
@@ -245,9 +338,27 @@ func TestTimeSeriesChartMultipleValues(t *testing.T) {
 
 	now := time.Now()
 	input := slices.Values([]Record{
-		{"time": now, "temp": int64(20), "humidity": int64(60)},
-		{"time": now.Add(1 * time.Hour), "temp": int64(22), "humidity": int64(65)},
-		{"time": now.Add(2 * time.Hour), "temp": int64(21), "humidity": int64(63)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["time"] = now
+			r.fields["temp"] = int64(20)
+			r.fields["humidity"] = int64(60)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["time"] = now.Add(1 * time.Hour)
+			r.fields["temp"] = int64(22)
+			r.fields["humidity"] = int64(65)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["time"] = now.Add(2 * time.Hour)
+			r.fields["temp"] = int64(21)
+			r.fields["humidity"] = int64(63)
+			return r.Freeze()
+		}(),
 	})
 
 	err := TimeSeriesChart(input, "time", []string{"temp", "humidity"}, filename)
@@ -266,8 +377,18 @@ func TestTimeSeriesChartWithConfig(t *testing.T) {
 
 	now := time.Now()
 	input := slices.Values([]Record{
-		{"date": now, "sales": int64(1000)},
-		{"date": now.Add(24 * time.Hour), "sales": int64(1200)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["date"] = now
+			r.fields["sales"] = int64(1000)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["date"] = now.Add(24 * time.Hour)
+			r.fields["sales"] = int64(1200)
+			return r.Freeze()
+		}(),
 	})
 
 	config := DefaultChartConfig()
@@ -300,7 +421,12 @@ func TestTimeSeriesChartWithConfig(t *testing.T) {
 
 func TestInteractiveChartInvalidPath(t *testing.T) {
 	input := slices.Values([]Record{
-		{"x": int64(1), "y": int64(10)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(1)
+			r.fields["y"] = int64(10)
+			return r.Freeze()
+		}(),
 	})
 
 	config := DefaultChartConfig()
@@ -352,11 +478,36 @@ func TestChartPipeline(t *testing.T) {
 
 	// Create data, filter it, and chart it
 	input := slices.Values([]Record{
-		{"x": int64(1), "y": int64(10)},
-		{"x": int64(2), "y": int64(5)},
-		{"x": int64(3), "y": int64(20)},
-		{"x": int64(4), "y": int64(8)},
-		{"x": int64(5), "y": int64(25)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(1)
+			r.fields["y"] = int64(10)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(2)
+			r.fields["y"] = int64(5)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(3)
+			r.fields["y"] = int64(20)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(4)
+			r.fields["y"] = int64(8)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(5)
+			r.fields["y"] = int64(25)
+			return r.Freeze()
+		}(),
 	})
 
 	// Filter: only values where y > 10
@@ -381,10 +532,34 @@ func TestChartWithGroupedData(t *testing.T) {
 
 	// Create sales data
 	input := slices.Values([]Record{
-		{"dept": "Eng", "month": "Jan", "sales": int64(1000)},
-		{"dept": "Eng", "month": "Feb", "sales": int64(1200)},
-		{"dept": "Sales", "month": "Jan", "sales": int64(800)},
-		{"dept": "Sales", "month": "Feb", "sales": int64(900)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["dept"] = "Eng"
+			r.fields["month"] = "Jan"
+			r.fields["sales"] = int64(1000)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["dept"] = "Eng"
+			r.fields["month"] = "Feb"
+			r.fields["sales"] = int64(1200)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["dept"] = "Sales"
+			r.fields["month"] = "Jan"
+			r.fields["sales"] = int64(800)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["dept"] = "Sales"
+			r.fields["month"] = "Feb"
+			r.fields["sales"] = int64(900)
+			return r.Freeze()
+		}(),
 	})
 
 	// Group by department and aggregate using Chain instead of Pipe
@@ -423,9 +598,24 @@ func TestDifferentChartTypes(t *testing.T) {
 
 			// Need to re-collect input for each test since it's consumed
 			testInput := slices.Values([]Record{
-				{"category": "A", "value": int64(10)},
-				{"category": "B", "value": int64(20)},
-				{"category": "C", "value": int64(15)},
+				func() Record {
+					r := MakeMutableRecord()
+					r.fields["category"] = "A"
+					r.fields["value"] = int64(10)
+					return r.Freeze()
+				}(),
+				func() Record {
+					r := MakeMutableRecord()
+					r.fields["category"] = "B"
+					r.fields["value"] = int64(20)
+					return r.Freeze()
+				}(),
+				func() Record {
+					r := MakeMutableRecord()
+					r.fields["category"] = "C"
+					r.fields["value"] = int64(15)
+					return r.Freeze()
+				}(),
 			})
 
 			err := InteractiveChart(testInput, filename, config)
@@ -446,9 +636,24 @@ func TestChartWithStringValues(t *testing.T) {
 
 	// CSV data often comes in as strings
 	input := slices.Values([]Record{
-		{"x": "1", "y": "10"},
-		{"x": "2", "y": "20"},
-		{"x": "3", "y": "15"},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = "1"
+			r.fields["y"] = "10"
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = "2"
+			r.fields["y"] = "20"
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = "3"
+			r.fields["y"] = "15"
+			return r.Freeze()
+		}(),
 	})
 
 	config := DefaultChartConfig()
@@ -468,8 +673,18 @@ func TestChartConfigOptions(t *testing.T) {
 	filename := filepath.Join(tmpDir, "options_chart.html")
 
 	input := slices.Values([]Record{
-		{"x": int64(1), "y": int64(10)},
-		{"x": int64(2), "y": int64(20)},
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(1)
+			r.fields["y"] = int64(10)
+			return r.Freeze()
+		}(),
+		func() Record {
+			r := MakeMutableRecord()
+			r.fields["x"] = int64(2)
+			r.fields["y"] = int64(20)
+			return r.Freeze()
+		}(),
 	})
 
 	config := DefaultChartConfig()
