@@ -90,13 +90,13 @@ func newSelectCommand() *selectCommand {
 
 			// Build selector function
 			selector := func(r streamv3.Record) streamv3.Record {
-				result := make(streamv3.Record)
+				result := streamv3.MakeMutableRecord()
 				for origField, newField := range fieldMap {
-					if val, exists := r[origField]; exists {
-						result[newField] = val
+					if val, exists := streamv3.Get[any](r, origField); exists {
+						result = result.SetAny(newField, val)
 					}
 				}
-				return result
+				return result.Freeze()
 			}
 
 			// Apply selection
@@ -200,21 +200,21 @@ func generateSelectCode(ctx *cf.Context, inputFile string) error {
 	outputVar := "selected"
 	var code string
 	code = fmt.Sprintf("%s := streamv3.Select(func(r streamv3.Record) streamv3.Record {\n", outputVar)
-	code += "\t\tresult := make(streamv3.Record)\n"
+	code += "\t\tresult := streamv3.MakeMutableRecord()\n"
 	for origField, newField := range fieldMap {
 		if origField == newField {
 			// No rename
-			code += fmt.Sprintf("\t\tif val, exists := r[%q]; exists {\n", origField)
-			code += fmt.Sprintf("\t\t\tresult[%q] = val\n", origField)
+			code += fmt.Sprintf("\t\tif val, exists := streamv3.Get[any](r, %q); exists {\n", origField)
+			code += fmt.Sprintf("\t\t\tresult = result.SetAny(%q, val)\n", origField)
 			code += "\t\t}\n"
 		} else {
 			// With rename
-			code += fmt.Sprintf("\t\tif val, exists := r[%q]; exists {\n", origField)
-			code += fmt.Sprintf("\t\t\tresult[%q] = val\n", newField)
+			code += fmt.Sprintf("\t\tif val, exists := streamv3.Get[any](r, %q); exists {\n", origField)
+			code += fmt.Sprintf("\t\t\tresult = result.SetAny(%q, val)\n", newField)
 			code += "\t\t}\n"
 		}
 	}
-	code += "\t\treturn result\n"
+	code += "\t\treturn result.Freeze()\n"
 	code += fmt.Sprintf("\t})(%s)", inputVar)
 
 	// Create code fragment

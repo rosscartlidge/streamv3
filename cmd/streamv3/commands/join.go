@@ -170,8 +170,8 @@ func newJoinCommand() *joinCommand {
 			} else {
 				// Use different field names
 				predicate = streamv3.OnCondition(func(left, right streamv3.Record) bool {
-					leftVal, leftOk := left[leftField]
-					rightVal, rightOk := right[rightField]
+					leftVal, leftOk := streamv3.Get[any](left, leftField)
+					rightVal, rightOk := streamv3.Get[any](right, rightField)
 					if !leftOk || !rightOk {
 						return false
 					}
@@ -340,8 +340,8 @@ func generateJoinCode(ctx *cf.Context, joinType, rightFile, inputFile string) er
 		predicateCode = fmt.Sprintf("streamv3.OnFields(%s)", strings.Join(fieldsList, ", "))
 	} else {
 		predicateCode = fmt.Sprintf(`streamv3.OnCondition(func(left, right streamv3.Record) bool {
-		leftVal, leftOk := left[%q]
-		rightVal, rightOk := right[%q]
+		leftVal, leftOk := streamv3.Get[any](left, %q)
+		rightVal, rightOk := streamv3.Get[any](right, %q)
 		if !leftOk || !rightOk {
 			return false
 		}

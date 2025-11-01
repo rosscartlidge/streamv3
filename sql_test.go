@@ -12,14 +12,14 @@ import (
 
 func TestInnerJoin(t *testing.T) {
 	left := slices.Values([]Record{
-		{"id": int64(1), "name": "Alice"},
-		{"id": int64(2), "name": "Bob"},
-		{"id": int64(3), "name": "Charlie"},
+		{fields: map[string]any{"id": int64(1), "name": "Alice"}},
+		{fields: map[string]any{"id": int64(2), "name": "Bob"}},
+		{fields: map[string]any{"id": int64(3), "name": "Charlie"}},
 	})
 
 	right := slices.Values([]Record{
-		{"id": int64(1), "dept": "Engineering"},
-		{"id": int64(2), "dept": "Sales"},
+		{fields: map[string]any{"id": int64(1), "dept": "Engineering"}},
+		{fields: map[string]any{"id": int64(2), "dept": "Sales"}},
 	})
 
 	filter := InnerJoin(right, OnFields("id"))
@@ -31,21 +31,21 @@ func TestInnerJoin(t *testing.T) {
 	}
 
 	// Check first joined record
-	if result[0]["name"] != "Alice" || result[0]["dept"] != "Engineering" {
+	if result[0].fields["name"] != "Alice" || result[0].fields["dept"] != "Engineering" {
 		t.Errorf("First join failed: %v", result[0])
 	}
 }
 
 func TestLeftJoin(t *testing.T) {
 	left := slices.Values([]Record{
-		{"id": int64(1), "name": "Alice"},
-		{"id": int64(2), "name": "Bob"},
-		{"id": int64(3), "name": "Charlie"},
+		{fields: map[string]any{"id": int64(1), "name": "Alice"}},
+		{fields: map[string]any{"id": int64(2), "name": "Bob"}},
+		{fields: map[string]any{"id": int64(3), "name": "Charlie"}},
 	})
 
 	right := slices.Values([]Record{
-		{"id": int64(1), "dept": "Engineering"},
-		{"id": int64(2), "dept": "Sales"},
+		{fields: map[string]any{"id": int64(1), "dept": "Engineering"}},
+		{fields: map[string]any{"id": int64(2), "dept": "Sales"}},
 	})
 
 	filter := LeftJoin(right, OnFields("id"))
@@ -59,7 +59,7 @@ func TestLeftJoin(t *testing.T) {
 	// Charlie should exist without dept field
 	found := false
 	for _, r := range result {
-		if r["name"] == "Charlie" {
+		if r.fields["name"] == "Charlie" {
 			found = true
 			if r.Has("dept") {
 				t.Error("Charlie should not have dept field in left join")
@@ -74,14 +74,14 @@ func TestLeftJoin(t *testing.T) {
 
 func TestRightJoin(t *testing.T) {
 	left := slices.Values([]Record{
-		{"id": int64(1), "name": "Alice"},
-		{"id": int64(2), "name": "Bob"},
+		{fields: map[string]any{"id": int64(1), "name": "Alice"}},
+		{fields: map[string]any{"id": int64(2), "name": "Bob"}},
 	})
 
 	right := slices.Values([]Record{
-		{"id": int64(1), "dept": "Engineering"},
-		{"id": int64(2), "dept": "Sales"},
-		{"id": int64(3), "dept": "Marketing"},
+		{fields: map[string]any{"id": int64(1), "dept": "Engineering"}},
+		{fields: map[string]any{"id": int64(2), "dept": "Sales"}},
+		{fields: map[string]any{"id": int64(3), "dept": "Marketing"}},
 	})
 
 	filter := RightJoin(right, OnFields("id"))
@@ -95,7 +95,7 @@ func TestRightJoin(t *testing.T) {
 	// Marketing dept should exist without name field
 	found := false
 	for _, r := range result {
-		if r["dept"] == "Marketing" {
+		if r.fields["dept"] == "Marketing" {
 			found = true
 			if r.Has("name") {
 				t.Error("Marketing record should not have name field")
@@ -110,15 +110,15 @@ func TestRightJoin(t *testing.T) {
 
 func TestFullJoin(t *testing.T) {
 	left := slices.Values([]Record{
-		{"id": int64(1), "name": "Alice"},
-		{"id": int64(2), "name": "Bob"},
-		{"id": int64(4), "name": "David"},
+		{fields: map[string]any{"id": int64(1), "name": "Alice"}},
+		{fields: map[string]any{"id": int64(2), "name": "Bob"}},
+		{fields: map[string]any{"id": int64(4), "name": "David"}},
 	})
 
 	right := slices.Values([]Record{
-		{"id": int64(1), "dept": "Engineering"},
-		{"id": int64(2), "dept": "Sales"},
-		{"id": int64(3), "dept": "Marketing"},
+		{fields: map[string]any{"id": int64(1), "dept": "Engineering"}},
+		{fields: map[string]any{"id": int64(2), "dept": "Sales"}},
+		{fields: map[string]any{"id": int64(3), "dept": "Marketing"}},
 	})
 
 	filter := FullJoin(right, OnFields("id"))
@@ -133,10 +133,10 @@ func TestFullJoin(t *testing.T) {
 	hasMarketing := false
 
 	for _, r := range result {
-		if r["name"] == "David" {
+		if r.fields["name"] == "David" {
 			hasDavid = true
 		}
-		if r["dept"] == "Marketing" {
+		if r.fields["dept"] == "Marketing" {
 			hasMarketing = true
 		}
 	}
@@ -152,14 +152,14 @@ func TestFullJoin(t *testing.T) {
 func TestOnFields(t *testing.T) {
 	predicate := OnFields("id", "type")
 
-	left := Record{"id": int64(1), "type": "A", "name": "Alice"}
-	right := Record{"id": int64(1), "type": "A", "dept": "Eng"}
+	left := Record{fields: map[string]any{"id": int64(1), "type": "A", "name": "Alice"}}
+	right := Record{fields: map[string]any{"id": int64(1), "type": "A", "dept": "Eng"}}
 
 	if !predicate(left, right) {
 		t.Error("OnFields should match records with same id and type")
 	}
 
-	right2 := Record{"id": int64(1), "type": "B", "dept": "Sales"}
+	right2 := Record{fields: map[string]any{"id": int64(1), "type": "B", "dept": "Sales"}}
 	if predicate(left, right2) {
 		t.Error("OnFields should not match records with different type")
 	}
@@ -172,14 +172,14 @@ func TestOnCondition(t *testing.T) {
 		return ok1 && ok2 && leftAge > rightAge
 	})
 
-	left := Record{"name": "Alice", "age": int64(30)}
-	right := Record{"name": "Bob", "age": int64(25)}
+	left := Record{fields: map[string]any{"name": "Alice", "age": int64(30)}}
+	right := Record{fields: map[string]any{"name": "Bob", "age": int64(25)}}
 
 	if !predicate(left, right) {
 		t.Error("OnCondition should match when left age > right age")
 	}
 
-	right2 := Record{"name": "Charlie", "age": int64(35)}
+	right2 := Record{fields: map[string]any{"name": "Charlie", "age": int64(35)}}
 	if predicate(left, right2) {
 		t.Error("OnCondition should not match when left age < right age")
 	}
@@ -191,9 +191,9 @@ func TestOnCondition(t *testing.T) {
 
 func TestGroupBy(t *testing.T) {
 	input := slices.Values([]Record{
-		{"name": "Alice", "dept": "Engineering", "salary": int64(100000)},
-		{"name": "Bob", "dept": "Engineering", "salary": int64(110000)},
-		{"name": "Charlie", "dept": "Sales", "salary": int64(90000)},
+		{fields: map[string]any{"name": "Alice", "dept": "Engineering", "salary": int64(100000)}},
+		{fields: map[string]any{"name": "Bob", "dept": "Engineering", "salary": int64(110000)}},
+		{fields: map[string]any{"name": "Charlie", "dept": "Sales", "salary": int64(90000)}},
 	})
 
 	filter := GroupBy("employees", "department", func(r Record) string {
@@ -217,7 +217,7 @@ func TestGroupBy(t *testing.T) {
 		}
 
 		// Check sequence field type
-		if seq, ok := group["employees"].(iter.Seq[Record]); ok {
+		if seq, ok := group.fields["employees"].(iter.Seq[Record]); ok {
 			members := slices.Collect(seq)
 			if len(members) == 0 {
 				t.Error("Group should have members")
@@ -230,10 +230,10 @@ func TestGroupBy(t *testing.T) {
 
 func TestGroupByFields(t *testing.T) {
 	input := slices.Values([]Record{
-		{"dept": "Eng", "level": "Senior", "count": int64(5)},
-		{"dept": "Eng", "level": "Senior", "count": int64(3)},
-		{"dept": "Eng", "level": "Junior", "count": int64(10)},
-		{"dept": "Sales", "level": "Senior", "count": int64(2)},
+		{fields: map[string]any{"dept": "Eng", "level": "Senior", "count": int64(5)}},
+		{fields: map[string]any{"dept": "Eng", "level": "Senior", "count": int64(3)}},
+		{fields: map[string]any{"dept": "Eng", "level": "Junior", "count": int64(10)}},
+		{fields: map[string]any{"dept": "Sales", "level": "Senior", "count": int64(2)}},
 	})
 
 	filter := GroupByFields("members", "dept", "level")
@@ -246,9 +246,9 @@ func TestGroupByFields(t *testing.T) {
 
 	// Find the (Eng, Senior) group
 	for _, group := range result {
-		if group["dept"] == "Eng" && group["level"] == "Senior" {
+		if group.fields["dept"] == "Eng" && group.fields["level"] == "Senior" {
 			// This group should have 2 members
-			if seq, ok := group["members"].(iter.Seq[Record]); ok {
+			if seq, ok := group.fields["members"].(iter.Seq[Record]); ok {
 				members := slices.Collect(seq)
 				if len(members) != 2 {
 					t.Errorf("Eng/Senior group should have 2 members, got %d", len(members))
@@ -260,11 +260,11 @@ func TestGroupByFields(t *testing.T) {
 
 func TestGroupByFieldsWithComplexValues(t *testing.T) {
 	// Test that records with complex GROUPING field values are skipped
-	nestedRecord := Record{"city": "NYC"}
+	nestedRecord := Record{fields: map[string]any{"city": "NYC"}}
 
 	input := slices.Values([]Record{
-		{"dept": nestedRecord, "name": "Alice"},  // Complex dept field - should be skipped
-		{"dept": "Sales", "location": "Boston"},  // Simple dept - should work
+		{fields: map[string]any{"dept": nestedRecord, "name": "Alice"}},  // Complex dept field - should be skipped
+		{fields: map[string]any{"dept": "Sales", "location": "Boston"}},  // Simple dept - should work
 	})
 
 	filter := GroupByFields("members", "dept")
@@ -275,7 +275,7 @@ func TestGroupByFieldsWithComplexValues(t *testing.T) {
 		t.Fatalf("GroupByFields should skip records with complex grouping field values, expected 1 group, got %d", len(result))
 	}
 
-	if result[0]["dept"] != "Sales" {
+	if result[0].fields["dept"] != "Sales" {
 		t.Error("Should only have Sales group")
 	}
 }
@@ -287,9 +287,9 @@ func TestGroupByFieldsWithComplexValues(t *testing.T) {
 func TestAggregate(t *testing.T) {
 	// Create a grouped result first
 	input := slices.Values([]Record{
-		{"dept": "Eng", "salary": int64(100000)},
-		{"dept": "Eng", "salary": int64(110000)},
-		{"dept": "Sales", "salary": int64(90000)},
+		{fields: map[string]any{"dept": "Eng", "salary": int64(100000)}},
+		{fields: map[string]any{"dept": "Eng", "salary": int64(110000)}},
+		{fields: map[string]any{"dept": "Sales", "salary": int64(90000)}},
 	})
 
 	grouped := GroupByFields("employees", "dept")(input)
@@ -309,15 +309,15 @@ func TestAggregate(t *testing.T) {
 
 	// Find Engineering department
 	for _, r := range result {
-		if r["dept"] == "Eng" {
-			if r["count"] != int64(2) {
-				t.Errorf("Eng count should be 2, got %v", r["count"])
+		if r.fields["dept"] == "Eng" {
+			if r.fields["count"] != int64(2) {
+				t.Errorf("Eng count should be 2, got %v", r.fields["count"])
 			}
-			if r["total"] != float64(210000) {
-				t.Errorf("Eng total should be 210000, got %v", r["total"])
+			if r.fields["total"] != float64(210000) {
+				t.Errorf("Eng total should be 210000, got %v", r.fields["total"])
 			}
-			if r["avg_salary"] != float64(105000) {
-				t.Errorf("Eng avg should be 105000, got %v", r["avg_salary"])
+			if r.fields["avg_salary"] != float64(105000) {
+				t.Errorf("Eng avg should be 105000, got %v", r.fields["avg_salary"])
 			}
 		}
 	}
@@ -325,9 +325,9 @@ func TestAggregate(t *testing.T) {
 
 func TestCount(t *testing.T) {
 	records := []Record{
-		{"name": "Alice"},
-		{"name": "Bob"},
-		{"name": "Charlie"},
+		{fields: map[string]any{"name": "Alice"}},
+		{fields: map[string]any{"name": "Bob"}},
+		{fields: map[string]any{"name": "Charlie"}},
 	}
 
 	countFn := Count()
@@ -340,9 +340,9 @@ func TestCount(t *testing.T) {
 
 func TestSum(t *testing.T) {
 	records := []Record{
-		{"value": int64(10)},
-		{"value": int64(20)},
-		{"value": int64(30)},
+		{fields: map[string]any{"value": int64(10)}},
+		{fields: map[string]any{"value": int64(20)}},
+		{fields: map[string]any{"value": int64(30)}},
 	}
 
 	sumFn := Sum("value")
@@ -355,9 +355,9 @@ func TestSum(t *testing.T) {
 
 func TestSumMixedTypes(t *testing.T) {
 	records := []Record{
-		{"value": int64(10)},
-		{"value": 20.5},
-		{"value": "30"}, // Should convert
+		{fields: map[string]any{"value": int64(10)}},
+		{fields: map[string]any{"value": 20.5}},
+		{fields: map[string]any{"value": "30"}}, // Should convert
 	}
 
 	sumFn := Sum("value")
@@ -370,9 +370,9 @@ func TestSumMixedTypes(t *testing.T) {
 
 func TestAvg(t *testing.T) {
 	records := []Record{
-		{"score": int64(80)},
-		{"score": int64(90)},
-		{"score": int64(100)},
+		{fields: map[string]any{"score": int64(80)}},
+		{fields: map[string]any{"score": int64(90)}},
+		{fields: map[string]any{"score": int64(100)}},
 	}
 
 	avgFn := Avg("score")
@@ -396,9 +396,9 @@ func TestAvgEmpty(t *testing.T) {
 
 func TestMin(t *testing.T) {
 	records := []Record{
-		{"value": int64(50)},
-		{"value": int64(10)},
-		{"value": int64(30)},
+		{fields: map[string]any{"value": int64(50)}},
+		{fields: map[string]any{"value": int64(10)}},
+		{fields: map[string]any{"value": int64(30)}},
 	}
 
 	minFn := Min[int64]("value")
@@ -411,9 +411,9 @@ func TestMin(t *testing.T) {
 
 func TestMinFloat(t *testing.T) {
 	records := []Record{
-		{"value": 5.5},
-		{"value": 2.3},
-		{"value": 7.8},
+		{fields: map[string]any{"value": 5.5}},
+		{fields: map[string]any{"value": 2.3}},
+		{fields: map[string]any{"value": 7.8}},
 	}
 
 	minFn := Min[float64]("value")
@@ -426,9 +426,9 @@ func TestMinFloat(t *testing.T) {
 
 func TestMax(t *testing.T) {
 	records := []Record{
-		{"value": int64(50)},
-		{"value": int64(10)},
-		{"value": int64(100)},
+		{fields: map[string]any{"value": int64(50)}},
+		{fields: map[string]any{"value": int64(10)}},
+		{fields: map[string]any{"value": int64(100)}},
 	}
 
 	maxFn := Max[int64]("value")
@@ -441,9 +441,9 @@ func TestMax(t *testing.T) {
 
 func TestMaxString(t *testing.T) {
 	records := []Record{
-		{"name": "Alice"},
-		{"name": "Charlie"},
-		{"name": "Bob"},
+		{fields: map[string]any{"name": "Alice"}},
+		{fields: map[string]any{"name": "Charlie"}},
+		{fields: map[string]any{"name": "Bob"}},
 	}
 
 	maxFn := Max[string]("name")
@@ -456,9 +456,9 @@ func TestMaxString(t *testing.T) {
 
 func TestFirst(t *testing.T) {
 	records := []Record{
-		{"value": "first"},
-		{"value": "second"},
-		{"value": "third"},
+		{fields: map[string]any{"value": "first"}},
+		{fields: map[string]any{"value": "second"}},
+		{fields: map[string]any{"value": "third"}},
 	}
 
 	firstFn := First("value")
@@ -482,9 +482,9 @@ func TestFirstEmpty(t *testing.T) {
 
 func TestLast(t *testing.T) {
 	records := []Record{
-		{"value": "first"},
-		{"value": "second"},
-		{"value": "third"},
+		{fields: map[string]any{"value": "first"}},
+		{fields: map[string]any{"value": "second"}},
+		{fields: map[string]any{"value": "third"}},
 	}
 
 	lastFn := Last("value")
@@ -508,9 +508,9 @@ func TestLastEmpty(t *testing.T) {
 
 func TestCollect(t *testing.T) {
 	records := []Record{
-		{"name": "Alice"},
-		{"name": "Bob"},
-		{"name": "Charlie"},
+		{fields: map[string]any{"name": "Alice"}},
+		{fields: map[string]any{"name": "Bob"}},
+		{fields: map[string]any{"name": "Charlie"}},
 	}
 
 	collectFn := Collect("name")
@@ -537,11 +537,11 @@ func TestCollect(t *testing.T) {
 func TestComplexGroupByAggregate(t *testing.T) {
 	// Sales data
 	input := slices.Values([]Record{
-		{"product": "Widget", "region": "East", "sales": int64(1000)},
-		{"product": "Widget", "region": "East", "sales": int64(1500)},
-		{"product": "Widget", "region": "West", "sales": int64(2000)},
-		{"product": "Gadget", "region": "East", "sales": int64(800)},
-		{"product": "Gadget", "region": "West", "sales": int64(1200)},
+		{fields: map[string]any{"product": "Widget", "region": "East", "sales": int64(1000)}},
+		{fields: map[string]any{"product": "Widget", "region": "East", "sales": int64(1500)}},
+		{fields: map[string]any{"product": "Widget", "region": "West", "sales": int64(2000)}},
+		{fields: map[string]any{"product": "Gadget", "region": "East", "sales": int64(800)}},
+		{fields: map[string]any{"product": "Gadget", "region": "West", "sales": int64(1200)}},
 	})
 
 	// Group by product and region, then aggregate
@@ -565,15 +565,15 @@ func TestComplexGroupByAggregate(t *testing.T) {
 
 	// Find Widget/East group
 	for _, r := range result {
-		if r["product"] == "Widget" && r["region"] == "East" {
-			if r["count"] != int64(2) {
-				t.Errorf("Widget/East count should be 2, got %v", r["count"])
+		if r.fields["product"] == "Widget" && r.fields["region"] == "East" {
+			if r.fields["count"] != int64(2) {
+				t.Errorf("Widget/East count should be 2, got %v", r.fields["count"])
 			}
-			if r["total_sales"] != float64(2500) {
-				t.Errorf("Widget/East total should be 2500, got %v", r["total_sales"])
+			if r.fields["total_sales"] != float64(2500) {
+				t.Errorf("Widget/East total should be 2500, got %v", r.fields["total_sales"])
 			}
-			if r["max_sale"] != int64(1500) {
-				t.Errorf("Widget/East max should be 1500, got %v", r["max_sale"])
+			if r.fields["max_sale"] != int64(1500) {
+				t.Errorf("Widget/East max should be 1500, got %v", r.fields["max_sale"])
 			}
 		}
 	}
@@ -582,15 +582,15 @@ func TestComplexGroupByAggregate(t *testing.T) {
 func TestJoinThenGroup(t *testing.T) {
 	// Employee data
 	employees := slices.Values([]Record{
-		{"id": int64(1), "name": "Alice", "dept_id": int64(10)},
-		{"id": int64(2), "name": "Bob", "dept_id": int64(10)},
-		{"id": int64(3), "name": "Charlie", "dept_id": int64(20)},
+		{fields: map[string]any{"id": int64(1), "name": "Alice", "dept_id": int64(10)}},
+		{fields: map[string]any{"id": int64(2), "name": "Bob", "dept_id": int64(10)}},
+		{fields: map[string]any{"id": int64(3), "name": "Charlie", "dept_id": int64(20)}},
 	})
 
 	// Department data
 	departments := slices.Values([]Record{
-		{"dept_id": int64(10), "dept_name": "Engineering"},
-		{"dept_id": int64(20), "dept_name": "Sales"},
+		{fields: map[string]any{"dept_id": int64(10), "dept_name": "Engineering"}},
+		{fields: map[string]any{"dept_id": int64(20), "dept_name": "Sales"}},
 	})
 
 	// Join employees with departments, then group by department
@@ -611,14 +611,14 @@ func TestJoinThenGroup(t *testing.T) {
 
 	// Find Engineering department
 	for _, r := range result {
-		if r["dept_name"] == "Engineering" {
-			if r["count"] != int64(2) {
-				t.Errorf("Engineering should have 2 employees, got %v", r["count"])
+		if r.fields["dept_name"] == "Engineering" {
+			if r.fields["count"] != int64(2) {
+				t.Errorf("Engineering should have 2 employees, got %v", r.fields["count"])
 			}
 
-			names, ok := r["names"].([]any)
+			names, ok := r.fields["names"].([]any)
 			if !ok || len(names) != 2 {
-				t.Errorf("Engineering should have 2 names, got %v", r["names"])
+				t.Errorf("Engineering should have 2 names, got %v", r.fields["names"])
 			}
 		}
 	}
@@ -627,10 +627,10 @@ func TestJoinThenGroup(t *testing.T) {
 func TestMultiFieldGrouping(t *testing.T) {
 	// Test grouping by multiple fields
 	input := slices.Values([]Record{
-		{"year": int64(2024), "month": "Jan", "sales": int64(1000)},
-		{"year": int64(2024), "month": "Jan", "sales": int64(1100)},
-		{"year": int64(2024), "month": "Feb", "sales": int64(1200)},
-		{"year": int64(2023), "month": "Jan", "sales": int64(900)},
+		{fields: map[string]any{"year": int64(2024), "month": "Jan", "sales": int64(1000)}},
+		{fields: map[string]any{"year": int64(2024), "month": "Jan", "sales": int64(1100)}},
+		{fields: map[string]any{"year": int64(2024), "month": "Feb", "sales": int64(1200)}},
+		{fields: map[string]any{"year": int64(2023), "month": "Jan", "sales": int64(900)}},
 	})
 
 	pipeline := Chain(
@@ -650,12 +650,12 @@ func TestMultiFieldGrouping(t *testing.T) {
 
 	// Check 2024/Jan group
 	for _, r := range result {
-		if r["year"] == int64(2024) && r["month"] == "Jan" {
-			if r["count"] != int64(2) {
-				t.Errorf("2024/Jan should have count 2, got %v", r["count"])
+		if r.fields["year"] == int64(2024) && r.fields["month"] == "Jan" {
+			if r.fields["count"] != int64(2) {
+				t.Errorf("2024/Jan should have count 2, got %v", r.fields["count"])
 			}
-			if r["total"] != float64(2100) {
-				t.Errorf("2024/Jan should have total 2100, got %v", r["total"])
+			if r.fields["total"] != float64(2100) {
+				t.Errorf("2024/Jan should have total 2100, got %v", r.fields["total"])
 			}
 		}
 	}
@@ -667,7 +667,7 @@ func TestMultiFieldGrouping(t *testing.T) {
 
 func TestJoinEmptyRight(t *testing.T) {
 	left := slices.Values([]Record{
-		{"id": int64(1), "name": "Alice"},
+		{fields: map[string]any{"id": int64(1), "name": "Alice"}},
 	})
 
 	empty := func(yield func(Record) bool) {
@@ -697,7 +697,7 @@ func TestGroupByEmptyInput(t *testing.T) {
 
 func TestAggregateNoSequenceField(t *testing.T) {
 	input := slices.Values([]Record{
-		{"dept": "Eng", "count": int64(5)}, // No sequence field
+		{fields: map[string]any{"dept": "Eng", "count": int64(5)}}, // No sequence field
 	})
 
 	filter := Aggregate("members", map[string]AggregateFunc{

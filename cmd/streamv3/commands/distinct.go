@@ -88,14 +88,14 @@ func newDistinctCommand() *distinctCommand {
 				// Distinct by single field
 				field := byFields[0]
 				result = streamv3.DistinctBy(func(r streamv3.Record) string {
-					return fmt.Sprintf("%v", r[field])
+					return fmt.Sprintf("%v", streamv3.GetOr(r, field, ""))
 				})
 			} else {
 				// Distinct by multiple fields (composite key)
 				result = streamv3.DistinctBy(func(r streamv3.Record) string {
 					var parts []string
 					for _, field := range byFields {
-						parts = append(parts, fmt.Sprintf("%v", r[field]))
+						parts = append(parts, fmt.Sprintf("%v", streamv3.GetOr(r, field, "")))
 					}
 					return strings.Join(parts, "|")
 				})
@@ -163,7 +163,7 @@ func recordToKey(r streamv3.Record) string {
 	// Create a stable string representation of the record
 	// Sort keys to ensure consistency and exclude _row_number
 	var keys []string
-	for k := range r {
+	for k := range r.KeysIter() {
 		if k != "_row_number" {
 			keys = append(keys, k)
 		}
@@ -174,7 +174,7 @@ func recordToKey(r streamv3.Record) string {
 
 	var parts []string
 	for _, k := range keys {
-		parts = append(parts, fmt.Sprintf("%s=%v", k, r[k]))
+		parts = append(parts, fmt.Sprintf("%s=%v", k, streamv3.GetOr(r, k, "")))
 	}
 	return strings.Join(parts, "|")
 }
@@ -236,7 +236,7 @@ func generateDistinctCode(ctx *cf.Context, inputFile string) error {
 		// Distinct on all fields
 		code = fmt.Sprintf(`%s := streamv3.DistinctBy(func(r streamv3.Record) string {
 		var parts []string
-		for k, v := range r {
+		for k, v := range r.All() {
 			parts = append(parts, fmt.Sprintf("%%s=%%v", k, v))
 		}
 		return strings.Join(parts, "|")
@@ -245,13 +245,13 @@ func generateDistinctCode(ctx *cf.Context, inputFile string) error {
 		// Single field
 		field := byFields[0]
 		code = fmt.Sprintf(`%s := streamv3.DistinctBy(func(r streamv3.Record) string {
-		return fmt.Sprintf("%%v", r[%q])
+		return fmt.Sprintf("%%v", streamv3.GetOr(r, %q, ""))
 	})(%s)`, outputVar, field, inputVar)
 	} else {
 		// Multiple fields
 		var fieldRefs []string
 		for _, field := range byFields {
-			fieldRefs = append(fieldRefs, fmt.Sprintf(`fmt.Sprintf("%%v", r[%q])`, field))
+			fieldRefs = append(fieldRefs, fmt.Sprintf(`fmt.Sprintf("%%v", streamv3.GetOr(r, %q, ""))`, field))
 		}
 		code = fmt.Sprintf(`%s := streamv3.DistinctBy(func(r streamv3.Record) string {
 		parts := []string{%s}

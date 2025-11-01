@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"maps"
 	"slices"
 	"time"
 )
@@ -474,15 +473,15 @@ func RunningSum(fieldName string) Filter[Record, Record] {
 				count++
 
 				// Create output record with running sum
-				outputRecord := make(Record)
+				outputRecord := MakeMutableRecord()
 				// Copy original record
-				maps.Copy(outputRecord, record)
+				for k, v := range record.All() { outputRecord.fields[k] = v }
 				// Add running sum fields
-				outputRecord["running_sum"] = runningTotal
-				outputRecord["running_count"] = int64(count)
-				outputRecord["running_avg"] = runningTotal / float64(count)
+				outputRecord.fields["running_sum"] = runningTotal
+				outputRecord.fields["running_count"] = int64(count)
+				outputRecord.fields["running_avg"] = runningTotal / float64(count)
 
-				if !yield(outputRecord) {
+				if !yield(outputRecord.Freeze()) {
 					return
 				}
 			}
@@ -522,13 +521,13 @@ func RunningAverage(fieldName string, windowSize int) Filter[Record, Record] {
 				avg := sum / float64(len(window))
 
 				// Create output record
-				outputRecord := make(Record)
-				maps.Copy(outputRecord, record)
-				outputRecord["moving_avg"] = avg
-				outputRecord["window_size"] = int64(len(window))
-				outputRecord["total_count"] = int64(count)
+				outputRecord := MakeMutableRecord()
+				for k, v := range record.All() { outputRecord.fields[k] = v }
+				outputRecord.fields["moving_avg"] = avg
+				outputRecord.fields["window_size"] = int64(len(window))
+				outputRecord.fields["total_count"] = int64(count)
 
-				if !yield(outputRecord) {
+				if !yield(outputRecord.Freeze()) {
 					return
 				}
 			}
@@ -556,12 +555,12 @@ func ExponentialMovingAverage(fieldName string, alpha float64) Filter[Record, Re
 				}
 
 				// Create output record
-				outputRecord := make(Record)
-				maps.Copy(outputRecord, record)
-				outputRecord["ema"] = ema
-				outputRecord["alpha"] = alpha
+				outputRecord := MakeMutableRecord()
+				for k, v := range record.All() { outputRecord.fields[k] = v }
+				outputRecord.fields["ema"] = ema
+				outputRecord.fields["alpha"] = alpha
 
-				if !yield(outputRecord) {
+				if !yield(outputRecord.Freeze()) {
 					return
 				}
 			}
@@ -593,13 +592,13 @@ func RunningMinMax(fieldName string) Filter[Record, Record] {
 				}
 
 				// Create output record
-				outputRecord := make(Record)
-				maps.Copy(outputRecord, record)
-				outputRecord["running_min"] = min
-				outputRecord["running_max"] = max
-				outputRecord["running_range"] = max - min
+				outputRecord := MakeMutableRecord()
+				for k, v := range record.All() { outputRecord.fields[k] = v }
+				outputRecord.fields["running_min"] = min
+				outputRecord.fields["running_max"] = max
+				outputRecord.fields["running_range"] = max - min
 
-				if !yield(outputRecord) {
+				if !yield(outputRecord.Freeze()) {
 					return
 				}
 			}
@@ -617,18 +616,18 @@ func RunningCount(fieldName string) Filter[Record, Record] {
 
 			for record := range input {
 				// Convert field value to string for counting
-				value := fmt.Sprintf("%v", record[fieldName])
+				value := fmt.Sprintf("%v", record.fields[fieldName])
 				counts[value]++
 				totalCount++
 
 				// Create output record
-				outputRecord := make(Record)
-				maps.Copy(outputRecord, record)
-				outputRecord["distinct_counts"] = counts
-				outputRecord["total_count"] = totalCount
-				outputRecord["distinct_values"] = int64(len(counts))
+				outputRecord := MakeMutableRecord()
+				for k, v := range record.All() { outputRecord.fields[k] = v }
+				outputRecord.fields["distinct_counts"] = counts
+				outputRecord.fields["total_count"] = totalCount
+				outputRecord.fields["distinct_values"] = int64(len(counts))
 
-				if !yield(outputRecord) {
+				if !yield(outputRecord.Freeze()) {
 					return
 				}
 			}
@@ -831,7 +830,7 @@ func SlidingTimeWindow[T any](windowDuration, slideDuration time.Duration, timeF
 func extractTimestamp(value any, timeField string) time.Time {
 	// Handle Record type specifically
 	if record, ok := value.(Record); ok {
-		if timeValue, exists := record[timeField]; exists {
+		if timeValue, exists := record.fields[timeField]; exists {
 			return parseTimeValue(timeValue)
 		}
 	}

@@ -214,7 +214,7 @@ func evaluateClauseCF(r streamv3.Record, clause cf.Clause) bool {
 		}
 
 		// Get field value from record
-		fieldValue, exists := r[field]
+		fieldValue, exists := streamv3.Get[any](r, field)
 		if !exists {
 			return false // Field doesn't exist
 		}
@@ -471,13 +471,13 @@ func generateCondition(field, op, value string) (string, []string) {
 		if isNum {
 			return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) == %s", field, value), nil
 		}
-		return fmt.Sprintf("r[%q] == %q", field, value), nil
+		return fmt.Sprintf("streamv3.GetOr(r, %q, \"\") == %q", field, value), nil
 
 	case "ne":
 		if isNum {
 			return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) != %s", field, value), nil
 		}
-		return fmt.Sprintf("r[%q] != %q", field, value), nil
+		return fmt.Sprintf("streamv3.GetOr(r, %q, \"\") != %q", field, value), nil
 
 	case "gt":
 		return fmt.Sprintf("streamv3.GetOr(r, %q, float64(0)) > %s", field, value), nil

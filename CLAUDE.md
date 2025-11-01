@@ -45,7 +45,8 @@ StreamV3 is a modern Go library built on three core abstractions:
 
 **Core Types:**
 - `iter.Seq[T]` and `iter.Seq2[T,error]` - Go 1.23+ iterators (lazy sequences)
-- `Record` - Map-based flexible data structure (`map[string]any`)
+- `Record` - Encapsulated struct with private fields map (`struct { fields map[string]any }`)
+- `MutableRecord` - Efficient record builder with in-place mutation
 - `Filter[T,U]` - Composable transformations (`func(iter.Seq[T]) iter.Seq[U]`)
 
 **Key Architecture Files:**
@@ -148,6 +149,157 @@ record := streamv3.NewRecord().
 - Users must explicitly convert: `age := int(GetOr(r, "age", int64(0)))`
 
 This hybrid approach balances ergonomics (flexible sequences) with consistency (canonical scalars).
+
+## Record Design - Encapsulated Struct (v1.0+)
+
+**⚠️ BREAKING CHANGE in v1.0:** Record is now an encapsulated struct, not a bare `map[string]any`.
+
+### Record vs MutableRecord
+
+**Record (Immutable):**
+- Struct with private `fields map[string]any`
+- Immutable - methods return new copies
+- Use for function parameters, return values, pipeline data
+- Access via `Get()`, `GetOr()`, `.All()` iterator
+
+**MutableRecord (Mutable Builder):**
+- Struct with private `fields map[string]any`
+- Mutable - methods modify in-place and return self for chaining
+- Use for efficient record construction
+- Convert to Record via `.Freeze()` (creates copy)
+
+### Creating Records
+
+```go
+// ✅ CORRECT - Use MutableRecord builder
+record := streamv3.MakeMutableRecord().
+    String("name", "Alice").
+    Int("age", int64(30)).
+    Float("salary", 95000.50).
+    Bool("active", true).
+    Freeze()  // Convert to immutable Record
+
+// ✅ CORRECT - From map (for compatibility)
+record := streamv3.NewRecord(map[string]any{
+    "name": "Alice",
+    "age": int64(30),
+})
+
+// ❌ WRONG - Can't use struct literal
+record := streamv3.Record{"name": "Alice"}  // Won't compile!
+
+// ❌ WRONG - Can't use make()
+record := make(streamv3.Record)  // Won't compile!
+```
+
+### Accessing Record Fields
+
+**Within streamv3 package:**
+```go
+// ✅ Can access .fields directly (private field)
+for k, v := range record.All() {
+    record.fields[k] = v
+}
+
+// ✅ Direct field access for internal operations
+value := record.fields["name"]
+```
+
+**Outside streamv3 package (CLI commands, tests, user code):**
+```go
+// ✅ CORRECT - Use Get/GetOr
+name := streamv3.GetOr(record, "name", "")
+age := streamv3.GetOr(record, "age", int64(0))
+
+// ✅ CORRECT - Iterate with .All()
+for k, v := range record.All() {
+    fmt.Printf("%s: %v\n", k, v)
+}
+
+// ✅ CORRECT - Build with MutableRecord
+mut := streamv3.MakeMutableRecord()
+mut = mut.String("city", "NYC")           // Chainable
+mut = mut.SetAny("field", anyValue)       // For unknown types
+frozen := mut.Freeze()                    // Convert to Record
+
+// ❌ WRONG - Can't access .fields (private!)
+value := record.fields["name"]            // Compile error!
+
+// ❌ WRONG - Can't index directly
+name := record["name"]                    // Compile error!
+
+// ❌ WRONG - Can't iterate directly
+for k, v := range record {                // Compile error!
+    ...
+}
+```
+
+### Iterating Over Records
+
+```go
+// ✅ CORRECT - Use .All() iterator (maps.All pattern)
+for k, v := range record.All() {
+    fmt.Printf("%s: %v\n", k, v)
+}
+
+// ✅ CORRECT - Use .KeysIter() for keys only
+for k := range record.KeysIter() {
+    fmt.Println(k)
+}
+
+// ✅ CORRECT - Use .Values() for values only
+for v := range record.Values() {
+    fmt.Println(v)
+}
+
+// ❌ WRONG - Can't iterate Record directly
+for k, v := range record {                // Compile error!
+    ...
+}
+```
+
+### Migration Patterns
+
+**Converting old code to v1.0:**
+
+```go
+// OLD (v0.x):
+record := make(streamv3.Record)
+record["name"] = "Alice"
+value := record["age"]
+for k, v := range record {
+    ...
+}
+
+// NEW (v1.0+):
+record := streamv3.MakeMutableRecord()
+record = record.String("name", "Alice")
+value := streamv3.GetOr(record.Freeze(), "age", int64(0))
+for k, v := range record.Freeze().All() {
+    ...
+}
+```
+
+**Test code migration:**
+
+```go
+// OLD (v0.x):
+testData := []streamv3.Record{
+    {"name": "Alice", "age": int64(30)},
+    {"name": "Bob", "age": int64(25)},
+}
+
+// NEW (v1.0+):
+r1 := streamv3.MakeMutableRecord()
+r1.fields["name"] = "Alice"    // Within streamv3 package
+r1.fields["age"] = int64(30)
+
+r2 := streamv3.MakeMutableRecord()
+r2.fields["name"] = "Bob"
+r2.fields["age"] = int64(25)
+
+testData := []streamv3.Record{r1.Freeze(), r2.Freeze()}
+```
 
 ## Record Field Access (CRITICAL)
 

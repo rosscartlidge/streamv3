@@ -139,14 +139,15 @@ func ChainWithErrors[T any](filters ...FilterWithErrors[T, T]) FilterWithErrors[
 
 // Record represents structured data with native Go types.
 // This is the primary data structure for working with CSV/JSON data and command output.
-// Records are map-based and support flexible field access with type conversion.
+// Records use an encapsulated map to enforce type safety and canonical type conventions.
 //
 // Key features:
 //   - Type-safe field access with Get/GetOr
-//   - Supports canonical types (int64, float64, string, bool, time.Time)
+//   - Enforces canonical types (int64, float64, string, bool, time.Time) via setters
 //   - Supports nested structures (Record, JSONString)
 //   - Supports sequences (iter.Seq[T])
 //   - Immutable updates via Record methods (creates copies)
+//   - maps-style API (All, Keys, Values) for iteration
 //
 // Example:
 //
@@ -161,9 +162,16 @@ func ChainWithErrors[T any](filters ...FilterWithErrors[T, T]) FilterWithErrors[
 //	name := streamv3.GetOr(record, "name", "")
 //	age := streamv3.GetOr(record, "age", int64(0))
 //
+//	// Iterate over fields
+//	for key, value := range record.All() {
+//	    fmt.Printf("%s: %v\n", key, value)
+//	}
+//
 //	// Immutable updates (creates new Record)
 //	updated := record.Int("age", int64(31))
-type Record map[string]any
+type Record struct {
+	fields map[string]any
+}
 
 // JSONString represents a string containing valid JSON data.
 // This provides type safety and rich methods for working with JSON-structured data.
@@ -264,7 +272,9 @@ type Value interface {
 //
 //	// Later modifications create new copies (immutable)
 //	updated := record.Int("age", int64(31))  // Creates new Record
-type MutableRecord Record
+type MutableRecord struct {
+	fields map[string]any
+}
 
 // MakeMutableRecord creates an empty MutableRecord for efficient building.
 // This is the recommended way to create new records.
@@ -276,20 +286,36 @@ type MutableRecord Record
 //	    Int("population", int64(873965)).
 //	    Freeze()
 func MakeMutableRecord() MutableRecord {
-	return make(MutableRecord)
+	return MutableRecord{fields: make(map[string]any)}
+}
+
+// MakeMutableRecordWithCapacity creates a MutableRecord with pre-allocated capacity
+func MakeMutableRecordWithCapacity(capacity int) MutableRecord {
+	return MutableRecord{fields: make(map[string]any, capacity)}
+}
+
+// NewRecord creates a Record from a map (for compatibility)
+func NewRecord(fields map[string]any) Record {
+	// Copy the map to maintain encapsulation
+	m := make(map[string]any, len(fields))
+	maps.Copy(m, fields)
+	return Record{fields: m}
 }
 
 // Freeze converts a MutableRecord to an immutable Record
+// Creates a copy to ensure mutations don't leak
 func (m MutableRecord) Freeze() Record {
-	return Record(m)
+	frozen := make(map[string]any, len(m.fields))
+	maps.Copy(frozen, m.fields)
+	return Record{fields: frozen}
 }
 
 // ToMutable creates a mutable copy of a Record for modification
 // This preserves immutability by creating a shallow copy of the original Record
 func (r Record) ToMutable() MutableRecord {
-	m := make(MutableRecord, len(r))
-	maps.Copy(m, r)
-	return m
+	m := make(map[string]any, len(r.fields))
+	maps.Copy(m, r.fields)
+	return MutableRecord{fields: m}
 }
 
 // ============================================================================
@@ -322,7 +348,7 @@ func (r Record) ToMutable() MutableRecord {
 //	// Field doesn't exist
 //	missing, ok := streamv3.Get[string](record, "missing")  // "", false
 func Get[T any](r Record, field string) (T, bool) {
-	val, exists := r[field]
+	val, exists := r.fields[field]
 	if !exists {
 		var zero T
 		return zero, false
@@ -371,17 +397,106 @@ func GetOr[T any](r Record, field string, defaultVal T) T {
 
 // Has checks if a field exists
 func (r Record) Has(field string) bool {
-	_, exists := r[field]
+	_, exists := r.fields[field]
 	return exists
 }
 
-// Keys returns all field names
+// Len returns the number of fields in the record
+func (r Record) Len() int {
+	return len(r.fields)
+}
+
+// Keys returns all field names as a slice
 func (r Record) Keys() []string {
-	keys := make([]string, 0, len(r))
-	for k := range r {
+	keys := make([]string, 0, len(r.fields))
+	for k := range r.fields {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// ============================================================================
+// MAPS-STYLE ITERATOR API
+// ============================================================================
+
+// All returns an iterator over key-value pairs (matches maps.All)
+func (r Record) All() iter.Seq2[string, any] {
+	return func(yield func(string, any) bool) {
+		for k, v := range r.fields {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
+}
+
+// KeysIter returns an iterator over field names (matches maps.Keys)
+func (r Record) KeysIter() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for k := range r.fields {
+			if !yield(k) {
+				return
+			}
+		}
+	}
+}
+
+// Values returns an iterator over field values (matches maps.Values)
+func (r Record) Values() iter.Seq[any] {
+	return func(yield func(any) bool) {
+		for _, v := range r.fields {
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
+// Clone creates a shallow copy of the record (matches maps.Clone)
+func (r Record) Clone() Record {
+	cloned := make(map[string]any, len(r.fields))
+	maps.Copy(cloned, r.fields)
+	return Record{fields: cloned}
+}
+
+// Equal checks if two records have the same fields and values (matches maps.Equal)
+func (r Record) Equal(other Record) bool {
+	return maps.Equal(r.fields, other.fields)
+}
+
+// ============================================================================
+// JSON MARSHALING
+// ============================================================================
+
+// MarshalJSON implements json.Marshaler
+// Records marshal as {"name": "Alice", "age": 30} not {"fields": {...}}
+func (r Record) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.fields)
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (r *Record) UnmarshalJSON(data []byte) error {
+	fields := make(map[string]any)
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	r.fields = fields
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler for MutableRecord
+func (m MutableRecord) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.fields)
+}
+
+// UnmarshalJSON implements json.Unmarshaler for MutableRecord
+func (m *MutableRecord) UnmarshalJSON(data []byte) error {
+	fields := make(map[string]any)
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	m.fields = fields
+	return nil
 }
 
 // ============================================================================
@@ -390,8 +505,26 @@ func (r Record) Keys() []string {
 
 // Set adds a field with compile-time type safety (mutates in place)
 func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
-	m[field] = value
+	m.fields[field] = value
 	return m
+}
+
+// SetAny adds a field without type constraints (mutates in place)
+// Use this when parsing from external sources like JSON where types aren't known at compile time
+func (m MutableRecord) SetAny(field string, value any) MutableRecord {
+	m.fields[field] = value
+	return m
+}
+
+// Delete removes a field (mutates in place)
+func (m MutableRecord) Delete(field string) MutableRecord {
+	delete(m.fields, field)
+	return m
+}
+
+// Len returns the number of fields
+func (m MutableRecord) Len() int {
+	return len(m.fields)
 }
 
 // String adds a string field (mutates in place)
@@ -435,10 +568,10 @@ func (m MutableRecord) Nested(field string, value Record) MutableRecord {
 
 // SetImmutable adds a field with compile-time type safety - creates new Record (immutable)
 func SetImmutable[V Value](r Record, field string, value V) Record {
-	result := make(Record, len(r)+1)
-	maps.Copy(result, r)
+	result := make(map[string]any, len(r.fields)+1)
+	maps.Copy(result, r.fields)
 	result[field] = value
-	return result
+	return Record{fields: result}
 }
 
 // String adds a string field (creates new Record)
@@ -800,7 +933,7 @@ func convertToTime(val any) (time.Time, bool) {
 
 // validateRecord checks if a Record has only Value-compatible field types
 func ValidateRecord(r Record) error {
-	for field, value := range r {
+	for field, value := range r.All() {
 		if !isValueType(value) {
 			return fmt.Errorf("field '%s' has invalid type %T", field, value)
 		}
@@ -843,7 +976,7 @@ func isValueType(value any) bool {
 
 // Field creates a single-field Record with compile-time type safety
 func Field[V Value](key string, value V) Record {
-	return Record{key: value}
+	return Record{fields: map[string]any{key: value}}
 }
 
 // ============================================================================
@@ -985,22 +1118,19 @@ func Materialize(sourceField, targetField, separator string) Filter[Record, Reco
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			for record := range input {
-				result := make(Record)
-
-				// Copy all existing fields
-				maps.Copy(result, record)
+				result := record.Clone()
 
 				// Materialize the source field if it's an iter.Seq
-				if sourceValue, exists := record[sourceField]; exists && isIterSeq(sourceValue) {
+				if sourceValue, exists := record.fields[sourceField]; exists && isIterSeq(sourceValue) {
 					values := materializeSequence(sourceValue)
 					var stringValues []string
 					for _, val := range values {
 						stringValues = append(stringValues, fmt.Sprintf("%v", val))
 					}
-					result[targetField] = strings.Join(stringValues, separator)
+					result.fields[targetField] = strings.Join(stringValues, separator)
 				} else if exists {
 					// Source field exists but isn't a sequence - convert to string
-					result[targetField] = fmt.Sprintf("%v", sourceValue)
+					result.fields[targetField] = fmt.Sprintf("%v", sourceValue)
 				}
 				// If source field doesn't exist, don't add target field
 
@@ -1019,20 +1149,17 @@ func MaterializeJSON(sourceField, targetField string) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			for record := range input {
-				result := make(Record)
-
-				// Copy all existing fields
-				maps.Copy(result, record)
+				result := record.Clone()
 
 				// Materialize the source field if it exists
-				if sourceValue, exists := record[sourceField]; exists {
+				if sourceValue, exists := record.fields[sourceField]; exists {
 					// Convert any complex field to JSON representation
 					jsonValue := convertToJSONValue(sourceValue)
 					if jsonBytes, err := json.Marshal(jsonValue); err == nil {
-						result[targetField] = JSONString(jsonBytes)
+						result.fields[targetField] = JSONString(jsonBytes)
 					} else {
 						// Fallback to string representation if JSON fails
-						result[targetField] = fmt.Sprintf("%v", sourceValue)
+						result.fields[targetField] = fmt.Sprintf("%v", sourceValue)
 					}
 				}
 				// If source field doesn't exist, don't add target field
@@ -1061,13 +1188,10 @@ func Hash(sourceField, targetField string) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			for record := range input {
-				result := make(Record)
-
-				// Copy all existing fields
-				maps.Copy(result, record)
+				result := record.Clone()
 
 				// Hash the source field if it exists
-				if sourceValue, exists := record[sourceField]; exists {
+				if sourceValue, exists := record.fields[sourceField]; exists {
 					// Convert value to string
 					var strValue string
 					if str, ok := sourceValue.(string); ok {
@@ -1080,7 +1204,7 @@ func Hash(sourceField, targetField string) Filter[Record, Record] {
 					// Compute SHA256 hash
 					hash := sha256.Sum256([]byte(strValue))
 					// Encode as hex string (64 characters, human-readable)
-					result[targetField] = hex.EncodeToString(hash[:])
+					result.fields[targetField] = hex.EncodeToString(hash[:])
 				}
 				// If source field doesn't exist, don't add target field
 
@@ -1154,7 +1278,7 @@ func CrossFlatten(separator string, fields ...string) Filter[Record, Record] {
 // dotFlattenRecord recursively flattens a record using dot notation
 // If fields are specified, only flattens those top-level fields
 func dotFlattenRecord(record Record, prefix, separator string, fields ...string) Record {
-	result := make(Record)
+	result := MakeMutableRecord()
 
 	// Create a set of fields to flatten for quick lookup
 	fieldsToFlatten := make(map[string]bool)
@@ -1164,7 +1288,7 @@ func dotFlattenRecord(record Record, prefix, separator string, fields ...string)
 		}
 	}
 
-	for key, value := range record {
+	for key, value := range record.All() {
 		newKey := key
 		if prefix != "" {
 			newKey = prefix + separator + key
@@ -1176,14 +1300,14 @@ func dotFlattenRecord(record Record, prefix, separator string, fields ...string)
 		// If the value is a nested record, flatten it recursively
 		if nestedRecord, ok := value.(Record); ok && shouldFlatten {
 			flattened := dotFlattenRecord(nestedRecord, newKey, separator)
-			maps.Copy(result, flattened)
+			maps.Copy(result.fields, flattened.fields)
 		} else {
 			// For non-record values (including sequences), or fields not to be flattened, keep as-is
-			result[newKey] = value
+			result.fields[newKey] = value
 		}
 	}
 
-	return result
+	return result.Freeze()
 }
 
 // dotFlattenRecordWithSeqs flattens a record using dot product expansion for sequences
@@ -1201,9 +1325,9 @@ func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ..
 	// Collect all sequence fields that should be expanded
 	var seqFields []string
 	var seqValues [][]any
-	var nonSeqRecord Record = make(Record)
+	nonSeqRecord := MakeMutableRecord()
 
-	for key, value := range record {
+	for key, value := range record.All() {
 		newKey := key
 		if prefix != "" {
 			newKey = prefix + separator + key
@@ -1215,7 +1339,7 @@ func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ..
 		// If the value is a nested record, flatten it recursively
 		if nestedRecord, ok := value.(Record); ok && shouldFlatten {
 			flattened := dotFlattenRecord(nestedRecord, newKey, separator)
-			maps.Copy(nonSeqRecord, flattened)
+			maps.Copy(nonSeqRecord.fields, flattened.fields)
 		} else if shouldFlatten && isIterSeq(value) {
 			// This is an iter.Seq field - collect its values for dot product expansion
 			values := materializeSequence(value)
@@ -1225,13 +1349,13 @@ func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ..
 			}
 		} else {
 			// For non-record, non-sequence values, or fields not to be flattened, keep as-is
-			nonSeqRecord[newKey] = value
+			nonSeqRecord.fields[newKey] = value
 		}
 	}
 
 	// If no sequence fields, return single record
 	if len(seqFields) == 0 {
-		return []Record{nonSeqRecord}
+		return []Record{nonSeqRecord.Freeze()}
 	}
 
 	// Determine the length for dot product (use minimum length of all sequences)
@@ -1245,17 +1369,17 @@ func dotFlattenRecordWithSeqs(record Record, prefix, separator string, fields ..
 	// Create dot product expansion - pair corresponding elements from each sequence
 	var results []Record
 	for i := range minLen {
-		result := make(Record)
+		result := MakeMutableRecord()
 
 		// Copy non-sequence fields
-		maps.Copy(result, nonSeqRecord)
+		maps.Copy(result.fields, nonSeqRecord.fields)
 
 		// Add corresponding element from each sequence
 		for j, fieldName := range seqFields {
-			result[fieldName] = seqValues[j][i]
+			result.fields[fieldName] = seqValues[j][i]
 		}
 
-		results = append(results, result)
+		results = append(results, result.Freeze())
 	}
 
 	return results
@@ -1275,7 +1399,7 @@ func crossFlattenRecord(r Record, _ string, fields ...string) []Record {
 		}
 	}
 
-	for f, value := range r {
+	for f, value := range r.All() {
 		if isIterSeq(value) {
 			// Check if this field should be expanded
 			shouldExpand := len(fields) == 0 || fieldsToExpand[f]
@@ -1285,7 +1409,7 @@ func crossFlattenRecord(r Record, _ string, fields ...string) []Record {
 				var rs []Record
 				for _, val := range values {
 					// Create a record with this sequence value
-					newRecord := Record{f: val}
+					newRecord := Record{fields: map[string]any{f: val}}
 					rs = append(rs, newRecord)
 				}
 				if len(rs) > 0 {
@@ -1312,7 +1436,7 @@ func crossFlattenRecord(r Record, _ string, fields ...string) []Record {
 	// Add non-sequence fields to each result record
 	for _, cr := range crs {
 		for _, f := range nonSeqFields {
-			cr[f] = r[f]
+			cr.fields[f] = r.fields[f]
 		}
 	}
 
@@ -1330,10 +1454,10 @@ func cartesianProduct(columns [][]Record) []Record {
 	var rs []Record
 	for _, lr := range cartesianProduct(columns[1:]) {
 		for _, rr := range columns[0] {
-			r := make(Record)
-			maps.Copy(r, rr)
-			maps.Copy(r, lr)
-			rs = append(rs, r)
+			r := MakeMutableRecord()
+			maps.Copy(r.fields, rr.fields)
+			maps.Copy(r.fields, lr.fields)
+			rs = append(rs, r.Freeze())
 		}
 	}
 	return rs
@@ -1391,7 +1515,7 @@ func convertToJSONValue(value any) any {
 	case Record:
 		// Convert nested Records recursively
 		jsonRecord := make(map[string]any)
-		for key, val := range v {
+		for key, val := range v.All() {
 			jsonRecord[key] = convertToJSONValue(val)
 		}
 		return jsonRecord

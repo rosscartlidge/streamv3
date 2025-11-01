@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"fmt"
 	"iter"
-	"maps"
 	"strings"
 )
 
@@ -57,12 +56,12 @@ func InnerJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record
 			for left := range leftSeq {
 				for _, right := range rightRecords {
 					if predicate(left, right) {
-						joined := make(Record)
+						joined := MakeMutableRecord()
 						// Copy left record
-						maps.Copy(joined, left)
+						for k, v := range left.All() { joined.fields[k] = v }
 						// Copy right record (with potential conflicts)
-						maps.Copy(joined, right)
-						if !yield(joined) {
+						for k, v := range right.All() { joined.fields[k] = v }
+						if !yield(joined.Freeze()) {
 							return
 						}
 					}
@@ -86,12 +85,12 @@ func LeftJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record,
 				matched := false
 				for _, right := range rightRecords {
 					if predicate(left, right) {
-						joined := make(Record)
+						joined := MakeMutableRecord()
 						// Copy left record
-						maps.Copy(joined, left)
+						for k, v := range left.All() { joined.fields[k] = v }
 						// Copy right record
-						maps.Copy(joined, right)
-						if !yield(joined) {
+						for k, v := range right.All() { joined.fields[k] = v }
+						if !yield(joined.Freeze()) {
 							return
 						}
 						matched = true
@@ -129,12 +128,12 @@ func RightJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record
 			for _, left := range leftRecords {
 				for i, right := range rightRecords {
 					if predicate(left, right) {
-						joined := make(Record)
+						joined := MakeMutableRecord()
 						// Copy left record
-						maps.Copy(joined, left)
+						for k, v := range left.All() { joined.fields[k] = v }
 						// Copy right record
-						maps.Copy(joined, right)
-						if !yield(joined) {
+						for k, v := range right.All() { joined.fields[k] = v }
+						if !yield(joined.Freeze()) {
 							return
 						}
 						matched[i] = true
@@ -176,12 +175,12 @@ func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record,
 			for i, left := range leftRecords {
 				for j, right := range rightRecords {
 					if predicate(left, right) {
-						joined := make(Record)
+						joined := MakeMutableRecord()
 						// Copy left record
-						maps.Copy(joined, left)
+						for k, v := range left.All() { joined.fields[k] = v }
 						// Copy right record
-						maps.Copy(joined, right)
-						if !yield(joined) {
+						for k, v := range right.All() { joined.fields[k] = v }
+						if !yield(joined.Freeze()) {
 							return
 						}
 						leftMatched[i] = true
@@ -234,8 +233,8 @@ func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record,
 func OnFields(fields ...string) JoinPredicate {
 	return func(left, right Record) bool {
 		for _, field := range fields {
-			leftVal, leftExists := left[field]
-			rightVal, rightExists := right[field]
+			leftVal, leftExists := left.fields[field]
+			rightVal, rightExists := right.fields[field]
 			if !leftExists || !rightExists || leftVal != rightVal {
 				return false
 			}
@@ -297,14 +296,14 @@ func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Rec
 
 			// Yield records with key field + sequence field
 			for _, key := range keys {
-				result := make(Record)
+				result := MakeMutableRecord()
 
 				// Set the key field
-				result[keyField] = key
+				result.fields[keyField] = key
 
 				// Add the sequence of group members as an iter.Seq[Record]
 				groupRecords := groups[key]
-				result[sequenceField] = func() iter.Seq[Record] {
+				result.fields[sequenceField] = func() iter.Seq[Record] {
 					return func(yield func(Record) bool) {
 						for _, record := range groupRecords {
 							if !yield(record) {
@@ -314,7 +313,7 @@ func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Rec
 					}
 				}()
 
-				if !yield(result) {
+				if !yield(result.Freeze()) {
 					return
 				}
 			}
@@ -353,11 +352,11 @@ func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record
 			// Collect all records into groups
 			for record := range input {
 				var keyParts []string
-				groupingFields := make(Record)
+				groupingFields := MakeMutableRecord()
 				hasComplexField := false
 
 				for _, field := range fields {
-					if val, exists := record[field]; exists {
+					if val, exists := record.fields[field]; exists {
 						// Validate that the field value is simple (no iter.Seq or Record)
 						if !isSimpleValue(val) {
 							// Skip this entire record if any grouping field is complex
@@ -365,10 +364,10 @@ func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record
 							break
 						}
 						keyParts = append(keyParts, fmt.Sprintf("%v", val))
-						groupingFields[field] = val
+						groupingFields.fields[field] = val
 					} else {
 						keyParts = append(keyParts, "<nil>")
-						groupingFields[field] = nil
+						groupingFields.fields[field] = nil
 					}
 				}
 
@@ -380,21 +379,21 @@ func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record
 				key := fmt.Sprintf("[%s]", strings.Join(keyParts, ","))
 				if _, exists := groups[key]; !exists {
 					keys = append(keys, key)
-					groupFields[key] = groupingFields
+					groupFields[key] = groupingFields.Freeze()
 				}
 				groups[key] = append(groups[key], record)
 			}
 
 			// Yield records with grouping fields + sequence field
 			for _, key := range keys {
-				result := make(Record)
+				result := MakeMutableRecord()
 
 				// Copy the grouping field values
-				maps.Copy(result, groupFields[key])
+				for k, v := range groupFields[key].All() { result.fields[k] = v }
 
 				// Add the sequence of group members as an iter.Seq[Record]
 				groupRecords := groups[key]
-				result[sequenceField] = func() iter.Seq[Record] {
+				result.fields[sequenceField] = func() iter.Seq[Record] {
 					return func(yield func(Record) bool) {
 						for _, record := range groupRecords {
 							if !yield(record) {
@@ -404,7 +403,7 @@ func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record
 					}
 				}()
 
-				if !yield(result) {
+				if !yield(result.Freeze()) {
 					return
 				}
 			}
@@ -446,17 +445,17 @@ func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filt
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
 			for record := range input {
-				result := make(Record)
+				result := MakeMutableRecord()
 
 				// Copy all fields except the sequence field
-				for field, value := range record {
+				for field, value := range record.All() {
 					if field != sequenceField {
-						result[field] = value
+						result.fields[field] = value
 					}
 				}
 
 				// Extract the sequence from the specified field
-				if seqValue, exists := record[sequenceField]; exists {
+				if seqValue, exists := record.fields[sequenceField]; exists {
 					if seq, ok := seqValue.(iter.Seq[Record]); ok {
 						// Materialize the sequence for aggregation functions
 						var records []Record
@@ -466,12 +465,12 @@ func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filt
 
 						// Apply all aggregation functions
 						for name, aggFn := range aggregations {
-							result[name] = aggFn(records)
+							result.fields[name] = aggFn(records)
 						}
 					}
 				}
 
-				if !yield(result) {
+				if !yield(result.Freeze()) {
 					return
 				}
 			}
@@ -609,7 +608,7 @@ func Max[T cmp.Ordered](field string) AggregateFunc {
 func First(field string) AggregateFunc {
 	return func(records []Record) any {
 		for _, record := range records {
-			if val, exists := record[field]; exists {
+			if val, exists := record.fields[field]; exists {
 				return val
 			}
 		}
@@ -622,7 +621,7 @@ func Last(field string) AggregateFunc {
 	return func(records []Record) any {
 		var lastVal any
 		for _, record := range records {
-			if val, exists := record[field]; exists {
+			if val, exists := record.fields[field]; exists {
 				lastVal = val
 			}
 		}
@@ -635,7 +634,7 @@ func Collect(field string) AggregateFunc {
 	return func(records []Record) any {
 		var values []any
 		for _, record := range records {
-			if val, exists := record[field]; exists {
+			if val, exists := record.fields[field]; exists {
 				values = append(values, val)
 			}
 		}

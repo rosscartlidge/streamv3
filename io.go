@@ -72,26 +72,26 @@ func ReadCSVFromReader(reader io.Reader, config ...CSVConfig) iter.Seq[Record] {
 				return // EOF or error
 			}
 
-			record := make(Record)
+			record := MakeMutableRecord()
 			if cfg.HasHeaders && len(headers) > 0 {
 				// Use headers as field names
 				for i, value := range row {
 					if i < len(headers) {
-						record[headers[i]] = parseValue(value)
+						record.fields[headers[i]] = parseValue(value)
 					}
 				}
 			} else {
 				// Generate column names: col_0, col_1, etc.
 				for i, value := range row {
-					record[fmt.Sprintf("col_%d", i)] = parseValue(value)
+					record.fields[fmt.Sprintf("col_%d", i)] = parseValue(value)
 				}
 			}
 
 			// Add row number
-			record["_row_number"] = rowIndex
+			record.fields["_row_number"] = rowIndex
 			rowIndex++
 
-			if !yield(record) {
+			if !yield(record.Freeze()) {
 				return
 			}
 		}
@@ -114,7 +114,7 @@ func ReadCSVSafeFromReader(reader io.Reader, config ...CSVConfig) iter.Seq2[Reco
 			if cfg.HasHeaders {
 				headerRow, err := csvReader.Read()
 				if err != nil {
-					yield(nil, fmt.Errorf("failed to read CSV headers: %w", err))
+					yield(Record{}, fmt.Errorf("failed to read CSV headers: %w", err))
 					return
 				}
 				headers = headerRow
@@ -127,29 +127,29 @@ func ReadCSVSafeFromReader(reader io.Reader, config ...CSVConfig) iter.Seq2[Reco
 					return
 				}
 				if err != nil {
-					if !yield(nil, fmt.Errorf("failed to read CSV row %d: %w", rowIndex, err)) {
+					if !yield(Record{}, fmt.Errorf("failed to read CSV row %d: %w", rowIndex, err)) {
 						return
 					}
 					continue
 				}
 
-				record := make(Record)
+				record := MakeMutableRecord()
 				if cfg.HasHeaders && len(headers) > 0 {
 					for i, value := range row {
 						if i < len(headers) {
-							record[headers[i]] = parseValue(value)
+							record.fields[headers[i]] = parseValue(value)
 						}
 					}
 				} else {
 					for i, value := range row {
-						record[fmt.Sprintf("col_%d", i)] = parseValue(value)
+						record.fields[fmt.Sprintf("col_%d", i)] = parseValue(value)
 					}
 				}
 
-				record["_row_number"] = rowIndex
+				record.fields["_row_number"] = rowIndex
 				rowIndex++
 
-				if !yield(record, nil) {
+				if !yield(record.Freeze(), nil) {
 					return
 				}
 			}
@@ -178,9 +178,9 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig
 		fieldSet := make(map[string]bool)
 		for record := range sb {
 			recordsBuffer = append(recordsBuffer, record)
-			for field := range record {
+			for field := range record.All() {
 				// Skip complex fields (iter.Seq, Record) and internal metadata fields
-				if val := record[field]; !isIterSeq(val) {
+				if val, exists := record.fields[field]; exists && !isIterSeq(val) {
 					if _, isRecord := val.(Record); !isRecord {
 						// Skip internal metadata fields starting with underscore
 						if !strings.HasPrefix(field, "_") {
@@ -223,7 +223,7 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig
 	for record := range dataSource {
 		row := make([]string, len(fields))
 		for i, field := range fields {
-			if value, exists := record[field]; exists {
+			if value, exists := record.fields[field]; exists {
 				row[i] = formatValue(value)
 			}
 		}
@@ -379,7 +379,7 @@ func ReadJSONFromReader(reader io.Reader) iter.Seq[Record] {
 				}
 
 				// Add line number metadata
-				record["_line_number"] = lineNumber
+				record.fields["_line_number"] = lineNumber
 				lineNumber++
 
 				if !yield(record) {
@@ -404,14 +404,14 @@ func ReadJSONSafeFromReader(reader io.Reader) iter.Seq2[Record, error] {
 
 				var record Record
 				if err := json.Unmarshal([]byte(line), &record); err != nil {
-					if !yield(nil, fmt.Errorf("failed to parse JSON on line %d: %w", lineNumber, err)) {
+					if !yield(Record{}, fmt.Errorf("failed to parse JSON on line %d: %w", lineNumber, err)) {
 						return
 					}
 					lineNumber++
 					continue
 				}
 
-				record["_line_number"] = lineNumber
+				record.fields["_line_number"] = lineNumber
 				lineNumber++
 
 				if !yield(record, nil) {
@@ -421,7 +421,7 @@ func ReadJSONSafeFromReader(reader io.Reader) iter.Seq2[Record, error] {
 
 			// Check for scanner errors
 			if err := scanner.Err(); err != nil {
-				yield(nil, fmt.Errorf("error reading input: %w", err))
+				yield(Record{}, fmt.Errorf("error reading input: %w", err))
 			}
 		}
 }
@@ -431,28 +431,28 @@ func WriteJSONToWriter(sb iter.Seq[Record], writer io.Writer) error {
 	encoder := json.NewEncoder(writer)
 	for record := range sb {
 		// Convert complex fields for JSON compatibility
-		jsonRecord := make(Record)
-		for key, value := range record {
+		jsonRecord := MakeMutableRecord()
+		for key, value := range record.All() {
 			switch v := value.(type) {
 			case JSONString:
 				// Parse JSONString back to structured data to avoid double-encoding
 				if parsed, err := v.Parse(); err == nil {
-					jsonRecord[key] = parsed
+					jsonRecord.fields[key] = parsed
 				} else {
 					// Fallback to string if parsing fails
-					jsonRecord[key] = string(v)
+					jsonRecord.fields[key] = string(v)
 				}
 			default:
 				if isIterSeq(value) {
 					// Convert iter.Seq to array for JSON
-					jsonRecord[key] = materializeSequence(value)
+					jsonRecord.fields[key] = materializeSequence(value)
 				} else {
-					jsonRecord[key] = value
+					jsonRecord.fields[key] = value
 				}
 			}
 		}
 
-		if err := encoder.Encode(jsonRecord); err != nil {
+		if err := encoder.Encode(jsonRecord.Freeze()); err != nil {
 			return fmt.Errorf("failed to write JSON record: %w", err)
 		}
 	}
@@ -532,7 +532,7 @@ func ReadJSONSafe(filename string) iter.Seq2[Record, error] {
 				}
 
 				// Add line metadata
-				record["_line_number"] = int64(lineNum)
+				record.fields["_line_number"] = int64(lineNum)
 				lineNum++
 
 				if !yield(record, nil) {
@@ -584,10 +584,10 @@ func ReadLines(filename string) (iter.Seq[Record], error) {
 		scanner := bufio.NewScanner(file)
 		lineNum := 0
 		for scanner.Scan() {
-			record := Record{
-				"line":        scanner.Text(),
-				"line_number": int64(lineNum),
-			}
+			record := Record{fields: map[string]any{
+			"line":        scanner.Text(),
+			"line_number": int64(lineNum),
+		}}
 			lineNum++
 
 			if !yield(record) {
@@ -614,10 +614,10 @@ func ReadLinesSafe(filename string) iter.Seq2[Record, error] {
 			scanner := bufio.NewScanner(file)
 			lineNum := 0
 			for scanner.Scan() {
-				record := Record{
-					"line":        scanner.Text(),
-					"line_number": int64(lineNum),
-				}
+				record := Record{fields: map[string]any{
+			"line":        scanner.Text(),
+			"line_number": int64(lineNum),
+		}}
 				lineNum++
 
 				if !yield(record, nil) {
@@ -644,7 +644,7 @@ func WriteLines(sb iter.Seq[Record], filename string) error {
 
 	for record := range sb {
 		line := ""
-		if value, exists := record["line"]; exists {
+		if value, exists := record.fields["line"]; exists {
 			line = formatValue(value)
 		}
 		if _, err := writer.WriteString(line + "\n"); err != nil {
@@ -787,8 +787,8 @@ func ReadCommandOutput(filename string, config ...CommandConfig) (iter.Seq[Recor
 
 			// Parse data line
 			record := parseDataLine(line, columnPositions, cfg.TrimSpaces)
-			record["_line_number"] = int64(lineNum)
-			record["_raw_line"] = line
+			record.fields["_line_number"] = int64(lineNum)
+			record.fields["_raw_line"] = line
 
 			lineNum++
 
@@ -855,8 +855,8 @@ func ReadCommandOutputSafe(filename string, config ...CommandConfig) iter.Seq2[R
 					continue
 				}
 
-				record["_line_number"] = int64(lineNum)
-				record["_raw_line"] = line
+				record.fields["_line_number"] = int64(lineNum)
+				record.fields["_raw_line"] = line
 
 				lineNum++
 
@@ -937,9 +937,9 @@ func ExecCommand(command string, args []string, config ...CommandConfig) (iter.S
 
 			// Parse data line
 			record := parseDataLine(line, columnPositions, cfg.TrimSpaces)
-			record["_line_number"] = int64(lineNum)
-			record["_raw_line"] = line
-			record["_command"] = command
+			record.fields["_line_number"] = int64(lineNum)
+			record.fields["_raw_line"] = line
+			record.fields["_command"] = command
 
 			lineNum++
 
@@ -1018,9 +1018,9 @@ func ExecCommandSafe(command string, args []string, config ...CommandConfig) ite
 					continue
 				}
 
-				record["_line_number"] = int64(lineNum)
-				record["_raw_line"] = line
-				record["_command"] = command
+				record.fields["_line_number"] = int64(lineNum)
+				record.fields["_raw_line"] = line
+				record.fields["_command"] = command
 
 				lineNum++
 
@@ -1074,10 +1074,10 @@ func parseHeaderLine(line string) []ColumnInfo {
 // parseDataLine extracts field values by splitting on whitespace
 // Assigns 1:1 with header fields, with remaining tokens going to last field
 func parseDataLine(line string, columns []ColumnInfo, _ bool) Record {
-	record := make(Record)
+	record := MakeMutableRecord()
 
 	if len(columns) == 0 {
-		return record
+		return record.Freeze()
 	}
 
 	// Split data line on whitespace
@@ -1090,27 +1090,27 @@ func parseDataLine(line string, columns []ColumnInfo, _ bool) Record {
 				// Last field gets all remaining tokens joined with spaces
 				remainingTokens := tokens[i:]
 				value := strings.Join(remainingTokens, " ")
-				record[col.Name] = parseCommandValue(value)
+				record.fields[col.Name] = parseCommandValue(value)
 			} else {
 				// Regular field gets single token
-				record[col.Name] = parseCommandValue(tokens[i])
+				record.fields[col.Name] = parseCommandValue(tokens[i])
 			}
 		} else {
 			// No more tokens, use empty string
-			record[col.Name] = ""
+			record.fields[col.Name] = ""
 		}
 	}
 
-	return record
+	return record.Freeze()
 }
 
 // parseDataLineSafe is like parseDataLine but returns errors
 func parseDataLineSafe(line string, columns []ColumnInfo, _ bool) (Record, error) {
 	if len(columns) == 0 {
-		return nil, fmt.Errorf("no column information available")
+		return Record{}, fmt.Errorf("no column information available")
 	}
 
-	record := make(Record)
+	record := MakeMutableRecord()
 
 	// Split data line on whitespace
 	tokens := strings.Fields(line)
@@ -1122,18 +1122,18 @@ func parseDataLineSafe(line string, columns []ColumnInfo, _ bool) (Record, error
 				// Last field gets all remaining tokens joined with spaces
 				remainingTokens := tokens[i:]
 				value := strings.Join(remainingTokens, " ")
-				record[col.Name] = parseCommandValue(value)
+				record.fields[col.Name] = parseCommandValue(value)
 			} else {
 				// Regular field gets single token
-				record[col.Name] = parseCommandValue(tokens[i])
+				record.fields[col.Name] = parseCommandValue(tokens[i])
 			}
 		} else {
 			// No more tokens, use empty string
-			record[col.Name] = ""
+			record.fields[col.Name] = ""
 		}
 	}
 
-	return record, nil
+	return record.Freeze(), nil
 }
 
 // parseCommandValue parses command output values with integer priority over boolean

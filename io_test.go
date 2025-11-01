@@ -42,12 +42,12 @@ Charlie,35,SF`
 		t.Fatalf("Expected 3 records, got %d", len(result))
 	}
 
-	if result[0]["name"] != "Alice" {
-		t.Errorf("First record name should be Alice, got %v", result[0]["name"])
+	if result[0].fields["name"] != "Alice" {
+		t.Errorf("First record name should be Alice, got %v", result[0].fields["name"])
 	}
 	// CSV parsing converts numbers automatically
-	if result[1]["age"] != int64(25) {
-		t.Errorf("Second record age should be 25 (int64), got %v (type %T)", result[1]["age"], result[1]["age"])
+	if result[1].fields["age"] != int64(25) {
+		t.Errorf("Second record age should be 25 (int64), got %v (type %T)", result[1].fields["age"], result[1].fields["age"])
 	}
 }
 
@@ -67,8 +67,8 @@ Bob|25|LA`
 		t.Fatalf("Expected 2 records, got %d", len(result))
 	}
 
-	if result[0]["name"] != "Alice" {
-		t.Errorf("Name should be Alice, got %v", result[0]["name"])
+	if result[0].fields["name"] != "Alice" {
+		t.Errorf("Name should be Alice, got %v", result[0].fields["name"])
 	}
 }
 
@@ -94,10 +94,15 @@ Bob,25`
 }
 
 func TestWriteCSVToWriter(t *testing.T) {
-	records := slices.Values([]Record{
-		{"name": "Alice", "age": "30"},
-		{"name": "Bob", "age": "25"},
-	})
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["age"] = "30"
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["age"] = "25"
+
+	records := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
 
 	var buf bytes.Buffer
 	err := WriteCSVToWriter(records, &buf)
@@ -120,10 +125,17 @@ func TestReadWriteCSV(t *testing.T) {
 	filename := filepath.Join(tmpDir, "test.csv")
 
 	// Write CSV
-	records := slices.Values([]Record{
-		{"name": "Alice", "age": int64(30), "city": "NYC"},
-		{"name": "Bob", "age": int64(25), "city": "LA"},
-	})
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["age"] = int64(30)
+	r1.fields["city"] = "NYC"
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["age"] = int64(25)
+	r2.fields["city"] = "LA"
+
+	records := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
 
 	err := WriteCSV(records, filename)
 	if err != nil {
@@ -141,8 +153,8 @@ func TestReadWriteCSV(t *testing.T) {
 		t.Fatalf("Expected 2 records, got %d", len(result))
 	}
 
-	if result[0]["name"] != "Alice" {
-		t.Errorf("Name should be Alice, got %v", result[0]["name"])
+	if result[0].fields["name"] != "Alice" {
+		t.Errorf("Name should be Alice, got %v", result[0].fields["name"])
 	}
 }
 
@@ -189,8 +201,8 @@ func TestReadJSONFromReader(t *testing.T) {
 		t.Fatalf("Expected 3 records, got %d", len(result))
 	}
 
-	if result[0]["name"] != "Alice" {
-		t.Errorf("First record name should be Alice, got %v", result[0]["name"])
+	if result[0].fields["name"] != "Alice" {
+		t.Errorf("First record name should be Alice, got %v", result[0].fields["name"])
 	}
 }
 
@@ -215,10 +227,15 @@ func TestReadJSONSafeFromReader(t *testing.T) {
 }
 
 func TestWriteJSONToWriter(t *testing.T) {
-	records := slices.Values([]Record{
-		{"name": "Alice", "age": float64(30)},
-		{"name": "Bob", "age": float64(25)},
-	})
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["age"] = float64(30)
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["age"] = float64(25)
+
+	records := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
 
 	var buf bytes.Buffer
 	err := WriteJSONToWriter(records, &buf)
@@ -240,10 +257,15 @@ func TestReadWriteJSON(t *testing.T) {
 	filename := filepath.Join(tmpDir, "test.json")
 
 	// Write JSON
-	records := slices.Values([]Record{
-		{"name": "Alice", "age": float64(30)},
-		{"name": "Bob", "age": float64(25)},
-	})
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["age"] = float64(30)
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["age"] = float64(25)
+
+	records := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
 
 	err := WriteJSON(records, filename)
 	if err != nil {
@@ -261,8 +283,8 @@ func TestReadWriteJSON(t *testing.T) {
 		t.Fatalf("Expected 2 records, got %d", len(result))
 	}
 
-	if result[0]["name"] != "Alice" {
-		t.Errorf("Name should be Alice, got %v", result[0]["name"])
+	if result[0].fields["name"] != "Alice" {
+		t.Errorf("Name should be Alice, got %v", result[0].fields["name"])
 	}
 }
 
@@ -320,8 +342,8 @@ func TestReadLines(t *testing.T) {
 		t.Fatalf("Expected 3 records, got %d", len(result))
 	}
 
-	if result[0]["line"] != "line1" {
-		t.Errorf("First line should be 'line1', got %v", result[0]["line"])
+	if result[0].fields["line"] != "line1" {
+		t.Errorf("First line should be 'line1', got %v", result[0].fields["line"])
 	}
 }
 
@@ -356,10 +378,13 @@ func TestWriteLines(t *testing.T) {
 	filename := filepath.Join(tmpDir, "test.txt")
 
 	// Write lines
-	records := slices.Values([]Record{
-		{"line": "first line"},
-		{"line": "second line"},
-	})
+	r1 := MakeMutableRecord()
+	r1.fields["line"] = "first line"
+
+	r2 := MakeMutableRecord()
+	r2.fields["line"] = "second line"
+
+	records := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
 
 	err := WriteLines(records, filename)
 	if err != nil {
@@ -641,11 +666,19 @@ func TestJSONPipeline(t *testing.T) {
 	filename := filepath.Join(tmpDir, "test.json")
 
 	// Create and write records
-	records := slices.Values([]Record{
-		{"name": "Alice", "value": float64(100)},
-		{"name": "Bob", "value": float64(200)},
-		{"name": "Charlie", "value": float64(150)},
-	})
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["value"] = float64(100)
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["value"] = float64(200)
+
+	r3 := MakeMutableRecord()
+	r3.fields["name"] = "Charlie"
+	r3.fields["value"] = float64(150)
+
+	records := slices.Values([]Record{r1.Freeze(), r2.Freeze(), r3.Freeze()})
 
 	err := WriteJSON(records, filename)
 	if err != nil {
@@ -658,7 +691,7 @@ func TestJSONPipeline(t *testing.T) {
 		t.Fatalf("ReadJSON failed: %v", err)
 	}
 	filtered := Where(func(r Record) bool {
-		value, ok := r["value"].(float64)
+		value, ok := r.fields["value"].(float64)
 		return ok && value >= 150
 	})(input)
 
@@ -722,9 +755,10 @@ func TestReadLinesNonExistentFile(t *testing.T) {
 }
 
 func TestWriteCSVInvalidPath(t *testing.T) {
-	records := slices.Values([]Record{
-		{"name": "Alice"},
-	})
+	r := MakeMutableRecord()
+	r.fields["name"] = "Alice"
+
+	records := slices.Values([]Record{r.Freeze()})
 
 	err := WriteCSV(records, "/invalid/path/file.csv")
 	if err == nil {
@@ -733,9 +767,10 @@ func TestWriteCSVInvalidPath(t *testing.T) {
 }
 
 func TestWriteJSONInvalidPath(t *testing.T) {
-	records := slices.Values([]Record{
-		{"name": "Alice"},
-	})
+	r := MakeMutableRecord()
+	r.fields["name"] = "Alice"
+
+	records := slices.Values([]Record{r.Freeze()})
 
 	err := WriteJSON(records, "/invalid/path/file.json")
 	if err == nil {
@@ -789,7 +824,7 @@ hello,string`
 	}
 
 	// Test case 1: "1" should be int64, NOT bool
-	val1 := result[0]["value"]
+	val1 := result[0].fields["value"]
 	if _, ok := val1.(int64); !ok {
 		t.Errorf("Value '1' should parse as int64, got %T(%v)", val1, val1)
 	}
@@ -798,7 +833,7 @@ hello,string`
 	}
 
 	// Test case 2: "0" should be int64, NOT bool
-	val0 := result[1]["value"]
+	val0 := result[1].fields["value"]
 	if _, ok := val0.(int64); !ok {
 		t.Errorf("Value '0' should parse as int64, got %T(%v)", val0, val0)
 	}
@@ -807,7 +842,7 @@ hello,string`
 	}
 
 	// Test case 3: "true" should be bool
-	valTrue := result[2]["value"]
+	valTrue := result[2].fields["value"]
 	if _, ok := valTrue.(bool); !ok {
 		t.Errorf("Value 'true' should parse as bool, got %T(%v)", valTrue, valTrue)
 	}
@@ -816,7 +851,7 @@ hello,string`
 	}
 
 	// Test case 4: "false" should be bool
-	valFalse := result[3]["value"]
+	valFalse := result[3].fields["value"]
 	if _, ok := valFalse.(bool); !ok {
 		t.Errorf("Value 'false' should parse as bool, got %T(%v)", valFalse, valFalse)
 	}
@@ -825,7 +860,7 @@ hello,string`
 	}
 
 	// Test case 5: "1.5" should be float64
-	val15 := result[4]["value"]
+	val15 := result[4].fields["value"]
 	if _, ok := val15.(float64); !ok {
 		t.Errorf("Value '1.5' should parse as float64, got %T(%v)", val15, val15)
 	}
@@ -834,7 +869,7 @@ hello,string`
 	}
 
 	// Test case 6: "hello" should be string
-	valHello := result[5]["value"]
+	valHello := result[5].fields["value"]
 	if _, ok := valHello.(string); !ok {
 		t.Errorf("Value 'hello' should parse as string, got %T(%v)", valHello, valHello)
 	}
@@ -937,30 +972,30 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 	}
 
 	// Verify basic fields are preserved
-	if reconstructedRecords[0]["id"] != "TASK-001" {
-		t.Errorf("ID should be TASK-001, got %v", reconstructedRecords[0]["id"])
+	if reconstructedRecords[0].fields["id"] != "TASK-001" {
+		t.Errorf("ID should be TASK-001, got %v", reconstructedRecords[0].fields["id"])
 	}
 
-	if reconstructedRecords[0]["title"] != "Security Update" {
-		t.Errorf("Title should be 'Security Update', got %v", reconstructedRecords[0]["title"])
+	if reconstructedRecords[0].fields["title"] != "Security Update" {
+		t.Errorf("Title should be 'Security Update', got %v", reconstructedRecords[0].fields["title"])
 	}
 
 	// Verify numeric fields (JSON converts to float64)
-	scoreValue, ok := reconstructedRecords[0]["score"].(float64)
+	scoreValue, ok := reconstructedRecords[0].fields["score"].(float64)
 	if !ok || scoreValue != 95.5 {
-		t.Errorf("Score should be 95.5 (float64), got %v (%T)", reconstructedRecords[0]["score"], reconstructedRecords[0]["score"])
+		t.Errorf("Score should be 95.5 (float64), got %v (%T)", reconstructedRecords[0].fields["score"], reconstructedRecords[0].fields["score"])
 	}
 
 	// Verify boolean field
-	completed, ok := reconstructedRecords[0]["completed"].(bool)
+	completed, ok := reconstructedRecords[0].fields["completed"].(bool)
 	if !ok || completed != false {
-		t.Errorf("Completed should be false (bool), got %v (%T)", reconstructedRecords[0]["completed"], reconstructedRecords[0]["completed"])
+		t.Errorf("Completed should be false (bool), got %v (%T)", reconstructedRecords[0].fields["completed"], reconstructedRecords[0].fields["completed"])
 	}
 
 	// Verify iter.Seq fields become arrays
-	tagsValue, ok := reconstructedRecords[0]["tags"].([]any)
+	tagsValue, ok := reconstructedRecords[0].fields["tags"].([]any)
 	if !ok {
-		t.Errorf("Tags should be array after round-trip, got %T", reconstructedRecords[0]["tags"])
+		t.Errorf("Tags should be array after round-trip, got %T", reconstructedRecords[0].fields["tags"])
 	} else {
 		if len(tagsValue) != 2 {
 			t.Errorf("Tags should have 2 elements, got %d", len(tagsValue))
@@ -971,9 +1006,9 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 	}
 
 	// Verify Record fields become map[string]any
-	metadataValue, ok := reconstructedRecords[0]["metadata"].(map[string]any)
+	metadataValue, ok := reconstructedRecords[0].fields["metadata"].(map[string]any)
 	if !ok {
-		t.Errorf("Metadata should be map after round-trip, got %T", reconstructedRecords[0]["metadata"])
+		t.Errorf("Metadata should be map after round-trip, got %T", reconstructedRecords[0].fields["metadata"])
 	} else {
 		if metadataValue["priority"] != "high" {
 			t.Errorf("Metadata priority should be 'high', got %v", metadataValue["priority"])
@@ -981,9 +1016,9 @@ func TestJSONComplexTypesRoundTrip(t *testing.T) {
 	}
 
 	// Verify JSONString is parsed (not double-encoded)
-	configValue, ok := reconstructedRecords[0]["config"].(map[string]any)
+	configValue, ok := reconstructedRecords[0].fields["config"].(map[string]any)
 	if !ok {
-		t.Errorf("Config should be parsed map, got %T", reconstructedRecords[0]["config"])
+		t.Errorf("Config should be parsed map, got %T", reconstructedRecords[0].fields["config"])
 	} else {
 		// JSON converts all numbers to float64
 		if timeout, ok := configValue["timeout"].(float64); !ok || timeout != 30 {
@@ -1032,10 +1067,14 @@ func TestJSONStreamProcessing(t *testing.T) {
 	for record := range inputStream {
 		price := GetOr(record, "price", float64(0))
 		if price >= 500.0 {
-			// Add calculated field
+			// Add calculated field - copy to MutableRecord, add field, freeze
 			quantity, _ := Get[float64](record, "quantity")
-			record["total_value"] = price * quantity
-			filteredRecords = append(filteredRecords, record)
+			mut := MakeMutableRecord()
+			for k, v := range record.All() {
+				mut.fields[k] = v
+			}
+			mut.fields["total_value"] = price * quantity
+			filteredRecords = append(filteredRecords, mut.Freeze())
 		}
 	}
 
@@ -1057,7 +1096,7 @@ func TestJSONStreamProcessing(t *testing.T) {
 	}
 
 	// Verify calculated field exists
-	if _, ok := finalRecords[0]["total_value"]; !ok {
+	if _, ok := finalRecords[0].fields["total_value"]; !ok {
 		t.Error("total_value field should be added during filtering")
 	}
 
@@ -1154,7 +1193,7 @@ func TestFunctionalPipelineComposition(t *testing.T) {
 		}
 
 		// Verify average was calculated
-		if _, ok := result["avg_amount"]; !ok {
+		if _, ok := result.fields["avg_amount"]; !ok {
 			t.Errorf("avg_amount should be present for region %s", region)
 		}
 	}

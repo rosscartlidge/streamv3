@@ -342,17 +342,17 @@ func TestMakeRecord(t *testing.T) {
 		Float("score", 95.5).
 		Bool("active", true)
 
-	if r["name"] != "Alice" {
-		t.Errorf("Expected name=Alice, got %v", r["name"])
+	if r.fields["name"] != "Alice" {
+		t.Errorf("Expected name=Alice, got %v", r.fields["name"])
 	}
-	if r["age"] != int64(30) {
-		t.Errorf("Expected age=30, got %v", r["age"])
+	if r.fields["age"] != int64(30) {
+		t.Errorf("Expected age=30, got %v", r.fields["age"])
 	}
-	if r["score"] != 95.5 {
-		t.Errorf("Expected score=95.5, got %v", r["score"])
+	if r.fields["score"] != 95.5 {
+		t.Errorf("Expected score=95.5, got %v", r.fields["score"])
 	}
-	if r["active"] != true {
-		t.Errorf("Expected active=true, got %v", r["active"])
+	if r.fields["active"] != true {
+		t.Errorf("Expected active=true, got %v", r.fields["active"])
 	}
 }
 
@@ -360,23 +360,27 @@ func TestRecordWithTime(t *testing.T) {
 	now := time.Now()
 	r := MakeMutableRecord().Time("timestamp", now)
 
-	if r["timestamp"] != now {
-		t.Errorf("Expected timestamp=%v, got %v", now, r["timestamp"])
+	if r.fields["timestamp"] != now {
+		t.Errorf("Expected timestamp=%v, got %v", now, r.fields["timestamp"])
 	}
 }
 
 func TestRecordWithNestedRecord(t *testing.T) {
-	nested := Record{"city": "NYC"}
+	nested := func() Record {
+		r := MakeMutableRecord()
+		r.fields["city"] = "NYC"
+		return r.Freeze()
+	}()
 	r := MakeMutableRecord().
 		String("name", "Alice").
 		Nested("address", nested)
 
-	addr, ok := r["address"].(Record)
+	addr, ok := r.fields["address"].(Record)
 	if !ok {
 		t.Fatal("Expected nested Record")
 	}
-	if addr["city"] != "NYC" {
-		t.Errorf("Expected city=NYC, got %v", addr["city"])
+	if addr.fields["city"] != "NYC" {
+		t.Errorf("Expected city=NYC, got %v", addr.fields["city"])
 	}
 }
 
@@ -384,7 +388,7 @@ func TestRecordWithJSONString(t *testing.T) {
 	js := JSONString(`{"data":"value"}`)
 	r := MakeMutableRecord().JSONString("json", js)
 
-	result, ok := r["json"].(JSONString)
+	result, ok := r.fields["json"].(JSONString)
 	if !ok {
 		t.Fatal("Expected JSONString")
 	}
@@ -398,12 +402,14 @@ func TestRecordWithJSONString(t *testing.T) {
 // ============================================================================
 
 func TestGet(t *testing.T) {
-	r := Record{
-		"name":   "Alice",
-		"age":    int64(30),
-		"score":  95.5,
-		"active": true,
-	}
+	r := func() Record {
+		r := MakeMutableRecord()
+		r.fields["name"] = "Alice"
+		r.fields["age"] = int64(30)
+		r.fields["score"] = 95.5
+		r.fields["active"] = true
+		return r.Freeze()
+	}()
 
 	// Direct type match
 	name, ok := Get[string](r, "name")
@@ -425,7 +431,11 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetOr(t *testing.T) {
-	r := Record{"name": "Alice"}
+	r := func() Record {
+		r := MakeMutableRecord()
+		r.fields["name"] = "Alice"
+		return r.Freeze()
+	}()
 
 	// Existing field
 	name := GetOr(r, "name", "default")
@@ -445,28 +455,32 @@ func TestMutableRecordSet(t *testing.T) {
 	m2 := Set(m, "age", int64(30))
 
 	// Both m and m2 should point to same underlying map (mutation)
-	if m2["age"] != int64(30) {
-		t.Errorf("Set failed: expected 30, got %v", m2["age"])
+	if m2.fields["age"] != int64(30) {
+		t.Errorf("Set failed: expected 30, got %v", m2.fields["age"])
 	}
-	if m2["name"] != "Alice" {
+	if m2.fields["name"] != "Alice" {
 		t.Error("Set should preserve existing fields")
 	}
 }
 
 func TestRecordSetImmutable(t *testing.T) {
-	r := Record{"name": "Alice"}
+	r := func() Record {
+		r := MakeMutableRecord()
+		r.fields["name"] = "Alice"
+		return r.Freeze()
+	}()
 	r2 := SetImmutable(r, "age", int64(30))
 
 	// Original should be unchanged
-	if _, exists := r["age"]; exists {
+	if _, exists := r.fields["age"]; exists {
 		t.Error("SetImmutable should not modify original record")
 	}
 
 	// New record should have field
-	if r2["age"] != int64(30) {
-		t.Errorf("SetImmutable failed: expected 30, got %v", r2["age"])
+	if r2.fields["age"] != int64(30) {
+		t.Errorf("SetImmutable failed: expected 30, got %v", r2.fields["age"])
 	}
-	if r2["name"] != "Alice" {
+	if r2.fields["name"] != "Alice" {
 		t.Error("SetImmutable should preserve existing fields")
 	}
 }
@@ -487,27 +501,31 @@ func TestRecordToMutable(t *testing.T) {
 	updated := mutable.Freeze()
 
 	// Original should be unchanged (shallow copy preserves immutability)
-	if original["age"] != int64(30) {
+	if original.fields["age"] != int64(30) {
 		t.Error("ToMutable should not modify original record")
 	}
-	if _, exists := original["city"]; exists {
+	if _, exists := original.fields["city"]; exists {
 		t.Error("ToMutable should create a copy, not mutate original")
 	}
 
 	// Updated record should have changes
-	if updated["age"] != int64(31) {
-		t.Errorf("ToMutable update failed: expected age=31, got %v", updated["age"])
+	if updated.fields["age"] != int64(31) {
+		t.Errorf("ToMutable update failed: expected age=31, got %v", updated.fields["age"])
 	}
-	if updated["city"] != "NYC" {
-		t.Errorf("ToMutable addition failed: expected city=NYC, got %v", updated["city"])
+	if updated.fields["city"] != "NYC" {
+		t.Errorf("ToMutable addition failed: expected city=NYC, got %v", updated.fields["city"])
 	}
-	if updated["name"] != "Alice" {
+	if updated.fields["name"] != "Alice" {
 		t.Error("ToMutable should preserve existing fields")
 	}
 }
 
 func TestRecordHas(t *testing.T) {
-	r := Record{"name": "Alice"}
+	r := func() Record {
+		r := MakeMutableRecord()
+		r.fields["name"] = "Alice"
+		return r.Freeze()
+	}()
 
 	if !r.Has("name") {
 		t.Error("Has should return true for existing field")
@@ -518,7 +536,12 @@ func TestRecordHas(t *testing.T) {
 }
 
 func TestRecordKeys(t *testing.T) {
-	r := Record{"name": "Alice", "age": int64(30)}
+	r := func() Record {
+		r := MakeMutableRecord()
+		r.fields["name"] = "Alice"
+		r.fields["age"] = int64(30)
+		return r.Freeze()
+	}()
 	keys := r.Keys()
 
 	if len(keys) != 2 {
@@ -695,20 +718,24 @@ func TestConvertToTime(t *testing.T) {
 
 func TestValidateRecord(t *testing.T) {
 	// Valid record
-	valid := Record{
-		"name":   "Alice",
-		"age":    int64(30),
-		"active": true,
-	}
+	valid := func() Record {
+		r := MakeMutableRecord()
+		r.fields["name"] = "Alice"
+		r.fields["age"] = int64(30)
+		r.fields["active"] = true
+		return r.Freeze()
+	}()
 	if err := ValidateRecord(valid); err != nil {
 		t.Errorf("ValidateRecord failed on valid record: %v", err)
 	}
 
 	// Invalid record with unsupported type
-	invalid := Record{
-		"name": "Alice",
-		"data": struct{}{}, // struct{} is not a Value type
-	}
+	invalid := func() Record {
+		r := MakeMutableRecord()
+		r.fields["name"] = "Alice"
+		r.fields["data"] = struct{}{}
+		return r.Freeze()
+	}()
 	if err := ValidateRecord(invalid); err == nil {
 		t.Error("ValidateRecord should fail on invalid type")
 	}
@@ -717,11 +744,11 @@ func TestValidateRecord(t *testing.T) {
 func TestField(t *testing.T) {
 	r := Field("name", "Alice")
 
-	if len(r) != 1 {
-		t.Errorf("Field should create single-field record, got %d fields", len(r))
+	if len(r.fields) != 1 {
+		t.Errorf("Field should create single-field record, got %d fields", len(r.fields))
 	}
-	if r["name"] != "Alice" {
-		t.Errorf("Field value incorrect: got %v", r["name"])
+	if r.fields["name"] != "Alice" {
+		t.Errorf("Field value incorrect: got %v", r.fields["name"])
 	}
 }
 
@@ -756,10 +783,15 @@ func TestFromEmptySlice(t *testing.T) {
 
 func TestFromRecords(t *testing.T) {
 	// Test with Records
-	records := []Record{
-		{"name": "Alice", "age": int64(30)},
-		{"name": "Bob", "age": int64(25)},
-	}
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["age"] = int64(30)
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["age"] = int64(25)
+
+	records := []Record{r1.Freeze(), r2.Freeze()}
 
 	seq := From(records)
 	result := slices.Collect(seq)
@@ -768,8 +800,8 @@ func TestFromRecords(t *testing.T) {
 		t.Fatalf("Expected 2 records, got %d", len(result))
 	}
 
-	if result[0]["name"] != "Alice" {
-		t.Errorf("First record name should be Alice, got %v", result[0]["name"])
+	if result[0].fields["name"] != "Alice" {
+		t.Errorf("First record name should be Alice, got %v", result[0].fields["name"])
 	}
 }
 
@@ -854,9 +886,10 @@ func TestMaterialize(t *testing.T) {
 		}
 	}
 
-	input := slices.Values([]Record{
-		{"id": int64(1), "tags": iter.Seq[string](tagSeq)},
-	})
+	r := MakeMutableRecord()
+	r.fields["id"] = int64(1)
+	r.fields["tags"] = iter.Seq[string](tagSeq)
+	input := slices.Values([]Record{r.Freeze()})
 
 	filter := Materialize("tags", "tags_key", ",")
 	result := slices.Collect(filter(input))
@@ -865,7 +898,7 @@ func TestMaterialize(t *testing.T) {
 		t.Fatalf("Expected 1 record, got %d", len(result))
 	}
 
-	tagsKey, ok := result[0]["tags_key"].(string)
+	tagsKey, ok := result[0].fields["tags_key"].(string)
 	if !ok {
 		t.Fatal("tags_key should be a string")
 	}
@@ -882,10 +915,15 @@ func TestMaterialize(t *testing.T) {
 }
 
 func TestMaterializeJSON(t *testing.T) {
-	nestedRecord := Record{"city": "NYC", "zip": "10001"}
-	input := slices.Values([]Record{
-		{"id": int64(1), "address": nestedRecord},
-	})
+	nestedRec := MakeMutableRecord()
+	nestedRec.fields["city"] = "NYC"
+	nestedRec.fields["zip"] = "10001"
+	nestedRecord := nestedRec.Freeze()
+
+	r := MakeMutableRecord()
+	r.fields["id"] = int64(1)
+	r.fields["address"] = nestedRecord
+	input := slices.Values([]Record{r.Freeze()})
 
 	filter := MaterializeJSON("address", "address_json")
 	result := slices.Collect(filter(input))
@@ -894,7 +932,7 @@ func TestMaterializeJSON(t *testing.T) {
 		t.Fatalf("Expected 1 record, got %d", len(result))
 	}
 
-	addressJSON, ok := result[0]["address_json"].(JSONString)
+	addressJSON, ok := result[0].fields["address_json"].(JSONString)
 	if !ok {
 		t.Fatal("address_json should be JSONString")
 	}
@@ -909,10 +947,15 @@ func TestMaterializeJSON(t *testing.T) {
 // ============================================================================
 
 func TestDotFlatten(t *testing.T) {
-	nested := Record{"name": "Alice", "city": "NYC"}
-	input := slices.Values([]Record{
-		{"id": int64(1), "user": nested},
-	})
+	nestedR := MakeMutableRecord()
+	nestedR.fields["name"] = "Alice"
+	nestedR.fields["city"] = "NYC"
+	nested := nestedR.Freeze()
+
+	r := MakeMutableRecord()
+	r.fields["id"] = int64(1)
+	r.fields["user"] = nested
+	input := slices.Values([]Record{r.Freeze()})
 
 	filter := DotFlatten(".", "user")
 	result := slices.Collect(filter(input))
@@ -921,11 +964,11 @@ func TestDotFlatten(t *testing.T) {
 		t.Fatalf("Expected 1 record, got %d", len(result))
 	}
 
-	if result[0]["user.name"] != "Alice" {
-		t.Errorf("DotFlatten failed: expected user.name=Alice, got %v", result[0]["user.name"])
+	if result[0].fields["user.name"] != "Alice" {
+		t.Errorf("DotFlatten failed: expected user.name=Alice, got %v", result[0].fields["user.name"])
 	}
-	if result[0]["user.city"] != "NYC" {
-		t.Errorf("DotFlatten failed: expected user.city=NYC, got %v", result[0]["user.city"])
+	if result[0].fields["user.city"] != "NYC" {
+		t.Errorf("DotFlatten failed: expected user.city=NYC, got %v", result[0].fields["user.city"])
 	}
 }
 
@@ -946,9 +989,11 @@ func TestDotFlattenWithSequences(t *testing.T) {
 		}
 	}
 
-	input := slices.Values([]Record{
-		{"id": int64(1), "tags": iter.Seq[string](tagSeq), "scores": iter.Seq[int](scoreSeq)},
-	})
+	r := MakeMutableRecord()
+	r.fields["id"] = int64(1)
+	r.fields["tags"] = iter.Seq[string](tagSeq)
+	r.fields["scores"] = iter.Seq[int](scoreSeq)
+	input := slices.Values([]Record{r.Freeze()})
 
 	filter := DotFlatten(".", "tags", "scores")
 	result := slices.Collect(filter(input))
@@ -959,12 +1004,12 @@ func TestDotFlattenWithSequences(t *testing.T) {
 	}
 
 	// First record: tags=a, scores=10
-	if result[0]["tags"] != "a" || result[0]["scores"] != 10 {
+	if result[0].fields["tags"] != "a" || result[0].fields["scores"] != 10 {
 		t.Errorf("DotFlatten first record failed: %v", result[0])
 	}
 
 	// Second record: tags=b, scores=20
-	if result[1]["tags"] != "b" || result[1]["scores"] != 20 {
+	if result[1].fields["tags"] != "b" || result[1].fields["scores"] != 20 {
 		t.Errorf("DotFlatten second record failed: %v", result[1])
 	}
 }
@@ -978,9 +1023,10 @@ func TestCrossFlatten(t *testing.T) {
 		}
 	}
 
-	input := slices.Values([]Record{
-		{"id": int64(1), "tags": iter.Seq[string](tagSeq)},
-	})
+	r := MakeMutableRecord()
+	r.fields["id"] = int64(1)
+	r.fields["tags"] = iter.Seq[string](tagSeq)
+	input := slices.Values([]Record{r.Freeze()})
 
 	filter := CrossFlatten(".", "tags")
 	result := slices.Collect(filter(input))
@@ -990,15 +1036,15 @@ func TestCrossFlatten(t *testing.T) {
 		t.Fatalf("Expected 2 records, got %d", len(result))
 	}
 
-	if result[0]["tags"] != "a" {
-		t.Errorf("CrossFlatten first record failed: expected tags=a, got %v", result[0]["tags"])
+	if result[0].fields["tags"] != "a" {
+		t.Errorf("CrossFlatten first record failed: expected tags=a, got %v", result[0].fields["tags"])
 	}
-	if result[1]["tags"] != "b" {
-		t.Errorf("CrossFlatten second record failed: expected tags=b, got %v", result[1]["tags"])
+	if result[1].fields["tags"] != "b" {
+		t.Errorf("CrossFlatten second record failed: expected tags=b, got %v", result[1].fields["tags"])
 	}
 
 	// Both should have id=1
-	if result[0]["id"] != int64(1) || result[1]["id"] != int64(1) {
+	if result[0].fields["id"] != int64(1) || result[1].fields["id"] != int64(1) {
 		t.Error("CrossFlatten should preserve non-sequence fields")
 	}
 }
@@ -1020,9 +1066,10 @@ func TestCrossFlattenCartesianProduct(t *testing.T) {
 		}
 	}
 
-	input := slices.Values([]Record{
-		{"tags": iter.Seq[string](tagSeq), "colors": iter.Seq[string](colorSeq)},
-	})
+	r := MakeMutableRecord()
+	r.fields["tags"] = iter.Seq[string](tagSeq)
+	r.fields["colors"] = iter.Seq[string](colorSeq)
+	input := slices.Values([]Record{r.Freeze()})
 
 	filter := CrossFlatten(".", "tags", "colors")
 	result := slices.Collect(filter(input))
