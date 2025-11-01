@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/commands"
+	"github.com/rosscartlidge/streamv3/internal/version"
 )
 
 func main() {
@@ -24,7 +25,7 @@ func main() {
 		printUsage()
 		os.Exit(0)
 	case "-version", "--version", "version":
-		fmt.Println("streamv3 version 1.0.0")
+		fmt.Printf("streamv3 version %s\n", version.Version)
 		os.Exit(0)
 	case "-bash-completion":
 		printBashCompletion()

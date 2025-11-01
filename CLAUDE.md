@@ -21,20 +21,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Release Process
 
-**⚠️ CRITICAL: Always update version in `cmd/streamv3/main.go` BEFORE creating git tags!**
+**✅ Version is automatically derived from git tags!**
 
-The version string is hardcoded in `cmd/streamv3/main.go` at line 27. This MUST be updated before tagging.
+The version is automatically extracted from `git describe --tags` and embedded into the binary at build time. No manual version updates needed!
 
 **Correct Release Workflow:**
 1. ✅ Make all code changes and commit them
-2. ✅ **Update `cmd/streamv3/main.go` line 27**: `fmt.Println("streamv3 version X.Y.Z")`
-3. ✅ Commit: `git add cmd/streamv3/main.go && git commit -m "Bump version to vX.Y.Z"`
+2. ✅ Run: `./scripts/generate-version.sh` (updates version.txt from git tag)
+3. ✅ Commit version files: `git add cmd/streamv3/version.txt internal/version/version.txt && git commit -m "Update version to vX.Y.Z"`
 4. ✅ Create tag: `git tag -a vX.Y.Z -m "Release notes..."`
 5. ✅ Push: `git push && git push --tags`
-6. ✅ Verify: `streamv3 -version` should show the new version
+6. ✅ Build and verify: `go install ./cmd/streamv3 && streamv3 -version`
+
+**How It Works:**
+- Version is stored in `internal/version/version.go` (embedded from `version.txt`)
+- `scripts/generate-version.sh` runs `git describe --tags` and writes to version.txt files
+- Both the binary (`streamv3 -version`) and generated code comments use this version
+- Version files are tracked in git to ensure consistent builds
 
 **Common Mistake:**
-❌ Creating the tag BEFORE updating main.go → Binary will show wrong version
 ❌ Using lightweight tags (`git tag vX.Y.Z`) → Use annotated tags (`git tag -a vX.Y.Z -m "..."`)
 
 **See RELEASE.md for complete details.**
