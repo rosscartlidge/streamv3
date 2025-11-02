@@ -946,6 +946,35 @@ func buildRootCommand() *cf.Command {
 
 			Done().
 
+		// Subcommand: exec
+		Subcommand("exec").
+			Description("Execute command and parse output as records").
+
+			Handler(func(ctx *cf.Context) error {
+				// Everything after -- is in ctx.RemainingArgs
+				if len(ctx.RemainingArgs) == 0 {
+					return fmt.Errorf("exec requires command after '--' separator (usage: streamv3 exec -- command args...)")
+				}
+
+				command := ctx.RemainingArgs[0]
+				args := ctx.RemainingArgs[1:]
+
+				// Execute command and parse output
+				records, err := streamv3.ExecCommand(command, args)
+				if err != nil {
+					return fmt.Errorf("executing command: %w", err)
+				}
+
+				// Write as JSONL to stdout
+				if err := lib.WriteJSONL(os.Stdout, records); err != nil {
+					return fmt.Errorf("writing JSONL: %w", err)
+				}
+
+				return nil
+			}).
+
+			Done().
+
 		// Subcommand: chart
 		Subcommand("chart").
 			Description("Create interactive HTML chart from data").
