@@ -21,9 +21,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Release Process
 
-**✅ Version is automatically derived from git tags!**
+**⚠️ CRITICAL: Version is manually maintained in version.txt**
 
-The version is automatically extracted from `git describe --tags` and embedded into the binary at build time. No manual version updates needed!
+Version is stored in `cmd/streamv3/version/version.txt` and MUST be updated before creating tags.
 
 **Correct Release Workflow (CRITICAL - Follow Exact Order):**
 
@@ -32,47 +32,56 @@ The version is automatically extracted from `git describe --tags` and embedded i
 git add .
 git commit -m "Description of changes"
 
-# 2. Create annotated tag (this sets the version)
-git tag -a vX.Y.Z -m "Release notes..."
+# 2. Update version.txt (WITHOUT "v" prefix)
+echo "X.Y.Z" > cmd/streamv3/version/version.txt
 
-# 3. Generate version.txt from the tag
-./scripts/generate-version.sh
-
-# 4. Commit the version.txt file
+# 3. Commit the version change
 git add cmd/streamv3/version/version.txt
-git commit -m "Update version to vX.Y.Z"
+git commit -m "Bump version to vX.Y.Z"
 
-# 5. Move the tag to the new commit (with version.txt)
-git tag -d vX.Y.Z
+# 4. Create annotated tag (WITH "v" prefix)
 git tag -a vX.Y.Z -m "Release notes..."
 
-# 6. Verify the tag contains correct version
-git cat-file -p vX.Y.Z:cmd/streamv3/version/version.txt  # Should show vX.Y.Z
-
-# 7. Push everything
+# 5. Push everything
 git push && git push --tags
 
-# 8. Verify install works
+# 6. CRITICAL: Verify go.mod has NO replace directive
+cat go.mod  # Should NOT contain "replace" line
+
+# 7. Verify install works from GitHub
 GOPROXY=direct go install github.com/rosscartlidge/streamv3/cmd/streamv3@vX.Y.Z
-streamv3 -version  # Should show: streamv3 version vX.Y.Z
+streamv3 version  # Should show: streamv3 vX.Y.Z
 ```
 
 **⚠️ CRITICAL:**
-- The tag MUST point to a commit that contains the correct version.txt
-- Generate version AFTER creating tag, then move tag to new commit
-- NEVER reuse a version number - if something goes wrong, increment to next version
-- Verify `git cat-file -p vX.Y.Z:cmd/streamv3/version/version.txt` before pushing
+- **version.txt format**: Store WITHOUT "v" prefix (e.g., `1.2.0` not `v1.2.0`)
+- **git tag format**: Use WITH "v" prefix (e.g., `v1.2.0`)
+- **completionflags adds "v"**: `.Version()` automatically adds "v" prefix to display
+- **No replace directive**: `go.mod` must NOT contain `replace` line (breaks `go install`)
+- **Annotated tags only**: Use `git tag -a vX.Y.Z -m "..."` not `git tag vX.Y.Z`
+- **Test install**: Always verify with `GOPROXY=direct go install` before announcing release
 
 **How It Works:**
-- Version is stored in `cmd/streamv3/version/version.go` (embedded from `version.txt`)
-- `scripts/generate-version.sh` runs `git describe --tags` and writes to `cmd/streamv3/version/version.txt`
-- Both the binary (`streamv3 -version`) and generated code comments use this version
-- Version file is tracked in git to ensure consistent builds
+- Version stored in `cmd/streamv3/version/version.txt` (plain text, without "v")
+- Embedded in binary via `//go:embed version.txt` in `cmd/streamv3/version/version.go`
+- completionflags `.Version()` method adds "v" prefix automatically
+- `streamv3 version` subcommand shows: "streamv3 vX.Y.Z"
+- `streamv3 -help` header shows: "streamv3 vX.Y.Z - Unix-style data processing tools"
 
-**Common Mistake:**
-❌ Using lightweight tags (`git tag vX.Y.Z`) → Use annotated tags (`git tag -a vX.Y.Z -m "..."`)
+**Common Mistakes:**
+- ❌ Including "v" in version.txt → Results in "vvX.Y.Z" display
+- ❌ Having `replace` directive in go.mod → `go install` fails with error
+- ❌ Using lightweight tags → Use annotated tags with `-a` flag
+- ❌ Not testing install → Release may be broken for users
 
-**See RELEASE.md for complete details.**
+**Testing a Release:**
+```bash
+# After pushing tag, test from a different directory:
+cd /tmp
+GOPROXY=direct go install github.com/rosscartlidge/streamv3/cmd/streamv3@latest
+streamv3 version  # Should show correct version
+streamv3 -help    # Should work without errors
+```
 
 ## Architecture Overview
 
@@ -392,9 +401,20 @@ This approach eliminates runtime panics and makes generated code robust and main
 
 This library emphasizes functional composition with Go 1.23+ iterators while providing comprehensive data visualization capabilities.
 
-## CLI Tools Architecture
+## CLI Tools Architecture (completionflags v0.2.1+)
 
-StreamV3 includes a CLI tool (`cmd/streamv3`) with a self-generating code architecture.
+StreamV3 CLI uses **completionflags v0.2.1+** for native subcommand support with auto-generated help and tab completion. All 14 commands migrated as of v1.2.0.
+
+**Architecture Overview:**
+- `cmd/streamv3/main.go` - All subcommands defined using completionflags builder API
+- `cmd/streamv3/helpers.go` - Shared utilities (comparison operators, aggregation, extractNumeric, chainRecords)
+- `cmd/streamv3/version/version.txt` - Version string (manually maintained)
+- All commands use context-based flag access: `ctx.GlobalFlags` and `ctx.Clauses`
+
+**Version Access:**
+- `streamv3 version` - Dedicated version subcommand (returns "streamv3 vX.Y.Z")
+- `streamv3 -help` - Shows version in header
+- ⚠️ No `-version` flag (completionflags doesn't auto-add this)
 
 **CLI Flag Design Principles:**
 
@@ -430,6 +450,79 @@ When designing CLI commands with completionflags, follow these principles:
    - Use `StaticCompleter` for known options (operators, commands, etc.)
    - Use `FileCompleter` with patterns for file paths
    - Improves UX with tab completion
+
+**Completionflags Subcommand Pattern:**
+
+All commands follow this pattern in `main.go`:
+
+```go
+Subcommand("command-name").
+    Description("Brief description").
+
+    Handler(func(ctx *cf.Context) error {
+        // 1. Extract flags from ctx.GlobalFlags (for Global flags)
+        var myFlag string
+        if val, ok := ctx.GlobalFlags["-myflag"]; ok {
+            myFlag = val.(string)
+        }
+
+        // 2. Extract clause flags (for Local flags with + separators)
+        if len(ctx.Clauses) > 0 {
+            clause := ctx.Clauses[0]
+            if val, ok := clause.Flags["-field"]; ok {
+                // Handle accumulated flags: val.([]any)
+            }
+        }
+
+        // 3. For commands with -- separator (like exec)
+        if len(ctx.RemainingArgs) > 0 {
+            command := ctx.RemainingArgs[0]
+            args := ctx.RemainingArgs[1:]
+            // ...
+        }
+
+        // 4. Perform command operation
+        // 5. Return error or nil
+        return nil
+    }).
+
+    Flag("-myflag").
+        String().
+        Global().  // Or Local() for clause-based flags
+        Help("Description").
+        Done().
+
+    Done().
+```
+
+**Key Patterns:**
+- **Global flags**: Use `ctx.GlobalFlags["-flagname"]` - applies to entire command
+- **Local flags**: Use `ctx.Clauses[i].Flags["-flagname"]` - applies per clause (with `+` separator)
+- **Accumulated flags**: Use `.Accumulate()` and access as `[]any` slice
+- **-- separator**: Use `ctx.RemainingArgs` for everything after `--` (requires completionflags v0.2.1+)
+- **Type assertions**: All flag values are `interface{}`, cast appropriately: `val.(string)`, `val.(int)`, `val.(bool)`
+
+**Important Lessons Learned:**
+
+1. **Release with replace directive fails** - `go install` fails if go.mod has `replace` directive
+   - Always remove local `replace` before tagging releases
+   - Test with `GOPROXY=direct go install github.com/user/repo/cmd/app@vX.Y.Z`
+
+2. **Version display** - completionflags `.Version()` adds "v" prefix automatically
+   - Store version without "v" in version.txt: `1.2.0` not `v1.2.0`
+   - Display will show: "streamv3 v1.2.0"
+
+3. **Version subcommand needed** - completionflags doesn't auto-add `-version` flag
+   - Must manually add `version` subcommand if users need version access
+   - Version also appears in help header automatically
+
+4. **Context-based flag access** - Don't use `.Bind()` for complex commands
+   - Use `ctx.GlobalFlags` and `ctx.Clauses` for flexibility
+   - Enables dynamic flag handling and accumulation
+
+5. **-- separator support** - Requires completionflags v0.2.1+
+   - Use for commands that pass args to other programs (like `exec`)
+   - Access via `ctx.RemainingArgs` slice
 
 **Self-Generating Commands:**
 - Each CLI command has a `-generate` flag that emits Go code instead of executing
