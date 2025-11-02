@@ -524,63 +524,88 @@ Subcommand("command-name").
    - Use for commands that pass args to other programs (like `exec`)
    - Access via `ctx.RemainingArgs` slice
 
-**Self-Generating Commands:**
-- Each CLI command has a `-generate` flag that emits Go code instead of executing
+## Code Generation System (CRITICAL FEATURE)
+
+**⚠️ CRITICAL: This is a core feature that enables 10-100x faster execution by generating standalone Go programs from CLI pipelines.**
+
+### Overview
+
+StreamV3 supports **self-generating pipelines** where commands emit Go code fragments instead of executing. This allows users to:
+1. Prototype data processing pipelines using the CLI
+2. Generate optimized Go code from the working pipeline
+3. Compile and run standalone programs 10-100x faster than CLI execution
+
+### Enabling Code Generation
+
+Two ways to enable generation mode:
+
+```bash
+# Method 1: Environment variable (affects entire pipeline)
+export STREAMV3_GENERATE_GO=1
+streamv3 read-csv data.csv | streamv3 where -match age gt 25 | streamv3 generate-go
+
+# Method 2: -generate flag per command
+streamv3 read-csv -generate data.csv | streamv3 where -generate -match age gt 25 | streamv3 generate-go
+```
+
+The environment variable approach is preferred for full pipelines.
+
+### Code Fragment System
+
+**Architecture (`cmd/streamv3/lib/codefragment.go`):**
 - Commands communicate via JSONL code fragments on stdin/stdout
+- Each fragment has: Type, Var (variable name), Input (input var), Code, Imports, Command
 - The `generate-go` command assembles all fragments into a complete Go program
-- This eliminates the need for a separate parser and keeps generated code in sync with implementations
-
-**Code Fragment System (`cmd/streamv3/lib/codefragment.go`):**
-- `CodeFragment` struct with Type/Var/Input/Code/Imports fields
-- `ReadAllCodeFragments()` - Read all previous fragments from stdin
-- `WriteCodeFragment()` - Write fragment to stdout
-- Commands pass through all previous fragments, then append their own
-
-**Adding New Commands - REQUIRED STEPS:**
-1. Add `Generate bool` flag to config struct with `gs:"flag,global,last,help=Generate Go code instead of executing"`
-2. Add branch in Execute() method: `if c.Generate { return c.generateCode(...) }`
-3. Implement `generateCode()` method:
-   - Call `lib.ReadAllCodeFragments()` to read all previous fragments from stdin
-   - Pass through all previous fragments with `lib.WriteCodeFragment(frag)`
-   - Get input variable from last fragment: `fragments[len(fragments)-1].Var`
-   - Generate your command's Go code
-   - Create fragment with `lib.NewStmtFragment()` (or NewInitFragment/NewFinalFragment)
-   - Write your fragment with `lib.WriteCodeFragment()`
+- Fragments are passed through the pipeline, with each command adding its own
 
 **Fragment Types:**
-- `init` - First command in pipeline (e.g., read-csv), creates initial variable
-- `stmt` - Middle command (e.g., where, select), has input and output variable
+- `init` - First command (e.g., read-csv), creates initial variable, no input
+- `stmt` - Middle command (e.g., where, group-by), has input and output variable
 - `final` - Last command (e.g., write-csv), has input but no output variable
 
-**Example Implementation Pattern:**
+**Helper Functions (in `cmd/streamv3/helpers.go`):**
+- `shouldGenerate(flagValue bool)` - Checks flag or STREAMV3_GENERATE_GO env var
+- `getCommandString()` - Returns command line that invoked the command (filters out -generate flag)
+- `shellQuote(s string)` - Quotes arguments for shell safety
+
+### Generation Support Status (as of v1.2.4)
+
+**✅ Commands with -generate support (8/14):**
+1. `read-csv` - Generates init fragment with `streamv3.ReadCSV()`
+2. `where` - Generates stmt fragment with filter predicate
+3. `write-csv` - Generates final fragment with `streamv3.WriteCSV()`
+4. `limit` - Generates stmt fragment with `streamv3.Limit[streamv3.Record](n)`
+5. `offset` - Generates stmt fragment with `streamv3.Offset[streamv3.Record](n)`
+6. `sort` - Generates stmt fragment with `streamv3.SortBy()`
+7. `distinct` - Generates stmt fragment with `streamv3.DistinctBy()`
+8. `group-by` - Generates TWO stmt fragments (GroupByFields + Aggregate)
+
+**❌ Commands WITHOUT -generate support yet (6/14):**
+- `select`, `join`, `union`, `exec`, `chart`, `generate-go` (doesn't need it)
+
+**⚠️ IMPORTANT:** Commands without generation support will break pipelines in generation mode. Always add generation support when creating new commands.
+
+### Adding Generation Support to Commands
+
+**Step 1: Add generation function to `cmd/streamv3/helpers.go`:**
+
 ```go
-type MyCommandConfig struct {
-    Generate bool   `gs:"flag,global,last,help=Generate Go code instead of executing"`
-    // ... other fields
-}
-
-func (c *MyCommandConfig) Execute(ctx context.Context, clauses []gs.ClauseSet) error {
-    if c.Generate {
-        return c.generateCode(clauses)
-    }
-    // ... normal execution
-}
-
-func (c *MyCommandConfig) generateCode(clauses []gs.ClauseSet) error {
-    // Read all previous fragments
+// generateMyCommandCode generates Go code for the my-command command
+func generateMyCommandCode(arg1 string, arg2 int) error {
+    // 1. Read all previous code fragments from stdin
     fragments, err := lib.ReadAllCodeFragments()
     if err != nil {
         return fmt.Errorf("reading code fragments: %w", err)
     }
 
-    // Pass through all previous fragments
+    // 2. Pass through all previous fragments
     for _, frag := range fragments {
         if err := lib.WriteCodeFragment(frag); err != nil {
             return fmt.Errorf("writing previous fragment: %w", err)
         }
     }
 
-    // Get input variable from last fragment
+    // 3. Get input variable from last fragment (or default to "records")
     var inputVar string
     if len(fragments) > 0 {
         inputVar = fragments[len(fragments)-1].Var
@@ -588,24 +613,147 @@ func (c *MyCommandConfig) generateCode(clauses []gs.ClauseSet) error {
         inputVar = "records"
     }
 
-    // Generate your code
-    code := fmt.Sprintf("output := myFunc(%s)", inputVar)
+    // 4. Generate your command's Go code
+    outputVar := "result"
+    code := fmt.Sprintf("%s := streamv3.MyCommand(%q, %d)(%s)",
+        outputVar, arg1, arg2, inputVar)
 
-    // Create and write your fragment
-    frag := lib.NewStmtFragment("output", inputVar, code, []string{"import1", "import2"})
+    // 5. Create and write your fragment
+    imports := []string{"fmt"}  // Add any needed imports
+    frag := lib.NewStmtFragment(outputVar, inputVar, code, imports, getCommandString())
     return lib.WriteCodeFragment(frag)
 }
 ```
 
-**Testing Code Generation:**
-```bash
-# Test your command's generation
-streamv3 read-csv -generate data.csv | streamv3 mycommand -generate | streamv3 generate-go
+**Step 2: Add -generate flag and check to command handler in `cmd/streamv3/main.go`:**
 
-# The output should be valid Go code that compiles
+```go
+Subcommand("my-command").
+    Description("Description of my command").
+
+    Handler(func(ctx *cf.Context) error {
+        var arg1 string
+        var arg2 int
+        var generate bool
+
+        // Extract flags
+        if val, ok := ctx.GlobalFlags["-arg1"]; ok {
+            arg1 = val.(string)
+        }
+        if val, ok := ctx.GlobalFlags["-arg2"]; ok {
+            arg2 = val.(int)
+        }
+        if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+            generate = genVal.(bool)
+        }
+
+        // Check if generation is enabled (flag or env var)
+        if shouldGenerate(generate) {
+            return generateMyCommandCode(arg1, arg2)
+        }
+
+        // Normal execution follows...
+        // ...
+    }).
+
+    Flag("-generate", "-g").
+        Bool().
+        Global().
+        Help("Generate Go code instead of executing").
+        Done().
+
+    Flag("-arg1").
+        String().
+        Global().
+        Help("First argument").
+        Done().
+
+    // ... other flags
+
+    Done().
 ```
 
-**⚠️ CRITICAL: Every new CLI command MUST implement -generate support, or code generation pipelines will break!**
+**Step 3: Add tests to `cmd/streamv3/generation_test.go`:**
+
+```go
+func TestMyCommandGeneration(t *testing.T) {
+    buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+    if err := buildCmd.Run(); err != nil {
+        t.Fatalf("Failed to build streamv3: %v", err)
+    }
+    defer os.Remove("/tmp/streamv3_test")
+
+    cmdLine := `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test my-command -arg1 test -arg2 42`
+    cmd := exec.Command("bash", "-c", cmdLine)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        t.Logf("Command output: %s", output)
+    }
+
+    outputStr := string(output)
+    want := []string{`"type":"stmt"`, `"var":"result"`, `streamv3.MyCommand`}
+    for _, expected := range want {
+        if !strings.Contains(outputStr, expected) {
+            t.Errorf("Expected output to contain %q, got: %s", expected, outputStr)
+        }
+    }
+}
+```
+
+### Special Cases
+
+**Commands with multiple fragments (like group-by):**
+
+Some commands generate multiple code fragments. For example, `group-by` generates:
+1. `GroupByFields` fragment (with command string)
+2. `Aggregate` fragment (empty command string - part of same CLI command)
+
+```go
+// Fragment 1: GroupByFields
+frag1 := lib.NewStmtFragment("grouped", inputVar, groupCode, nil, getCommandString())
+lib.WriteCodeFragment(frag1)
+
+// Fragment 2: Aggregate (note: empty command string)
+frag2 := lib.NewStmtFragment("aggregated", "grouped", aggCode, nil, "")
+lib.WriteCodeFragment(frag2)
+```
+
+### Testing Code Generation
+
+**Manual testing:**
+```bash
+# Test individual command
+export STREAMV3_GENERATE_GO=1
+echo '{"type":"init","var":"records"}' | ./streamv3 my-command -arg1 test
+
+# Test full pipeline
+export STREAMV3_GENERATE_GO=1
+./streamv3 read-csv data.csv | \
+  ./streamv3 where -match age gt 25 | \
+  ./streamv3 my-command -arg1 test | \
+  ./streamv3 generate-go > program.go
+
+# Compile and run generated code
+go run program.go
+```
+
+**Automated tests:**
+- All generation tests are in `cmd/streamv3/generation_test.go`
+- Run with: `go test -v ./cmd/streamv3 -run TestGeneration`
+- Tests ensure the feature is never lost during refactoring
+
+### Why This Matters
+
+**Code generation is a CRITICAL feature because:**
+1. It enables 10-100x performance improvement over CLI execution
+2. Generated programs can be deployed without StreamV3 CLI
+3. It bridges prototyping (CLI) and production (compiled Go)
+4. Breaking it silently breaks user workflows
+
+**Always ensure:**
+- New commands include -generate support
+- Tests cover generation mode
+- Changes to helpers.go don't break fragment system
 
 - ai_generation
 - doc_improvement
