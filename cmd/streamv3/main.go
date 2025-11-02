@@ -43,6 +43,7 @@ func buildRootCommand() *cf.Command {
 			Handler(func(ctx *cf.Context) error {
 				var n int
 				var inputFile string
+				var generate bool
 
 				// Get flags from context
 				if nVal, ok := ctx.GlobalFlags["-n"]; ok {
@@ -55,8 +56,17 @@ func buildRootCommand() *cf.Command {
 					inputFile = fileVal.(string)
 				}
 
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
 				if n <= 0 {
 					return fmt.Errorf("limit must be positive, got %d", n)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateLimitCode(n)
 				}
 
 				// Read JSONL from stdin or file
@@ -78,6 +88,12 @@ func buildRootCommand() *cf.Command {
 
 				return nil
 			}).
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
 
 			Flag("-n").
 				Int().
@@ -103,6 +119,7 @@ func buildRootCommand() *cf.Command {
 			Handler(func(ctx *cf.Context) error {
 				var n int
 				var inputFile string
+				var generate bool
 
 				if nVal, ok := ctx.GlobalFlags["-n"]; ok {
 					n = nVal.(int)
@@ -114,8 +131,17 @@ func buildRootCommand() *cf.Command {
 					inputFile = fileVal.(string)
 				}
 
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
 				if n < 0 {
 					return fmt.Errorf("offset must be non-negative, got %d", n)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateOffsetCode(n)
 				}
 
 				// Read JSONL from stdin or file
@@ -137,6 +163,12 @@ func buildRootCommand() *cf.Command {
 
 				return nil
 			}).
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
 
 			Flag("-n").
 				Int().
@@ -163,6 +195,7 @@ func buildRootCommand() *cf.Command {
 				var field string
 				var desc bool
 				var inputFile string
+				var generate bool
 
 				if fieldVal, ok := ctx.GlobalFlags["-field"]; ok {
 					field = fieldVal.(string)
@@ -176,8 +209,17 @@ func buildRootCommand() *cf.Command {
 					inputFile = fileVal.(string)
 				}
 
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
 				if field == "" {
 					return fmt.Errorf("no sort field specified")
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateSortCode(field, desc)
 				}
 
 				// Read JSONL from stdin or file
@@ -215,6 +257,12 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
 			Flag("-field", "-f").
 				String().
 				Completer(cf.NoCompleter{Hint: "<field-name>"}).
@@ -244,9 +292,19 @@ func buildRootCommand() *cf.Command {
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
+				var generate bool
 
 				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 					inputFile = fileVal.(string)
+				}
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateDistinctCode()
 				}
 
 				// Read JSONL from stdin or file
@@ -274,6 +332,12 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
 			Flag("FILE").
 				String().
 				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
@@ -290,9 +354,19 @@ func buildRootCommand() *cf.Command {
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
+				var generate bool
 
 				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 					inputFile = fileVal.(string)
+				}
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateReadCSVCode(inputFile)
 				}
 
 				// Read CSV from file or stdin
@@ -315,6 +389,12 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
 			Flag("FILE").
 				String().
 				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
@@ -331,9 +411,19 @@ func buildRootCommand() *cf.Command {
 
 			Handler(func(ctx *cf.Context) error {
 				var outputFile string
+				var generate bool
 
 				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 					outputFile = fileVal.(string)
+				}
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateWriteCSVCode(outputFile)
 				}
 
 				// Read JSONL from stdin
@@ -346,6 +436,12 @@ func buildRootCommand() *cf.Command {
 					return streamv3.WriteCSV(records, outputFile)
 				}
 			}).
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
 
 			Flag("FILE").
 				String().
@@ -363,8 +459,19 @@ func buildRootCommand() *cf.Command {
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
+				var generate bool
+
 				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 					inputFile = fileVal.(string)
+				}
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateWhereCode(ctx, inputFile)
 				}
 
 				// Build filter from clauses (OR between clauses, AND within)
@@ -445,6 +552,12 @@ func buildRootCommand() *cf.Command {
 
 				return nil
 			}).
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
 
 			Flag("-match", "-m").
 				Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
