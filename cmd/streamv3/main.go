@@ -27,7 +27,8 @@ func main() {
 	case "-version", "--version", "version":
 		fmt.Printf("streamv3 version %s\n", version.Version)
 		os.Exit(0)
-	case "-bash-completion":
+	case "-completion-script", "-bash-completion":
+		// Support both -completion-script (completionflags convention) and -bash-completion (legacy)
 		printBashCompletion()
 		os.Exit(0)
 	}
@@ -67,15 +68,17 @@ func printUsage() {
 
 	fmt.Println()
 	fmt.Println("Global Flags:")
-	fmt.Println("  -help            Show this help message")
-	fmt.Println("  -version         Show version information")
-	fmt.Println("  -bash-completion Generate bash completion script")
+	fmt.Println("  -help              Show this help message")
+	fmt.Println("  -version           Show version information")
+	fmt.Println("  -completion-script Generate bash completion script")
 	fmt.Println()
 	fmt.Println("Use 'streamv3 <command> -help' for more information about a command.")
 	fmt.Println()
 	fmt.Println("Bash Completion Setup:")
-	fmt.Println("  eval \"$(streamv3 -bash-completion)\"  # For current session")
-	fmt.Println("  streamv3 -bash-completion > ~/.local/share/bash-completion/completions/streamv3  # Persistent")
+	fmt.Println("  eval \"$(streamv3 -completion-script)\"  # For current session")
+	fmt.Println("  streamv3 -completion-script > ~/.local/share/bash-completion/completions/streamv3  # Persistent")
+	fmt.Println()
+	fmt.Println("Note: -bash-completion is also supported as an alias for -completion-script")
 	fmt.Println()
 	fmt.Println("Example pipelines:")
 	fmt.Println("  # Filter by age and export")
@@ -95,14 +98,18 @@ func FormatPipelineExample(lines []string) string {
 
 // printBashCompletion outputs bash completion script
 func printBashCompletion() {
-	fmt.Println(`# Bash completion for streamv3
+	// Get the command name (e.g., "streamv3" or "s" if aliased)
+	cmdName := os.Args[0]
+
+	// Generate completion script with dynamic command name
+	fmt.Printf(`# Bash completion for %s
 _streamv3_completion() {
     local cur prev words cword
     _init_completion || return
 
     # If we're completing the first argument (command name)
     if [ "$cword" -eq 1 ]; then
-        local commands="read-csv write-csv where select limit offset sort distinct join union group chart exec generate-go help -help --help -version --version -bash-completion"
+        local commands="read-csv write-csv where select limit offset sort distinct join union group chart exec generate-go help -help --help -version --version -completion-script -bash-completion"
         COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
         return 0
     fi
@@ -113,8 +120,8 @@ _streamv3_completion() {
     # For subcommands, delegate to completionflags framework completion
     # The subcommand itself handles -complete via completionflags framework
     # Pass position and all arguments after the subcommand name
-    # Adjust cword to be relative to subcommand (subtract 2: "streamv3" and subcommand name)
-    local completions=$(streamv3 "$subcommand" -complete $((cword - 1)) "${words[@]:2}" 2>/dev/null)
+    # Adjust cword to be relative to subcommand (subtract 1 for the command name)
+    local completions=$(%s "$subcommand" -complete $((cword - 1)) "${words[@]:2}" 2>/dev/null)
 
     if [ -n "$completions" ]; then
         COMPREPLY=( $(compgen -W "$completions" -- "$cur") )
@@ -124,5 +131,6 @@ _streamv3_completion() {
     fi
 }
 
-complete -F _streamv3_completion streamv3`)
+complete -F _streamv3_completion %s`, cmdName, cmdName, cmdName)
+	fmt.Println() // Add trailing newline
 }
