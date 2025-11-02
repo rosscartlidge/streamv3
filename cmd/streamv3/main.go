@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"iter"
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
@@ -144,6 +145,89 @@ func buildRootCommand() *cf.Command {
 
 			Done().
 
+		// Subcommand: sort
+		Subcommand("sort").
+			Description("Sort records by field").
+
+			Handler(func(ctx *cf.Context) error {
+				var field string
+				var desc bool
+				var inputFile string
+
+				if fieldVal, ok := ctx.GlobalFlags["-field"]; ok {
+					field = fieldVal.(string)
+				}
+
+				if descVal, ok := ctx.GlobalFlags["-desc"]; ok {
+					desc = descVal.(bool)
+				}
+
+				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
+					inputFile = fileVal.(string)
+				}
+
+				if field == "" {
+					return fmt.Errorf("no sort field specified")
+				}
+
+				// Read JSONL from stdin or file
+				input, err := lib.OpenInput(inputFile)
+				if err != nil {
+					return err
+				}
+				defer input.Close()
+
+				records := lib.ReadJSONL(input)
+
+				// Build sort key extractor and apply sort
+				var result iter.Seq[streamv3.Record]
+				if desc {
+					// Descending: negate numeric values
+					sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
+						val, _ := streamv3.Get[any](r, field)
+						return -extractNumeric(val)
+					})
+					result = sorter(records)
+				} else {
+					// Ascending
+					sorter := streamv3.SortBy(func(r streamv3.Record) float64 {
+						val, _ := streamv3.Get[any](r, field)
+						return extractNumeric(val)
+					})
+					result = sorter(records)
+				}
+
+				// Write output as JSONL
+				if err := lib.WriteJSONL(os.Stdout, result); err != nil {
+					return fmt.Errorf("writing output: %w", err)
+				}
+
+				return nil
+			}).
+
+			Flag("-field", "-f").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("Field to sort by").
+				Done().
+
+			Flag("-desc", "-d").
+				Bool().
+				Global().
+				Help("Sort descending").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("Input JSONL file (or stdin if not specified)").
+				Done().
+
+			Done().
+
 		// Subcommand: distinct
 		Subcommand("distinct").
 			Description("Remove duplicate records").
@@ -186,6 +270,79 @@ func buildRootCommand() *cf.Command {
 				Global().
 				Default("").
 				Help("Input JSONL file (or stdin if not specified)").
+				Done().
+
+			Done().
+
+		// Subcommand: read-csv
+		Subcommand("read-csv").
+			Description("Read CSV file and output JSONL stream").
+
+			Handler(func(ctx *cf.Context) error {
+				var inputFile string
+
+				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
+					inputFile = fileVal.(string)
+				}
+
+				// Read CSV from file or stdin
+				var records iter.Seq[streamv3.Record]
+				if inputFile == "" {
+					records = streamv3.ReadCSVFromReader(os.Stdin)
+				} else {
+					var err error
+					records, err = streamv3.ReadCSV(inputFile)
+					if err != nil {
+						return fmt.Errorf("reading CSV: %w", err)
+					}
+				}
+
+				// Write as JSONL to stdout
+				if err := lib.WriteJSONL(os.Stdout, records); err != nil {
+					return fmt.Errorf("writing JSONL: %w", err)
+				}
+
+				return nil
+			}).
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
+				Global().
+				Default("").
+				Help("Input CSV file (or stdin if not specified)").
+				Done().
+
+			Done().
+
+		// Subcommand: write-csv
+		Subcommand("write-csv").
+			Description("Read JSONL stream and write as CSV file").
+
+			Handler(func(ctx *cf.Context) error {
+				var outputFile string
+
+				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
+					outputFile = fileVal.(string)
+				}
+
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
+
+				// Write as CSV
+				if outputFile == "" {
+					return streamv3.WriteCSVToWriter(records, os.Stdout)
+				} else {
+					return streamv3.WriteCSV(records, outputFile)
+				}
+			}).
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
+				Global().
+				Default("").
+				Help("Output CSV file (or stdout if not specified)").
 				Done().
 
 			Done().
