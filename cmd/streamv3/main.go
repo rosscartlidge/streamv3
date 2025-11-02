@@ -858,6 +858,215 @@ func buildRootCommand() *cf.Command {
 
 			Done().
 
+		// Subcommand: union
+		Subcommand("union").
+			Description("Combine records from multiple sources (SQL UNION)").
+
+			Handler(func(ctx *cf.Context) error {
+				var inputFile string
+				var unionAll bool
+
+				if fileVal, ok := ctx.GlobalFlags["-input"]; ok {
+					inputFile = fileVal.(string)
+				}
+				if allVal, ok := ctx.GlobalFlags["-all"]; ok {
+					unionAll = allVal.(bool)
+				}
+
+				// Get additional files from -file flags
+				var additionalFiles []string
+				if len(ctx.Clauses) > 0 {
+					clause := ctx.Clauses[0]
+					if filesRaw, ok := clause.Flags["-file"]; ok {
+						if filesSlice, ok := filesRaw.([]any); ok {
+							for _, v := range filesSlice {
+								if file, ok := v.(string); ok && file != "" {
+									additionalFiles = append(additionalFiles, file)
+								}
+							}
+						}
+					}
+				}
+
+				if len(additionalFiles) == 0 {
+					return fmt.Errorf("at least one file required for union (use -file)")
+				}
+
+				// Read first input (stdin or file)
+				firstInput, err := lib.OpenInput(inputFile)
+				if err != nil {
+					return fmt.Errorf("opening first input: %w", err)
+				}
+				defer firstInput.Close()
+
+				firstRecords := lib.ReadJSONL(firstInput)
+
+				// Chain all iterators together
+				combined := chainRecords(firstRecords, additionalFiles)
+
+				// Apply distinct if not UNION ALL
+				var result iter.Seq[streamv3.Record]
+				if unionAll {
+					result = combined
+				} else {
+					// Apply distinct using DistinctBy with full record key
+					distinct := streamv3.DistinctBy(unionRecordToKey)
+					result = distinct(combined)
+				}
+
+				// Write output as JSONL
+				if err := lib.WriteJSONL(os.Stdout, result); err != nil {
+					return fmt.Errorf("writing output: %w", err)
+				}
+
+				return nil
+			}).
+
+			Flag("-file", "-f").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.{csv,jsonl}"}).
+				Accumulate().
+				Local().
+				Help("Additional file to union (CSV or JSONL)").
+				Done().
+
+			Flag("-all", "-a").
+				Bool().
+				Global().
+				Help("Keep duplicates (UNION ALL instead of UNION)").
+				Done().
+
+			Flag("-input", "-i").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("First input JSONL file (or stdin if not specified)").
+				Done().
+
+			Done().
+
+		// Subcommand: chart
+		Subcommand("chart").
+			Description("Create interactive HTML chart from data").
+
+			Handler(func(ctx *cf.Context) error {
+				var xField, yField, outputFile, inputFile string
+
+				if xVal, ok := ctx.GlobalFlags["-x"]; ok {
+					xField = xVal.(string)
+				}
+				if yVal, ok := ctx.GlobalFlags["-y"]; ok {
+					yField = yVal.(string)
+				}
+				if outVal, ok := ctx.GlobalFlags["-output"]; ok {
+					outputFile = outVal.(string)
+				} else {
+					outputFile = "chart.html"
+				}
+				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
+					inputFile = fileVal.(string)
+				}
+
+				// Validate required fields
+				if xField == "" {
+					return fmt.Errorf("X-axis field required (use -x)")
+				}
+				if yField == "" {
+					return fmt.Errorf("Y-axis field required (use -y)")
+				}
+
+				// Read JSONL from stdin or file
+				input, err := lib.OpenInput(inputFile)
+				if err != nil {
+					return err
+				}
+				defer input.Close()
+
+				records := lib.ReadJSONL(input)
+
+				// Create chart
+				err = streamv3.QuickChart(records, xField, yField, outputFile)
+				if err != nil {
+					return fmt.Errorf("creating chart: %w", err)
+				}
+
+				fmt.Printf("Chart created: %s\n", outputFile)
+				return nil
+			}).
+
+			Flag("-x").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("X-axis field").
+				Done().
+
+			Flag("-y").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("Y-axis field").
+				Done().
+
+			Flag("-output", "-o").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.html"}).
+				Global().
+				Default("chart.html").
+				Help("Output HTML file (default: chart.html)").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("Input JSONL file (or stdin if not specified)").
+				Done().
+
+			Done().
+
+		// Subcommand: generate-go
+		Subcommand("generate-go").
+			Description("Generate Go code from StreamV3 CLI pipeline").
+
+			Handler(func(ctx *cf.Context) error {
+				var outputFile string
+
+				if outVal, ok := ctx.GlobalFlags["OUTPUT"]; ok {
+					outputFile = outVal.(string)
+				}
+
+				// Assemble code fragments from stdin
+				code, err := lib.AssembleCodeFragments(os.Stdin)
+				if err != nil {
+					return fmt.Errorf("assembling code fragments: %w", err)
+				}
+
+				// Write to output
+				if outputFile != "" {
+					if err := os.WriteFile(outputFile, []byte(code), 0644); err != nil {
+						return fmt.Errorf("writing output file: %w", err)
+					}
+					fmt.Fprintf(os.Stderr, "Generated Go code written to %s\n", outputFile)
+				} else {
+					fmt.Print(code)
+				}
+
+				return nil
+			}).
+
+			Flag("OUTPUT").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.go"}).
+				Global().
+				Default("").
+				Help("Output Go file (or stdout if not specified)").
+				Done().
+
+			Done().
+
 		// Root handler (when no subcommand specified)
 		Handler(func(ctx *cf.Context) error {
 			fmt.Println("streamv3 - Unix-style data processing tools")

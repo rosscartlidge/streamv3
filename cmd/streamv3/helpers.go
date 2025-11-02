@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"iter"
+	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
 // Helper functions for command handlers
@@ -167,4 +171,46 @@ func buildAggregator(function, field string) (streamv3.AggregateFunc, error) {
 func unionRecordToKey(r streamv3.Record) string {
 	// Use JSON representation as unique key
 	return fmt.Sprintf("%v", r)
+}
+
+// chainRecords chains multiple data sources into a single stream (for union command)
+func chainRecords(firstRecords iter.Seq[streamv3.Record], additionalFiles []string) iter.Seq[streamv3.Record] {
+	return func(yield func(streamv3.Record) bool) {
+		// Yield from first stream
+		for record := range firstRecords {
+			if !yield(record) {
+				return
+			}
+		}
+
+		// Yield from each additional file
+		for _, file := range additionalFiles {
+			var records iter.Seq[streamv3.Record]
+
+			if strings.HasSuffix(file, ".csv") {
+				// Read CSV
+				csvRecords, err := streamv3.ReadCSV(file)
+				if err != nil {
+					// Skip file on error
+					continue
+				}
+				records = csvRecords
+			} else {
+				// Read JSONL
+				f, err := os.Open(file)
+				if err != nil {
+					continue
+				}
+				records = lib.ReadJSONL(f)
+				defer f.Close()
+			}
+
+			// Yield from this file
+			for record := range records {
+				if !yield(record) {
+					return
+				}
+			}
+		}
+	}
 }
