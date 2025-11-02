@@ -599,6 +599,137 @@ func generateDistinctCode() error {
 	return lib.WriteCodeFragment(frag)
 }
 
+// generateGroupByCode generates Go code for the group-by command
+func generateGroupByCode(ctx *cf.Context, byField string) error {
+	// Read all previous code fragments from stdin (if any)
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Get group-by field from config (it's global)
+	if byField == "" {
+		return fmt.Errorf("no group-by field specified (use -by)")
+	}
+	groupByFields := []string{byField}
+
+	// Parse aggregation specifications from clauses
+	type aggSpec struct {
+		function string
+		field    string
+		result   string
+	}
+
+	var aggSpecs []aggSpec
+	for _, clause := range ctx.Clauses {
+		function, _ := clause.Flags["-function"].(string)
+		field, _ := clause.Flags["-field"].(string)
+		result, _ := clause.Flags["-result"].(string)
+
+		// Skip empty clauses
+		if function == "" && result == "" {
+			continue
+		}
+
+		if function == "" {
+			return fmt.Errorf("aggregation missing -function")
+		}
+
+		if result == "" {
+			return fmt.Errorf("aggregation missing -result")
+		}
+
+		// Validate function
+		switch function {
+		case "count", "sum", "avg", "min", "max":
+			// Valid
+		default:
+			return fmt.Errorf("unknown aggregation function: %s", function)
+		}
+
+		// For non-count functions, field is required
+		if function != "count" && field == "" {
+			return fmt.Errorf("aggregation function %s requires -field", function)
+		}
+
+		aggSpecs = append(aggSpecs, aggSpec{
+			function: function,
+			field:    field,
+			result:   result,
+		})
+	}
+
+	if len(aggSpecs) == 0 {
+		return fmt.Errorf("no aggregations specified (use -function and -result)")
+	}
+
+	// Generate TWO fragments: one for GroupByFields, one for Aggregate
+	// This allows each to be extracted cleanly for Chain()
+
+	// Fragment 1: GroupByFields
+	groupCode := "grouped := streamv3.GroupByFields(\"_group\""
+	for _, field := range groupByFields {
+		groupCode += fmt.Sprintf(", %q", field)
+	}
+	groupCode += fmt.Sprintf(")(%s)", inputVar)
+
+	frag1 := lib.NewStmtFragment("grouped", inputVar, groupCode, nil, getCommandString())
+	if err := lib.WriteCodeFragment(frag1); err != nil {
+		return fmt.Errorf("writing GroupByFields fragment: %w", err)
+	}
+
+	// Fragment 2: Aggregate
+	// Note: Empty command string since this is part of the same CLI command as Fragment 1
+	aggCode := "aggregated := streamv3.Aggregate(\"_group\", map[string]streamv3.AggregateFunc{\n"
+	for i, spec := range aggSpecs {
+		if i > 0 {
+			aggCode += ",\n"
+		}
+		aggCode += fmt.Sprintf("\t\t%q: %s", spec.result, generateAggregatorCode(spec))
+	}
+	aggCode += ",\n\t})(grouped)"
+
+	frag2 := lib.NewStmtFragment("aggregated", "grouped", aggCode, nil, "")
+	return lib.WriteCodeFragment(frag2)
+}
+
+// generateAggregatorCode generates code for a single aggregator
+func generateAggregatorCode(spec struct {
+	function string
+	field    string
+	result   string
+}) string {
+	switch spec.function {
+	case "count":
+		return "streamv3.Count()"
+	case "sum":
+		return fmt.Sprintf("streamv3.Sum(%q)", spec.field)
+	case "avg":
+		return fmt.Sprintf("streamv3.Avg(%q)", spec.field)
+	case "min":
+		return fmt.Sprintf("streamv3.Min[float64](%q)", spec.field)
+	case "max":
+		return fmt.Sprintf("streamv3.Max[float64](%q)", spec.field)
+	default:
+		return ""
+	}
+}
+
 // generateSortCode generates Go code for the sort command
 func generateSortCode(field string, desc bool) error {
 	fragments, err := lib.ReadAllCodeFragments()

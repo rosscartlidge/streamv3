@@ -672,6 +672,7 @@ func buildRootCommand() *cf.Command {
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
 				var byField string
+				var generate bool
 
 				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 					inputFile = fileVal.(string)
@@ -681,9 +682,19 @@ func buildRootCommand() *cf.Command {
 					byField = byVal.(string)
 				}
 
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
 				if byField == "" {
 					return fmt.Errorf("no group-by field specified (use -by)")
 				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateGroupByCode(ctx, byField)
+				}
+
 				groupByFields := []string{byField}
 
 				// Parse aggregation specifications from clauses
@@ -768,6 +779,12 @@ func buildRootCommand() *cf.Command {
 
 				return nil
 			}).
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
 
 			Flag("-by", "-b").
 				String().
