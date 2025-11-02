@@ -113,7 +113,8 @@ _streamv3_completion() {
     # For subcommands, delegate to completionflags framework completion
     # The subcommand itself handles -complete via completionflags framework
     # Pass position and all arguments after the subcommand name
-    local completions=$(streamv3 "$subcommand" -complete $((cword)) "${words[@]:2}" 2>/dev/null)
+    # Adjust cword to be relative to subcommand (subtract 2: "streamv3" and subcommand name)
+    local completions=$(streamv3 "$subcommand" -complete $((cword - 1)) "${words[@]:2}" 2>/dev/null)
 
     if [ -n "$completions" ]; then
         COMPREPLY=( $(compgen -W "$completions" -- "$cur") )
