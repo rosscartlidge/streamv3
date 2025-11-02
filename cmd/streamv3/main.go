@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"iter"
 	"os"
+	"strings"
 
 	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/streamv3"

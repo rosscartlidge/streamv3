@@ -162,3 +162,9 @@ func buildAggregator(function, field string) (streamv3.AggregateFunc, error) {
 		return nil, fmt.Errorf("unknown aggregation function: %s", function)
 	}
 }
+
+// unionRecordToKey converts a record to a string key for deduplication (for union command)
+func unionRecordToKey(r streamv3.Record) string {
+	// Use JSON representation as unique key
+	return fmt.Sprintf("%v", r)
+}
