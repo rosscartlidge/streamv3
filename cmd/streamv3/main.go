@@ -27,6 +27,15 @@ func buildRootCommand() *cf.Command {
 			Help("Enable verbose output").
 			Done().
 
+		// Subcommand: version
+		Subcommand("version").
+			Description("Show version information").
+			Handler(func(ctx *cf.Context) error {
+				fmt.Printf("streamv3 v%s\n", version.Version)
+				return nil
+			}).
+			Done().
+
 		// Subcommand: limit
 		Subcommand("limit").
 			Description("Take first N records (SQL LIMIT)").
