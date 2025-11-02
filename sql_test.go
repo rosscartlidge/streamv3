@@ -155,12 +155,12 @@ func TestOnFields(t *testing.T) {
 	left := Record{fields: map[string]any{"id": int64(1), "type": "A", "name": "Alice"}}
 	right := Record{fields: map[string]any{"id": int64(1), "type": "A", "dept": "Eng"}}
 
-	if !predicate(left, right) {
+	if !predicate.Match(left, right) {
 		t.Error("OnFields should match records with same id and type")
 	}
 
 	right2 := Record{fields: map[string]any{"id": int64(1), "type": "B", "dept": "Sales"}}
-	if predicate(left, right2) {
+	if predicate.Match(left, right2) {
 		t.Error("OnFields should not match records with different type")
 	}
 }
@@ -175,12 +175,12 @@ func TestOnCondition(t *testing.T) {
 	left := Record{fields: map[string]any{"name": "Alice", "age": int64(30)}}
 	right := Record{fields: map[string]any{"name": "Bob", "age": int64(25)}}
 
-	if !predicate(left, right) {
+	if !predicate.Match(left, right) {
 		t.Error("OnCondition should match when left age > right age")
 	}
 
 	right2 := Record{fields: map[string]any{"name": "Charlie", "age": int64(35)}}
-	if predicate(left, right2) {
+	if predicate.Match(left, right2) {
 		t.Error("OnCondition should not match when left age < right age")
 	}
 }
