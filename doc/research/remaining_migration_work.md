@@ -60,14 +60,30 @@ Successfully migrated 13 commands to native subcommand support:
 ## Remaining Command (1/14)
 
 **exec** - Execute command and parse output as records
-- **Status**: Not migrated
+- **Status**: Pending completionflags enhancement
 - **Reason**: Uses special "--" separator to distinguish streamv3 flags from command args
-- **Challenge**: The "--" pattern doesn't fit well with standard flag parsing
-- **Solution Options**:
-  1. Keep exec using old command pattern (mixed architecture)
-  2. Add special "--" handling to completionflags library
-  3. Change exec API to use different separator (breaking change)
-- **Recommendation**: Keep using old pattern for now, revisit in future release
+- **Challenge**: completionflags doesn't yet support "--" as special separator
+- **Solution**: Adding "--" support to completionflags library
+- **Next Steps**:
+  1. Add "--" support to completionflags (in progress)
+  2. Migrate exec command once support is available
+  3. API will likely be: `AllowRawArgs()` or similar on command builder
+
+**Example Future Usage:**
+```go
+Subcommand("exec").
+    Description("Execute command and parse output as records").
+    AllowRawArgs(true).  // Enable -- support
+    Handler(func(ctx *cf.Context) error {
+        // ctx.RawArgs contains everything after "--"
+        command := ctx.RawArgs[0]
+        args := ctx.RawArgs[1:]
+        records, err := streamv3.ExecCommand(command, args)
+        // ...
+    })
+```
+
+**Status**: Waiting for completionflags enhancement, then exec will be migrated to complete 14/14 (100%)
 
 ## Migration Pattern
 
