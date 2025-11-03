@@ -17,6 +17,17 @@ go.work
 # Build artifacts
 /streamv3
 /cmd/streamv3/streamv3
+/streamv3_poc
+
+# Compiled examples (built from examples/)
+/*_example
+/*_demo
+/test_*
+/seq_*
+/messagepack_demo
+
+# HTML test outputs
+/*.html
 
 # IDE and editor files
 .vscode/
