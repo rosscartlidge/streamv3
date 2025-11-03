@@ -1,6 +1,7 @@
 package streamv3
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -563,6 +564,10 @@ func generateInteractiveHTML(data ChartData, config ChartConfig, filename string
 	}
 	defer file.Close()
 
+	// Wrap file in buffered writer for better performance with large HTML files
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
 	// Convert data to JSON
 	dataJSON, err := json.Marshal(data)
 	if err != nil {
@@ -590,7 +595,11 @@ func generateInteractiveHTML(data ChartData, config ChartConfig, filename string
 		CustomCSS:  config.CustomCSS,
 	}
 
-	return tmpl.Execute(file, templateData)
+	if err := tmpl.Execute(writer, templateData); err != nil {
+		return err
+	}
+
+	return writer.Flush()
 }
 
 // chartHTMLTemplate is the HTML template for the interactive chart

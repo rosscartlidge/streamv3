@@ -52,7 +52,9 @@ func ReadCSVFromReader(reader io.Reader, config ...CSVConfig) iter.Seq[Record] {
 	}
 
 	return func(yield func(Record) bool) {
-		csvReader := csv.NewReader(reader)
+		// Wrap reader in bufio.Reader for better performance with large files
+		bufferedReader := bufio.NewReader(reader)
+		csvReader := csv.NewReader(bufferedReader)
 		csvReader.Comma = cfg.Delimiter
 		csvReader.Comment = cfg.Comment
 
@@ -106,7 +108,9 @@ func ReadCSVSafeFromReader(reader io.Reader, config ...CSVConfig) iter.Seq2[Reco
 	}
 
 	return func(yield func(Record, error) bool) {
-			csvReader := csv.NewReader(reader)
+			// Wrap reader in bufio.Reader for better performance with large files
+			bufferedReader := bufio.NewReader(reader)
+			csvReader := csv.NewReader(bufferedReader)
 			csvReader.Comma = cfg.Delimiter
 			csvReader.Comment = cfg.Comment
 
