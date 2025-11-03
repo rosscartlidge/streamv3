@@ -1,24 +1,13 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 
 	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// chartCommand implements the chart command
-type chartCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newChartCommand())
-}
-
-func newChartCommand() *chartCommand {
+func NChartCommand() *chartCommand {
 	var xField, yField, outputFile, inputFile string
 	var generate bool
 
@@ -95,48 +84,6 @@ func newChartCommand() *chartCommand {
 
 	return &chartCommand{cmd: cmd}
 }
-
-func (c *chartCommand) Name() string {
-	return "chart"
-}
-
-func (c *chartCommand) Description() string {
-	return "Create interactive HTML chart from data"
-}
-
-func (c *chartCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-
-func (c *chartCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("chart - Create interactive HTML chart from data")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 chart -x <field> -y <field> -output <file.html>")
-		fmt.Println()
-		fmt.Println("Flags:")
-		fmt.Println("  -x <field>        Field for X-axis")
-		fmt.Println("  -y <field>        Field for Y-axis")
-		fmt.Println("  -output <file>    Output HTML file (default: chart.html)")
-		fmt.Println()
-		fmt.Println("Creates an interactive Chart.js visualization with:")
-		fmt.Println("  - Field selection dropdown")
-		fmt.Println("  - Zoom and pan controls")
-		fmt.Println("  - Data table view")
-		fmt.Println("  - Export to PNG/CSV")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Simple scatter plot")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 chart -x age -y salary -output viz.html")
-		fmt.Println()
-		fmt.Println("  # After aggregation")
-		fmt.Println("  streamv3 read-csv sales.csv | \\")
-		fmt.Println("    streamv3 group -by region -function sum -field amount -result total | \\")
-		fmt.Println("    streamv3 chart -x region -y total -output sales.html")
-		return nil
-	}
 
 	return c.cmd.Execute(args)
 }

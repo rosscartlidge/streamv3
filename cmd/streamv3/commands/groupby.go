@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
@@ -10,16 +8,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// groupByCommand implements the group-by command
-type groupByCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newGroupByCommand())
-}
-
-func newGroupByCommand() *groupByCommand {
+func NGroupByCommand() *groupByCommand {
 	var byField, inputFile string
 	var generate bool
 
@@ -128,67 +117,6 @@ func newGroupByCommand() *groupByCommand {
 
 	return &groupByCommand{cmd: cmd}
 }
-
-func (c *groupByCommand) Name() string {
-	return "group"
-}
-
-func (c *groupByCommand) Description() string {
-	return "Group records by fields and apply aggregations"
-}
-
-func (c *groupByCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-
-func (c *groupByCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("group - Group records by fields and apply aggregations")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 group -by <field> -function <func> -result <name>")
-		fmt.Println()
-		fmt.Println("Group-by Fields:")
-		fmt.Println("  -by <field>      Field to group by (can specify multiple)")
-		fmt.Println()
-		fmt.Println("Aggregation Functions:")
-		fmt.Println("  count            Count records in each group")
-		fmt.Println("  sum              Sum numeric field")
-		fmt.Println("  avg              Average numeric field")
-		fmt.Println("  min              Minimum value")
-		fmt.Println("  max              Maximum value")
-		fmt.Println()
-		fmt.Println("Aggregation Specification (use + to separate multiple):")
-		fmt.Println("  -function <func>  Aggregation function")
-		fmt.Println("  -field <field>    Field to aggregate (not needed for count)")
-		fmt.Println("  -result <name>    Output field name")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Count by department")
-		fmt.Println("  streamv3 group -by department -function count -result count")
-		fmt.Println()
-		fmt.Println("  # Multiple aggregations")
-		fmt.Println("  streamv3 group -by department \\")
-		fmt.Println("    -function count -result count + \\")
-		fmt.Println("    -function sum -field salary -result total + \\")
-		fmt.Println("    -function avg -field salary -result avg_salary")
-		fmt.Println()
-		fmt.Println("  # Group by multiple fields")
-		fmt.Println("  streamv3 group -by department -by state \\")
-		fmt.Println("    -function count -result count")
-		fmt.Println()
-		fmt.Println("Debugging with jq:")
-		fmt.Println("  # Inspect GROUP BY results")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 group -by dept -function count -result n | jq '.'")
-		fmt.Println()
-		fmt.Println("  # Verify grouping keys")
-		fmt.Println("  streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c")
-		fmt.Println()
-		fmt.Println("  # Check specific group")
-		fmt.Println("  streamv3 ... | streamv3 group ... | jq 'select(.department == \"Engineering\")'")
-		return nil
-	}
 
 	return c.cmd.Execute(args)
 }

@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"iter"
 	"os"
 	"strings"
@@ -12,16 +10,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// joinCommand implements the join command
-type joinCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newJoinCommand())
-}
-
-func newJoinCommand() *joinCommand {
+func NJoinCommand() *joinCommand {
 	var joinType, rightFile, inputFile string
 	var generate bool
 
@@ -208,61 +197,6 @@ func newJoinCommand() *joinCommand {
 
 	return &joinCommand{cmd: cmd}
 }
-
-func (c *joinCommand) Name() string {
-	return "join"
-}
-
-func (c *joinCommand) Description() string {
-	return "Join records from two data sources (SQL JOIN)"
-}
-
-func (c *joinCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-func (c *joinCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("join - Join records from two data sources (SQL JOIN)")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 join -type <type> -right <file> [-on <field>]...")
-		fmt.Println("       streamv3 join -type <type> -right <file> -left-field <field> -right-field <field>")
-		fmt.Println()
-		fmt.Println("Join Types:")
-		fmt.Println("  inner  Inner join (default) - only matching records")
-		fmt.Println("  left   Left join - all left records, matched right records")
-		fmt.Println("  right  Right join - all right records, matched left records")
-		fmt.Println("  full   Full outer join - all records from both sides")
-		fmt.Println()
-		fmt.Println("Join Conditions:")
-		fmt.Println("  -on <field>                    Field with same name in both sides")
-		fmt.Println("  -on <field1> -on <field2>      Multiple fields (composite key)")
-		fmt.Println("  -left-field / -right-field     Different field names in each side")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Inner join on single field")
-		fmt.Println("  streamv3 read-csv employees.csv | \\")
-		fmt.Println("    streamv3 join -type inner -right departments.csv -on dept_id")
-		fmt.Println()
-		fmt.Println("  # Left join with different field names")
-		fmt.Println("  streamv3 read-csv employees.csv | \\")
-		fmt.Println("    streamv3 join -type left -right depts.csv \\")
-		fmt.Println("      -left-field department_id -right-field id")
-		fmt.Println()
-		fmt.Println("  # Join on multiple fields")
-		fmt.Println("  streamv3 read-csv sales.csv | \\")
-		fmt.Println("    streamv3 join -right products.csv \\")
-		fmt.Println("      -on product_id -on region")
-		fmt.Println()
-		fmt.Println("  # SQL equivalent:")
-		fmt.Println("  # SELECT * FROM employees e")
-		fmt.Println("  # INNER JOIN departments d ON e.dept_id = d.dept_id")
-		fmt.Println("  streamv3 read-csv employees.csv | \\")
-		fmt.Println("    streamv3 join -type inner -right departments.csv -on dept_id")
-		return nil
-	}
-
 	return c.cmd.Execute(args)
 }
 

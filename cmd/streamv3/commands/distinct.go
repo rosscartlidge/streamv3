@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"os"
 	"strings"
 
@@ -11,16 +9,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// distinctCommand implements the distinct command
-type distinctCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newDistinctCommand())
-}
-
-func newDistinctCommand() *distinctCommand {
+func NDistinctCommand() *distinctCommand {
 	var inputFile string
 	var generate bool
 
@@ -114,47 +103,6 @@ func newDistinctCommand() *distinctCommand {
 
 	return &distinctCommand{cmd: cmd}
 }
-
-func (c *distinctCommand) Name() string {
-	return "distinct"
-}
-
-func (c *distinctCommand) Description() string {
-	return "Remove duplicate records (SQL DISTINCT)"
-}
-
-func (c *distinctCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-func (c *distinctCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("distinct - Remove duplicate records (SQL DISTINCT)")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 distinct [-by <field>]...")
-		fmt.Println()
-		fmt.Println("Removes duplicate records from the stream. By default, compares")
-		fmt.Println("entire records. Use -by to specify fields for uniqueness.")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Remove duplicate records (compare all fields)")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 distinct")
-		fmt.Println()
-		fmt.Println("  # Distinct by single field")
-		fmt.Println("  streamv3 read-csv employees.csv | streamv3 distinct -by department")
-		fmt.Println()
-		fmt.Println("  # Distinct by multiple fields (composite key)")
-		fmt.Println("  streamv3 read-csv data.csv | \\")
-		fmt.Println("    streamv3 distinct -by department -by location")
-		fmt.Println()
-		fmt.Println("  # SQL equivalent: SELECT DISTINCT department, location FROM data")
-		fmt.Println("  streamv3 read-csv data.csv | \\")
-		fmt.Println("    streamv3 select -field department + -field location | \\")
-		fmt.Println("    streamv3 distinct")
-		return nil
-	}
-
 	return c.cmd.Execute(args)
 }
 

@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
@@ -10,16 +8,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// offsetCommand implements the offset command
-type offsetCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newOffsetCommand())
-}
-
-func newOffsetCommand() *offsetCommand {
+func NOffsetCommand() *offsetCommand {
 	var n int
 	var inputFile string
 	var generate bool
@@ -80,45 +69,6 @@ func newOffsetCommand() *offsetCommand {
 
 	return &offsetCommand{cmd: cmd}
 }
-
-func (c *offsetCommand) Name() string {
-	return "offset"
-}
-
-func (c *offsetCommand) Description() string {
-	return "Skip first N records (SQL OFFSET)"
-}
-
-func (c *offsetCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-func (c *offsetCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("offset - Skip first N records (SQL OFFSET)")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 offset -n <count>")
-		fmt.Println()
-		fmt.Println("Skips the first N records from the input stream.")
-		fmt.Println("Commonly used with LIMIT for pagination.")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Skip first 20 records")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 offset -n 20")
-		fmt.Println()
-		fmt.Println("  # Pagination: skip 20, take 10 (records 21-30)")
-		fmt.Println("  streamv3 read-csv data.csv | \\")
-		fmt.Println("    streamv3 offset -n 20 | \\")
-		fmt.Println("    streamv3 limit -n 10")
-		fmt.Println()
-		fmt.Println("  # SQL equivalent: LIMIT 10 OFFSET 20")
-		fmt.Println("  streamv3 read-csv data.csv | \\")
-		fmt.Println("    streamv3 offset -n 20 | \\")
-		fmt.Println("    streamv3 limit -n 10")
-		return nil
-	}
-
 	return c.cmd.Execute(args)
 }
 

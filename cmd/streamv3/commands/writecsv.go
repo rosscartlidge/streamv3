@@ -1,9 +1,7 @@
 package commands
 
 import (
-	"bufio"
-	"context"
-	"fmt"
+	"bufio"	"fmt"
 	"sort"
 
 	cf "github.com/rosscartlidge/completionflags"
@@ -11,16 +9,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// writeCSVCommand implements the write-csv command
-type writeCSVCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newWriteCSVCommand())
-}
-
-func newWriteCSVCommand() *writeCSVCommand {
+func NWriteCSVCommand() *writeCSVCommand {
 	var outputFile string
 	var generate bool
 
@@ -113,35 +102,6 @@ func newWriteCSVCommand() *writeCSVCommand {
 
 	return &writeCSVCommand{cmd: cmd}
 }
-
-func (c *writeCSVCommand) Name() string {
-	return "write-csv"
-}
-
-func (c *writeCSVCommand) Description() string {
-	return "Read JSONL stream and write as CSV file"
-}
-
-func (c *writeCSVCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-
-func (c *writeCSVCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("write-csv - Read JSONL stream and write as CSV file")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 write-csv [file.csv]")
-		fmt.Println()
-		fmt.Println("Reads JSONL (JSON Lines) from stdin and writes as CSV.")
-		fmt.Println("Field order is determined from the first record.")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 write-csv output.csv")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 18 | streamv3 write-csv")
-		return nil
-	}
 
 	return c.cmd.Execute(args)
 }

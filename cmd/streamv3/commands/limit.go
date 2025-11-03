@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
@@ -10,16 +8,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// limitCommand implements the limit command
-type limitCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newLimitCommand())
-}
-
-func newLimitCommand() *limitCommand {
+func NLimitCommand() *limitCommand {
 	var n int
 	var inputFile string
 	var generate bool
@@ -79,32 +68,6 @@ func newLimitCommand() *limitCommand {
 
 	return &limitCommand{cmd: cmd}
 }
-
-func (c *limitCommand) Name() string {
-	return "limit"
-}
-
-func (c *limitCommand) Description() string {
-	return "Take first N records"
-}
-
-func (c *limitCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-func (c *limitCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("limit - Take first N records")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 limit -n <count> [file.jsonl]")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 limit -n 10")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 18 | streamv3 limit -n 5")
-		return nil
-	}
-
 	return c.cmd.Execute(args)
 }
 

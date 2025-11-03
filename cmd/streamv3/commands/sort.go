@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"iter"
 	"os"
 
@@ -11,16 +9,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// sortCommand implements the sort command
-type sortCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newSortCommand())
-}
-
-func newSortCommand() *sortCommand {
+func NSortCommand() *sortCommand {
 	var field string
 	var desc bool
 	var inputFile string
@@ -103,35 +92,6 @@ func newSortCommand() *sortCommand {
 
 	return &sortCommand{cmd: cmd}
 }
-
-func (c *sortCommand) Name() string {
-	return "sort"
-}
-
-func (c *sortCommand) Description() string {
-	return "Sort records by field"
-}
-
-func (c *sortCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-
-func (c *sortCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("sort - Sort records by field")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 sort -field <name> [-desc]")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Sort ascending")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 sort -field age")
-		fmt.Println()
-		fmt.Println("  # Sort descending")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 sort -field age -desc")
-		return nil
-	}
 
 	return c.cmd.Execute(args)
 }

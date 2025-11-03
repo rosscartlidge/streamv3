@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"os"
 	"regexp"
 	"strconv"
@@ -13,16 +11,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// whereCommand implements the where command
-type whereCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newWhereCommand())
-}
-
-func newWhereCommand() *whereCommand {
+func NWhereCommand() *whereCommand {
 	var inputFile string
 	var generate bool
 
@@ -85,74 +74,6 @@ func newWhereCommand() *whereCommand {
 
 	return &whereCommand{cmd: cmd}
 }
-
-func (c *whereCommand) Name() string {
-	return "where"
-}
-
-func (c *whereCommand) Description() string {
-	return "Filter records based on field conditions"
-}
-
-func (c *whereCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-
-func (c *whereCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("where - Filter records based on field conditions")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 where -match <field> <operator> <value>")
-		fmt.Println()
-		fmt.Println("Operators:")
-		fmt.Println("  eq           Equal to")
-		fmt.Println("  ne           Not equal to")
-		fmt.Println("  gt           Greater than")
-		fmt.Println("  ge           Greater than or equal")
-		fmt.Println("  lt           Less than")
-		fmt.Println("  le           Less than or equal")
-		fmt.Println("  contains     String contains")
-		fmt.Println("  startswith   String starts with")
-		fmt.Println("  endswith     String ends with")
-		fmt.Println("  pattern      Regexp pattern match (aliases: regexp, regex)")
-		fmt.Println()
-		fmt.Println("Clause Logic:")
-		fmt.Println("  Multiple -match in same command: AND (all must match)")
-		fmt.Println("  Separate clauses with +: OR (any clause can match)")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Single condition")
-		fmt.Println("  streamv3 where -match age gt 18")
-		fmt.Println()
-		fmt.Println("  # Multiple conditions (AND): age > 18 AND status = active")
-		fmt.Println("  streamv3 where -match age gt 18 -match status eq active")
-		fmt.Println()
-		fmt.Println("  # OR conditions: (age > 65) OR (age < 18)")
-		fmt.Println("  streamv3 where -match age gt 65 + -match age lt 18")
-		fmt.Println()
-		fmt.Println("  # Complex: (age > 18 AND status = active) OR (department = Engineering)")
-		fmt.Println("  streamv3 where -match age gt 18 -match status eq active + -match department eq Engineering")
-		fmt.Println()
-		fmt.Println("  # Regexp matching: department ends with 'ing'")
-		fmt.Println("  streamv3 where -match department regexp \".*ing$\"")
-		fmt.Println()
-		fmt.Println("  # Regexp matching: email pattern")
-		fmt.Println("  streamv3 where -match email regex \"^[a-z]+@[a-z]+\\.com$\"")
-		fmt.Println()
-		fmt.Println("Debugging with jq:")
-		fmt.Println("  # Inspect records before/after filtering")
-		fmt.Println("  streamv3 read-csv data.csv | jq '.' | head -5")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match age gt 30 | jq '.'")
-		fmt.Println()
-		fmt.Println("  # Check field types")
-		fmt.Println("  streamv3 read-csv data.csv | jq '.age | type' | head -5")
-		fmt.Println()
-		fmt.Println("  # Count matching records")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 where -match status eq active | jq -s 'length'")
-		return nil
-	}
 
 	return c.cmd.Execute(args)
 }

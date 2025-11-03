@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"iter"
 	"os"
 	"strings"
@@ -12,16 +10,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// unionCommand implements the union command
-type unionCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newUnionCommand())
-}
-
-func newUnionCommand() *unionCommand {
+func NUnionCommand() *unionCommand {
 	var inputFile string
 	var unionAll bool
 	var generate bool
@@ -115,53 +104,6 @@ func newUnionCommand() *unionCommand {
 
 	return &unionCommand{cmd: cmd}
 }
-
-func (c *unionCommand) Name() string {
-	return "union"
-}
-
-func (c *unionCommand) Description() string {
-	return "Combine records from multiple sources (SQL UNION)"
-}
-
-func (c *unionCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-func (c *unionCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("union - Combine records from multiple sources (SQL UNION)")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 union -file <file1> [-file <file2>]... [-all]")
-		fmt.Println()
-		fmt.Println("Combines records from multiple data sources. By default removes")
-		fmt.Println("duplicates (UNION). Use -all to keep duplicates (UNION ALL).")
-		fmt.Println()
-		fmt.Println("Flags:")
-		fmt.Println("  -file <file>  Additional file to union (can repeat)")
-		fmt.Println("  -all          Keep duplicates (UNION ALL)")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # UNION (remove duplicates)")
-		fmt.Println("  streamv3 read-csv file1.csv | \\")
-		fmt.Println("    streamv3 union -file file2.csv -file file3.csv")
-		fmt.Println()
-		fmt.Println("  # UNION ALL (keep duplicates)")
-		fmt.Println("  streamv3 read-csv customers.csv | \\")
-		fmt.Println("    streamv3 union -all -file suppliers.csv")
-		fmt.Println()
-		fmt.Println("  # SQL equivalent:")
-		fmt.Println("  # SELECT * FROM customers")
-		fmt.Println("  # UNION")
-		fmt.Println("  # SELECT * FROM suppliers")
-		fmt.Println("  streamv3 read-csv customers.csv | \\")
-		fmt.Println("    streamv3 union -file suppliers.csv")
-		fmt.Println()
-		fmt.Println("Note: All inputs should have compatible schemas (same fields)")
-		return nil
-	}
-
 	return c.cmd.Execute(args)
 }
 

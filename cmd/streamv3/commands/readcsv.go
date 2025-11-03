@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"iter"
 	"os"
@@ -11,16 +10,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// readCSVCommand implements the read-csv command
-type readCSVCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newReadCSVCommand())
-}
-
-func newReadCSVCommand() *readCSVCommand {
+func NewReadCSVCommand() *cf.Command {
 	var inputFile string
 	var generate bool
 
@@ -75,27 +65,7 @@ func newReadCSVCommand() *readCSVCommand {
 
 		Build()
 
-	return &readCSVCommand{
-		cmd: cmd,
-	}
-}
-
-func (c *readCSVCommand) Name() string {
-	return "read-csv"
-}
-
-func (c *readCSVCommand) Description() string {
-	return "Read CSV file and output JSONL stream"
-}
-
-
-func (c *readCSVCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-func (c *readCSVCommand) Execute(ctx context.Context, args []string) error {
-	// Delegate to completionflags command
-	return c.cmd.Execute(args)
+	return cmd
 }
 
 // generateReadCSVCode generates Go code for the read-csv command

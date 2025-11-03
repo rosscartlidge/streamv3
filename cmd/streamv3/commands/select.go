@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"os"
 
 	cf "github.com/rosscartlidge/completionflags"
@@ -10,16 +8,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// selectCommand implements the select command
-type selectCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newSelectCommand())
-}
-
-func newSelectCommand() *selectCommand {
+func NSelectCommand() *selectCommand {
 	var inputFile string
 	var generate bool
 
@@ -113,47 +102,6 @@ func newSelectCommand() *selectCommand {
 
 	return &selectCommand{cmd: cmd}
 }
-
-func (c *selectCommand) Name() string {
-	return "select"
-}
-
-func (c *selectCommand) Description() string {
-	return "Select and optionally rename fields"
-}
-
-func (c *selectCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-
-func (c *selectCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag before completionflags framework takes over
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("select - Select and optionally rename fields")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 select -field <name> [-as <newname>]")
-		fmt.Println()
-		fmt.Println("Note: Use + to separate multiple field selections")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  # Select specific fields")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 select -field name + -field age")
-		fmt.Println()
-		fmt.Println("  # Select and rename")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 select -field name -as fullname + -field age")
-		fmt.Println()
-		fmt.Println("  # Select three fields")
-		fmt.Println("  streamv3 select -field name + -field age + -field department")
-		fmt.Println()
-		fmt.Println("Debugging with jq:")
-		fmt.Println("  # Inspect selected fields")
-		fmt.Println("  streamv3 read-csv data.csv | streamv3 select -field name + -field age | jq '.'")
-		fmt.Println()
-		fmt.Println("  # Extract single field values")
-		fmt.Println("  streamv3 read-csv data.csv | jq -r '.name'")
-		return nil
-	}
 
 	return c.cmd.Execute(args)
 }

@@ -1,8 +1,6 @@
 package commands
 
-import (
-	"context"
-	"fmt"
+import (	"fmt"
 	"os"
 	"strings"
 
@@ -11,16 +9,7 @@ import (
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )
 
-// execCommand implements the exec command
-type execCommand struct {
-	cmd *cf.Command
-}
-
-func init() {
-	RegisterCommand(newExecCommand())
-}
-
-func newExecCommand() *execCommand {
+func NExecCommand() *execCommand {
 	// For exec, we don't use normal flag parsing because everything after "--" is the command
 	// We'll handle parsing manually in Execute()
 	cmd := cf.NewCommand("exec").
@@ -33,41 +22,6 @@ func newExecCommand() *execCommand {
 
 	return &execCommand{cmd: cmd}
 }
-
-func (c *execCommand) Name() string {
-	return "exec"
-}
-
-func (c *execCommand) Description() string {
-	return "Execute command and parse output as records"
-}
-
-func (c *execCommand) GetCFCommand() *cf.Command {
-	return c.cmd
-}
-
-func (c *execCommand) Execute(ctx context.Context, args []string) error {
-	// Handle -help flag
-	if len(args) > 0 && (args[0] == "-help" || args[0] == "--help") {
-		fmt.Println("exec - Execute command and parse output as records")
-		fmt.Println()
-		fmt.Println("Usage: streamv3 exec [-generate] -- [command] [args...]")
-		fmt.Println()
-		fmt.Println("Executes a command and parses its column-aligned output into records.")
-		fmt.Println("The first line is treated as the header with column names.")
-		fmt.Println("Use '--' to separate streamv3 flags from the command to execute.")
-		fmt.Println()
-		fmt.Println("Flags:")
-		fmt.Println("  -generate  Generate Go code instead of executing")
-		fmt.Println()
-		fmt.Println("Examples:")
-		fmt.Println("  streamv3 exec -- ps -efl")
-		fmt.Println("  streamv3 exec -- ps -efl | streamv3 where -match CMD eq bash")
-		fmt.Println("  streamv3 exec -- ls -la")
-		fmt.Println("  streamv3 exec -generate -- ps -efl | streamv3 generate-go")
-		return nil
-	}
-
 	// Parse -generate flag and command separately to avoid parsing command flags
 	generate := false
 	var cmdAndArgs []string
