@@ -86,6 +86,7 @@ if err != nil {
 **⚠️ CRITICAL: StreamV3 uses SQL-style naming, NOT LINQ/functional programming names!**
 
 - **Transform**: `Select(func(T) U)`, `SelectMany(func(T) iter.Seq[U])` ← NOT Map or FlatMap!
+- **Update Records**: `Update(func(MutableRecord) MutableRecord)` - Convenience wrapper for field updates, eliminates ToMutable/Freeze boilerplate
 - **Filter**: `Where(func(T) bool)` ← NOT Filter (Filter is the type name)
 - **Limit**: `Limit(n)`, `Offset(n)` ← NOT Take/Skip
 - **Sort**: `Sort()`, `SortBy(func(T) K)`, `SortDesc()`, `Reverse()`
@@ -419,9 +420,10 @@ func main() {
         log.Fatalf("Failed to read CSV: %v", err)
     }
 
-    // Add customer tier based on total purchases
-    enrichedCustomers := streamv3.Select(func(r streamv3.Record) streamv3.Record {
-        totalPurchases := streamv3.GetOr(r, "total_purchases", 0.0)
+    // Add customer tier based on total purchases - using Update helper
+    enrichedCustomers := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+        frozen := mut.Freeze()
+        totalPurchases := streamv3.GetOr(frozen, "total_purchases", 0.0)
 
         var tier string
         switch {
@@ -433,7 +435,7 @@ func main() {
             tier = "Bronze"
         }
 
-        return streamv3.SetImmutable(r, "customer_tier", tier)
+        return mut.String("customer_tier", tier)
     })(customers)
 
     // Group by tier and calculate statistics
@@ -453,6 +455,76 @@ func main() {
         fmt.Printf("%s: %d customers (avg: $%.2f)\n", tier, count, avgPurchases)
     }
 }
+```
+
+### Example 3b: Updating Record Fields (Computed Values)
+
+**Natural Language**: "Read order data and add a total field calculated from price * quantity, then add a tax field (8% of total)"
+
+**StreamV3 Code**:
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Read order data
+    orders, err := streamv3.ReadCSV("orders.csv")
+    if err != nil {
+        log.Fatalf("Failed to read CSV: %v", err)
+    }
+
+    // Add computed total field
+    withTotal := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+        frozen := mut.Freeze()  // Freeze to read values
+        price := streamv3.GetOr(frozen, "price", 0.0)
+        qty := streamv3.GetOr(frozen, "quantity", int64(0))
+        return mut.Float("total", price * float64(qty))
+    })(orders)
+
+    // Add tax field (8% of total) - can chain Updates
+    withTax := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+        frozen := mut.Freeze()
+        total := streamv3.GetOr(frozen, "total", 0.0)
+        return mut.Float("tax", total * 0.08)
+    })(withTotal)
+
+    // Add grand total
+    final := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+        frozen := mut.Freeze()
+        total := streamv3.GetOr(frozen, "total", 0.0)
+        tax := streamv3.GetOr(frozen, "tax", 0.0)
+        return mut.Float("grand_total", total + tax)
+    })(withTax)
+
+    fmt.Println("Orders with computed fields:")
+    for record := range final {
+        product := streamv3.GetOr(record, "product", "")
+        total := streamv3.GetOr(record, "total", 0.0)
+        tax := streamv3.GetOr(record, "tax", 0.0)
+        grandTotal := streamv3.GetOr(record, "grand_total", 0.0)
+        fmt.Printf("%s: subtotal=$%.2f, tax=$%.2f, total=$%.2f\n",
+            product, total, tax, grandTotal)
+    }
+}
+```
+
+**Why Update instead of Select?**
+- ✅ More concise - no `ToMutable()` and `Freeze()` boilerplate
+- ✅ Clear intent - "I'm updating fields" vs "I'm transforming"
+- ✅ Type-safe - uses typed methods (`.String()`, `.Float()`, `.Int()`)
+
+**Equivalent using Select (more verbose):**
+```go
+withTotal := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+    price := streamv3.GetOr(r, "price", 0.0)
+    qty := streamv3.GetOr(r, "quantity", int64(0))
+    return r.ToMutable().Float("total", price * float64(qty)).Freeze()
+})(orders)
 ```
 
 ### Example 4: Join Analysis
