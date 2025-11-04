@@ -164,22 +164,35 @@ streamv3 read-csv employees.csv | \
 
 ### Updating Fields
 
-Update field values with constant values:
+Update record fields conditionally using if-elseif-else logic:
 
 ```bash
-# Update single field
+# Unconditional update - all records
 streamv3 read-csv employees.csv | \
   streamv3 update -set status "active"
 
-# Update multiple fields
+# Conditional update - only matching records
 streamv3 read-csv employees.csv | \
-  streamv3 update -set status "processed" -set updated_date "2025-11-04"
+  streamv3 update -match salary gt 100000 -set bracket "high"
 
-# Combine with where for conditional updates
+# Multiple conditions (AND logic)
 streamv3 read-csv employees.csv | \
-  streamv3 where -match salary gt 80000 | \
-  streamv3 update -set priority "high"
+  streamv3 update -match status eq pending -match priority eq urgent -set assignee "alice"
+
+# If-elseif-else with + separator (first match wins)
+streamv3 read-csv customers.csv | \
+  streamv3 update \
+    -match purchases gt 5000 -set tier "Gold" -set discount 0.2 + \
+    -match purchases gt 1000 -set tier "Silver" -set discount 0.1 + \
+    -set tier "Bronze" -set discount 0.0
 ```
+
+**How It Works:**
+- **Without `-match`**: Updates all records
+- **With `-match`**: Only updates records matching conditions, others pass through unchanged
+- **Multiple `-match` flags**: AND logic (all must match)
+- **`+` separator**: Creates clauses for if-elseif-else logic (first matching clause wins)
+- **Default clause**: Clause with no `-match` acts as else (catches all remaining records)
 
 **Type Inference:**
 The `update` command automatically infers types from string values:
@@ -189,13 +202,18 @@ The `update` command automatically infers types from string values:
 - `"2025-11-04"` → time.Time (if valid date format)
 - Everything else → string
 
-**Example with types:**
+**Complex Example:**
 ```bash
-streamv3 read-csv employees.csv | \
-  streamv3 update -set active true -set bonus 5000 -set rate 1.25
+# Set priority based on multiple conditions
+streamv3 read-csv orders.csv | \
+  streamv3 update \
+    -match status eq pending -match amount gt 10000 -set priority "critical" -set sla 24 + \
+    -match status eq pending -match amount gt 1000 -set priority "high" -set sla 48 + \
+    -match status eq pending -set priority "normal" -set sla 72 + \
+    -set priority "low" -set sla 168
 ```
 
-This creates fields with proper types (boolean, integer, float) instead of strings.
+This keeps ALL records while selectively updating fields based on conditions.
 
 ### Writing Output
 
@@ -692,7 +710,7 @@ go build -o monitor monitor.go
 ### Transformations
 - `where` - Filter records by conditions
 - `select` - Select/rename fields
-- `update` - Update field values with constants
+- `update` - Conditionally update field values (if-elseif-else logic)
 - `group` - Group and aggregate data
 - `sort` - Sort records by field
 - `limit` - Take first N records

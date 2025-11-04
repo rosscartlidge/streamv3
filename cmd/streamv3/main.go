@@ -668,12 +668,21 @@ func buildRootCommand() *cf.Command {
 
 		// Subcommand: update
 		Subcommand("update").
-			Description("Update record fields with new values").
+			Description("Conditionally update record fields with new values").
 
 			Flag("-generate", "-g").
 				Bool().
 				Global().
 				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("-match", "-m").
+				Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
+				Arg("operator").Completer(&cf.StaticCompleter{Options: []string{"eq", "ne", "gt", "ge", "lt", "le", "contains", "startswith", "endswith", "pattern", "regexp", "regex"}}).Done().
+				Arg("value").Completer(cf.NoCompleter{Hint: "<value>"}).Done().
+				Accumulate().
+				Local().
+				Help("Condition to check: -match <field> <operator> <value>").
 				Done().
 
 			Flag("-set", "-s").
@@ -709,42 +718,78 @@ func buildRootCommand() *cf.Command {
 					return generateUpdateCode(ctx, inputFile)
 				}
 
-				// Collect all -set operations from all clauses
-				var setOps []struct {
-					field string
-					value string
+				// Parse clauses - each clause has optional -match conditions and required -set operations
+				type updateClause struct {
+					conditions []struct {
+						field string
+						op    string
+						value string
+					}
+					updates []struct {
+						field string
+						value string
+					}
 				}
+
+				var clauses []updateClause
 
 				for _, clause := range ctx.Clauses {
-					setOpsRaw, ok := clause.Flags["-set"]
-					if !ok || setOpsRaw == nil {
-						continue
+					uc := updateClause{}
+
+					// Parse -match conditions (optional)
+					if matchesRaw, ok := clause.Flags["-match"]; ok && matchesRaw != nil {
+						matches, ok := matchesRaw.([]any)
+						if ok {
+							for _, matchRaw := range matches {
+								matchMap, ok := matchRaw.(map[string]any)
+								if !ok {
+									continue
+								}
+
+								field, _ := matchMap["field"].(string)
+								op, _ := matchMap["operator"].(string)
+								value, _ := matchMap["value"].(string)
+
+								if field != "" && op != "" {
+									uc.conditions = append(uc.conditions, struct {
+										field string
+										op    string
+										value string
+									}{field, op, value})
+								}
+							}
+						}
 					}
 
-					setList, ok := setOpsRaw.([]any)
-					if !ok {
-						continue
+					// Parse -set operations (required)
+					if setOpsRaw, ok := clause.Flags["-set"]; ok && setOpsRaw != nil {
+						setList, ok := setOpsRaw.([]any)
+						if ok {
+							for _, setRaw := range setList {
+								setMap, ok := setRaw.(map[string]any)
+								if !ok {
+									continue
+								}
+
+								field, _ := setMap["field"].(string)
+								value, _ := setMap["value"].(string)
+
+								if field != "" {
+									uc.updates = append(uc.updates, struct {
+										field string
+										value string
+									}{field, value})
+								}
+							}
+						}
 					}
 
-					for _, setRaw := range setList {
-						setMap, ok := setRaw.(map[string]any)
-						if !ok {
-							continue
-						}
-
-						field, _ := setMap["field"].(string)
-						value, _ := setMap["value"].(string)
-
-						if field != "" {
-							setOps = append(setOps, struct {
-								field string
-								value string
-							}{field, value})
-						}
+					if len(uc.updates) > 0 {
+						clauses = append(clauses, uc)
 					}
 				}
 
-				if len(setOps) == 0 {
+				if len(clauses) == 0 {
 					return fmt.Errorf("no -set operations specified")
 				}
 
@@ -757,24 +802,43 @@ func buildRootCommand() *cf.Command {
 
 				records := lib.ReadJSONL(input)
 
-				// Build update filter
+				// Build update filter with first-match-wins clause evaluation
 				updateFilter := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
-					for _, op := range setOps {
-						// Parse value and use typed setter based on inferred type
-						parsedValue := parseValue(op.value)
-						switch v := parsedValue.(type) {
-						case int64:
-							mut = mut.Int(op.field, v)
-						case float64:
-							mut = mut.Float(op.field, v)
-						case bool:
-							mut = mut.Bool(op.field, v)
-						case time.Time:
-							mut = streamv3.Set(mut, op.field, v)
-						case string:
-							mut = mut.String(op.field, v)
+					frozen := mut.Freeze()
+
+					// Evaluate clauses in order - first match wins
+					for _, clause := range clauses {
+						// Check all conditions in this clause (AND logic)
+						allMatch := true
+						for _, cond := range clause.conditions {
+							fieldValue, exists := streamv3.Get[any](frozen, cond.field)
+							if !exists || !applyOperator(fieldValue, cond.op, cond.value) {
+								allMatch = false
+								break
+							}
+						}
+
+						// If clause matches (or has no conditions), apply updates and stop
+						if allMatch {
+							for _, upd := range clause.updates {
+								parsedValue := parseValue(upd.value)
+								switch v := parsedValue.(type) {
+								case int64:
+									mut = mut.Int(upd.field, v)
+								case float64:
+									mut = mut.Float(upd.field, v)
+								case bool:
+									mut = mut.Bool(upd.field, v)
+								case time.Time:
+									mut = streamv3.Set(mut, upd.field, v)
+								case string:
+									mut = mut.String(upd.field, v)
+								}
+							}
+							break // First match wins
 						}
 					}
+
 					return mut
 				})
 

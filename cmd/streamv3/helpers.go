@@ -849,7 +849,7 @@ func parseValue(s string) any {
 	return s
 }
 
-// generateUpdateCode generates Go code for the update command
+// generateUpdateCode generates Go code for the update command with conditional clauses
 func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	// Read all previous code fragments from stdin
 	fragments, err := lib.ReadAllCodeFragments()
@@ -872,88 +872,215 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 		inputVar = "records"
 	}
 
-	// Collect all -set operations from all clauses
-	var setOps []struct {
-		field string
-		value string
+	// Parse clauses - each clause has optional -match conditions and required -set operations
+	type updateClause struct {
+		conditions []struct {
+			field string
+			op    string
+			value string
+		}
+		updates []struct {
+			field string
+			value string
+		}
 	}
+
+	var clauses []updateClause
 
 	for _, clause := range ctx.Clauses {
-		setOpsRaw, ok := clause.Flags["-set"]
-		if !ok || setOpsRaw == nil {
-			continue
+		uc := updateClause{}
+
+		// Parse -match conditions (optional)
+		if matchesRaw, ok := clause.Flags["-match"]; ok && matchesRaw != nil {
+			matches, ok := matchesRaw.([]any)
+			if ok {
+				for _, matchRaw := range matches {
+					matchMap, ok := matchRaw.(map[string]any)
+					if !ok {
+						continue
+					}
+
+					field, _ := matchMap["field"].(string)
+					op, _ := matchMap["operator"].(string)
+					value, _ := matchMap["value"].(string)
+
+					if field != "" && op != "" {
+						uc.conditions = append(uc.conditions, struct {
+							field string
+							op    string
+							value string
+						}{field, op, value})
+					}
+				}
+			}
 		}
 
-		setList, ok := setOpsRaw.([]any)
-		if !ok {
-			continue
+		// Parse -set operations (required)
+		if setOpsRaw, ok := clause.Flags["-set"]; ok && setOpsRaw != nil {
+			setList, ok := setOpsRaw.([]any)
+			if ok {
+				for _, setRaw := range setList {
+					setMap, ok := setRaw.(map[string]any)
+					if !ok {
+						continue
+					}
+
+					field, _ := setMap["field"].(string)
+					value, _ := setMap["value"].(string)
+
+					if field != "" {
+						uc.updates = append(uc.updates, struct {
+							field string
+							value string
+						}{field, value})
+					}
+				}
+			}
 		}
 
-		for _, setRaw := range setList {
-			setMap, ok := setRaw.(map[string]any)
-			if !ok {
-				continue
-			}
-
-			field, _ := setMap["field"].(string)
-			value, _ := setMap["value"].(string)
-
-			if field != "" {
-				setOps = append(setOps, struct {
-					field string
-					value string
-				}{field, value})
-			}
+		if len(uc.updates) > 0 {
+			clauses = append(clauses, uc)
 		}
 	}
 
-	if len(setOps) == 0 {
+	if len(clauses) == 0 {
 		return fmt.Errorf("no -set operations specified")
 	}
 
-	// Generate Update code
-	var setStatements []string
-	for _, op := range setOps {
-		// Generate typed setter call based on inferred type
-		parsedValue := parseValue(op.value)
+	// Generate Update code with conditional clauses
+	var codeBody strings.Builder
+	needsTime := false
 
-		var stmt string
-		switch v := parsedValue.(type) {
-		case int64:
-			stmt = fmt.Sprintf("\t\tmut = mut.Int(%q, int64(%d))", op.field, v)
-		case float64:
-			stmt = fmt.Sprintf("\t\tmut = mut.Float(%q, %f)", op.field, v)
-		case bool:
-			stmt = fmt.Sprintf("\t\tmut = mut.Bool(%q, %t)", op.field, v)
-		case time.Time:
-			timeExpr := fmt.Sprintf("time.Date(%d, %d, %d, %d, %d, %d, %d, time.UTC)",
-				v.Year(), v.Month(), v.Day(), v.Hour(), v.Minute(), v.Second(), v.Nanosecond())
-			stmt = fmt.Sprintf("\t\tmut = streamv3.Set(mut, %q, %s)", op.field, timeExpr)
-		case string:
-			stmt = fmt.Sprintf("\t\tmut = mut.String(%q, %q)", op.field, v)
-		default:
-			stmt = fmt.Sprintf("\t\tmut = mut.String(%q, %q)", op.field, op.value)
+	codeBody.WriteString("\t\tfrozen := mut.Freeze()\n\n")
+
+	// Generate clause evaluation (first-match-wins)
+	for i, clause := range clauses {
+		indent := "\t\t"
+
+		// Generate condition check for this clause
+		if len(clause.conditions) > 0 {
+			if i == 0 {
+				codeBody.WriteString(indent + "if ")
+			} else {
+				codeBody.WriteString(indent + "} else if ")
+			}
+
+			// Generate all conditions with AND logic
+			for j, cond := range clause.conditions {
+				if j > 0 {
+					codeBody.WriteString(" && ")
+				}
+				codeBody.WriteString(fmt.Sprintf("streamv3.GetOr(frozen, %q, %s) %s %s",
+					cond.field,
+					getDefaultValueForComparison(cond.value),
+					getOperatorCode(cond.op),
+					getComparisonValue(cond.value)))
+			}
+			codeBody.WriteString(" {\n")
+			indent = "\t\t\t"
+		} else if i > 0 {
+			// Default case (no conditions) - use else
+			codeBody.WriteString("\t\t} else {\n")
+			indent = "\t\t\t"
 		}
 
-		setStatements = append(setStatements, stmt)
+		// Generate update statements
+		for _, upd := range clause.updates {
+			parsedValue := parseValue(upd.value)
+
+			var stmt string
+			switch v := parsedValue.(type) {
+			case int64:
+				stmt = fmt.Sprintf("%smut = mut.Int(%q, int64(%d))", indent, upd.field, v)
+			case float64:
+				stmt = fmt.Sprintf("%smut = mut.Float(%q, %f)", indent, upd.field, v)
+			case bool:
+				stmt = fmt.Sprintf("%smut = mut.Bool(%q, %t)", indent, upd.field, v)
+			case time.Time:
+				timeExpr := fmt.Sprintf("time.Date(%d, %d, %d, %d, %d, %d, %d, time.UTC)",
+					v.Year(), v.Month(), v.Day(), v.Hour(), v.Minute(), v.Second(), v.Nanosecond())
+				stmt = fmt.Sprintf("%smut = streamv3.Set(mut, %q, %s)", indent, upd.field, timeExpr)
+				needsTime = true
+			case string:
+				stmt = fmt.Sprintf("%smut = mut.String(%q, %q)", indent, upd.field, v)
+			default:
+				stmt = fmt.Sprintf("%smut = mut.String(%q, %q)", indent, upd.field, upd.value)
+			}
+
+			codeBody.WriteString(stmt + "\n")
+		}
+	}
+
+	// Close the if-else chain if we had conditions
+	if len(clauses) > 0 && (len(clauses[0].conditions) > 0 || len(clauses) > 1) {
+		codeBody.WriteString("\t\t}")
 	}
 
 	outputVar := "updated"
 	code := fmt.Sprintf(`%s := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
 %s
 		return mut
-	})(%s)`, outputVar, strings.Join(setStatements, "\n"), inputVar)
+	})(%s)`, outputVar, codeBody.String(), inputVar)
 
 	// Determine imports needed
 	imports := []string{}
-	for _, op := range setOps {
-		if _, ok := parseValue(op.value).(time.Time); ok {
-			imports = append(imports, "time")
-			break
-		}
+	if needsTime {
+		imports = append(imports, "time")
 	}
 
 	// Create and write fragment
 	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports, getCommandString())
 	return lib.WriteCodeFragment(frag)
+}
+
+// getDefaultValueForComparison returns the default value for GetOr based on the comparison value's type
+func getDefaultValueForComparison(value string) string {
+	parsedValue := parseValue(value)
+	switch parsedValue.(type) {
+	case int64, float64:
+		return "float64(0)"
+	case bool:
+		return "false"
+	case time.Time:
+		return "time.Time{}"
+	default:
+		return `""`
+	}
+}
+
+// getOperatorCode converts operator string to Go comparison operator
+func getOperatorCode(op string) string {
+	switch op {
+	case "eq":
+		return "=="
+	case "ne":
+		return "!="
+	case "gt":
+		return ">"
+	case "ge":
+		return ">="
+	case "lt":
+		return "<"
+	case "le":
+		return "<="
+	default:
+		return "=="
+	}
+}
+
+// getComparisonValue formats a value for comparison in generated code
+func getComparisonValue(value string) string {
+	parsedValue := parseValue(value)
+	switch v := parsedValue.(type) {
+	case int64:
+		return fmt.Sprintf("float64(%d)", v)
+	case float64:
+		return fmt.Sprintf("%f", v)
+	case bool:
+		return fmt.Sprintf("%t", v)
+	case string:
+		return fmt.Sprintf("%q", v)
+	default:
+		return fmt.Sprintf("%q", value)
+	}
 }

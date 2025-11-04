@@ -453,3 +453,86 @@ func TestUpdateGeneration(t *testing.T) {
 		})
 	}
 }
+
+// TestUpdateConditionalGeneration tests that the update command generates correct code for conditional updates
+func TestUpdateConditionalGeneration(t *testing.T) {
+	// Build the binary first
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string // substrings that should appear in output
+	}{
+		{
+			name:    "simple conditional - single clause",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -match age gt 30 -set priority high`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`streamv3.Update`,
+				`frozen`,
+				`streamv3.GetOr`,
+				`float64(30)`,
+			},
+		},
+		{
+			name:    "multiple clauses - first match wins",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -match purchases gt 5000 -set tier Gold + -match purchases gt 1000 -set tier Silver + -set tier Bronze`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`streamv3.Update`,
+				`else if`,
+				`else {`,
+				`Gold`,
+				`Silver`,
+				`Bronze`,
+			},
+		},
+		{
+			name:    "AND logic within clause",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -match status eq active -match age gt 30 -set priority high`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`streamv3.Update`,
+				`frozen`,
+				`status`,
+				`active`,
+				`age`,
+			},
+		},
+		{
+			name:    "multiple updates per clause",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -match tier eq Gold -set discount 0.2 -set priority high`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`streamv3.Update`,
+				`tier`,
+				`Gold`,
+				`mut.Float`,
+				`discount`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}
