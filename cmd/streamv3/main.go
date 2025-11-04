@@ -665,6 +665,120 @@ func buildRootCommand() *cf.Command {
 
 			Done().
 
+		// Subcommand: update
+		Subcommand("update").
+			Description("Update record fields with new values").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("-set", "-s").
+				Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
+				Arg("value").Completer(cf.NoCompleter{Hint: "<value>"}).Done().
+				Accumulate().
+				Local().
+				Help("Set field to value: -set <field> <value>").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("Input JSONL file (or stdin if not specified)").
+				Done().
+
+			Handler(func(ctx *cf.Context) error {
+				var inputFile string
+				var generate bool
+
+				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
+					inputFile = fileVal.(string)
+				}
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateUpdateCode(ctx, inputFile)
+				}
+
+				// Collect all -set operations from all clauses
+				var setOps []struct {
+					field string
+					value string
+				}
+
+				for _, clause := range ctx.Clauses {
+					setOpsRaw, ok := clause.Flags["-set"]
+					if !ok || setOpsRaw == nil {
+						continue
+					}
+
+					setList, ok := setOpsRaw.([]any)
+					if !ok {
+						continue
+					}
+
+					for _, setRaw := range setList {
+						setMap, ok := setRaw.(map[string]any)
+						if !ok {
+							continue
+						}
+
+						field, _ := setMap["field"].(string)
+						value, _ := setMap["value"].(string)
+
+						if field != "" {
+							setOps = append(setOps, struct {
+								field string
+								value string
+							}{field, value})
+						}
+					}
+				}
+
+				if len(setOps) == 0 {
+					return fmt.Errorf("no -set operations specified")
+				}
+
+				// Read JSONL from stdin or file
+				input, err := lib.OpenInput(inputFile)
+				if err != nil {
+					return err
+				}
+				defer input.Close()
+
+				records := lib.ReadJSONL(input)
+
+				// Build update filter
+				updateFilter := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+					for _, op := range setOps {
+						// Parse value and infer type
+						parsedValue := parseValue(op.value)
+						mut = mut.SetAny(op.field, parsedValue)
+					}
+					return mut
+				})
+
+				// Apply update
+				updated := updateFilter(records)
+
+				// Write output as JSONL
+				if err := lib.WriteJSONL(os.Stdout, updated); err != nil {
+					return fmt.Errorf("writing output: %w", err)
+				}
+
+				return nil
+			}).
+
+			Done().
+
 		// Subcommand: group-by
 		Subcommand("group-by").
 			Description("Group records by fields and apply aggregations").

@@ -384,3 +384,72 @@ func TestChartGeneration(t *testing.T) {
 		os.Remove("chart.html") // Clean up
 	}
 }
+
+// TestUpdateGeneration tests that the update command generates code correctly
+func TestUpdateGeneration(t *testing.T) {
+	// Build the binary first
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string // substrings that should appear in output
+	}{
+		{
+			name:    "single field update",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -set status processed`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`"var":"updated"`,
+				`streamv3.Update`,
+				`mut = mut.SetAny(\"status\", \"processed\")`,
+			},
+		},
+		{
+			name:    "multiple field update",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -set status done -set count 42`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`streamv3.Update`,
+				`mut = mut.SetAny(\"status\", \"done\")`,
+				`mut = mut.SetAny(\"count\", int64(42))`,
+			},
+		},
+		{
+			name:    "type inference - bool",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -set active true`,
+			wantStrs: []string{
+				`mut = mut.SetAny(\"active\", true)`,
+			},
+		},
+		{
+			name:    "type inference - float",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -set price 99.99`,
+			wantStrs: []string{
+				`mut = mut.SetAny(\"price\", 99.9`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}

@@ -162,6 +162,41 @@ streamv3 read-csv employees.csv | \
   streamv3 select -field name -as employee_name -field salary -as annual_salary
 ```
 
+### Updating Fields
+
+Update field values with constant values:
+
+```bash
+# Update single field
+streamv3 read-csv employees.csv | \
+  streamv3 update -set status "active"
+
+# Update multiple fields
+streamv3 read-csv employees.csv | \
+  streamv3 update -set status "processed" -set updated_date "2025-11-04"
+
+# Combine with where for conditional updates
+streamv3 read-csv employees.csv | \
+  streamv3 where -match salary gt 80000 | \
+  streamv3 update -set priority "high"
+```
+
+**Type Inference:**
+The `update` command automatically infers types from string values:
+- `"123"` → integer (`int64`)
+- `"99.99"` → float (`float64`)
+- `"true"` / `"false"` → boolean
+- `"2025-11-04"` → time.Time (if valid date format)
+- Everything else → string
+
+**Example with types:**
+```bash
+streamv3 read-csv employees.csv | \
+  streamv3 update -set active true -set bonus 5000 -set rate 1.25
+```
+
+This creates fields with proper types (boolean, integer, float) instead of strings.
+
 ### Writing Output
 
 Write results to CSV:
@@ -657,6 +692,7 @@ go build -o monitor monitor.go
 ### Transformations
 - `where` - Filter records by conditions
 - `select` - Select/rename fields
+- `update` - Update field values with constants
 - `group` - Group and aggregate data
 - `sort` - Sort records by field
 - `limit` - Take first N records

@@ -1,7 +1,8 @@
 package commands
 
 import (
-	"bufio"	"fmt"
+	"bufio"
+	"fmt"
 	"sort"
 
 	cf "github.com/rosscartlidge/completionflags"

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/streamv3"
@@ -808,5 +809,150 @@ func generateChartCode(xField, yField, outputFile string) error {
 
 	// Create final fragment (chart is a terminal operation with side effects)
 	frag := lib.NewFinalFragment(inputVar, code, []string{"fmt"}, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}
+
+// parseValue attempts to parse a string value into the appropriate Go type
+// Handles int64, float64, bool, time.Time, and defaults to string
+func parseValue(s string) any {
+	// Try bool
+	if s == "true" {
+		return true
+	}
+	if s == "false" {
+		return false
+	}
+
+	// Try int64
+	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return i
+	}
+
+	// Try float64
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		return f
+	}
+
+	// Try time.Time (common formats)
+	timeFormats := []string{
+		time.RFC3339,
+		"2006-01-02",
+		"2006-01-02 15:04:05",
+	}
+	for _, format := range timeFormats {
+		if t, err := time.Parse(format, s); err == nil {
+			return t
+		}
+	}
+
+	// Default to string
+	return s
+}
+
+// generateUpdateCode generates Go code for the update command
+func generateUpdateCode(ctx *cf.Context, inputFile string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment (or default to "records")
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Collect all -set operations from all clauses
+	var setOps []struct {
+		field string
+		value string
+	}
+
+	for _, clause := range ctx.Clauses {
+		setOpsRaw, ok := clause.Flags["-set"]
+		if !ok || setOpsRaw == nil {
+			continue
+		}
+
+		setList, ok := setOpsRaw.([]any)
+		if !ok {
+			continue
+		}
+
+		for _, setRaw := range setList {
+			setMap, ok := setRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			field, _ := setMap["field"].(string)
+			value, _ := setMap["value"].(string)
+
+			if field != "" {
+				setOps = append(setOps, struct {
+					field string
+					value string
+				}{field, value})
+			}
+		}
+	}
+
+	if len(setOps) == 0 {
+		return fmt.Errorf("no -set operations specified")
+	}
+
+	// Generate Update code
+	var setStatements []string
+	for _, op := range setOps {
+		// Generate SetAny call with type inference
+		parsedValue := parseValue(op.value)
+
+		var valueExpr string
+		switch v := parsedValue.(type) {
+		case int64:
+			valueExpr = fmt.Sprintf("int64(%d)", v)
+		case float64:
+			valueExpr = fmt.Sprintf("%f", v)
+		case bool:
+			valueExpr = fmt.Sprintf("%t", v)
+		case time.Time:
+			valueExpr = fmt.Sprintf("time.Date(%d, %d, %d, %d, %d, %d, %d, time.UTC)",
+				v.Year(), v.Month(), v.Day(), v.Hour(), v.Minute(), v.Second(), v.Nanosecond())
+		case string:
+			valueExpr = fmt.Sprintf("%q", v)
+		default:
+			valueExpr = fmt.Sprintf("%q", op.value)
+		}
+
+		setStatements = append(setStatements, fmt.Sprintf("\t\tmut = mut.SetAny(%q, %s)", op.field, valueExpr))
+	}
+
+	outputVar := "updated"
+	code := fmt.Sprintf(`%s := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+%s
+		return mut
+	})(%s)`, outputVar, strings.Join(setStatements, "\n"), inputVar)
+
+	// Determine imports needed
+	imports := []string{}
+	for _, op := range setOps {
+		if _, ok := parseValue(op.value).(time.Time); ok {
+			imports = append(imports, "time")
+			break
+		}
+	}
+
+	// Create and write fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports, getCommandString())
 	return lib.WriteCodeFragment(frag)
 }
