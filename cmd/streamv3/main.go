@@ -40,6 +40,27 @@ func buildRootCommand() *cf.Command {
 		Subcommand("limit").
 			Description("Take first N records (SQL LIMIT)").
 
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("-n").
+				Int().
+				Required().
+				Global().
+				Help("Number of records to take").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("Input JSONL file (or stdin if not specified)").
+				Done().
+
 			Handler(func(ctx *cf.Context) error {
 				var n int
 				var inputFile string
@@ -89,6 +110,12 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Done().
+
+		// Subcommand: offset
+		Subcommand("offset").
+			Description("Skip first N records (SQL OFFSET)").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -99,7 +126,7 @@ func buildRootCommand() *cf.Command {
 				Int().
 				Required().
 				Global().
-				Help("Number of records to take").
+				Help("Number of records to skip").
 				Done().
 
 			Flag("FILE").
@@ -109,12 +136,6 @@ func buildRootCommand() *cf.Command {
 				Default("").
 				Help("Input JSONL file (or stdin if not specified)").
 				Done().
-
-			Done().
-
-		// Subcommand: offset
-		Subcommand("offset").
-			Description("Skip first N records (SQL OFFSET)").
 
 			Handler(func(ctx *cf.Context) error {
 				var n int
@@ -164,17 +185,29 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Done().
+
+		// Subcommand: sort
+		Subcommand("sort").
+			Description("Sort records by field").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
 				Help("Generate Go code instead of executing").
 				Done().
 
-			Flag("-n").
-				Int().
-				Required().
+			Flag("-field", "-f").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
 				Global().
-				Help("Number of records to skip").
+				Help("Field to sort by").
+				Done().
+
+			Flag("-desc", "-d").
+				Bool().
+				Global().
+				Help("Sort descending").
 				Done().
 
 			Flag("FILE").
@@ -184,12 +217,6 @@ func buildRootCommand() *cf.Command {
 				Default("").
 				Help("Input JSONL file (or stdin if not specified)").
 				Done().
-
-			Done().
-
-		// Subcommand: sort
-		Subcommand("sort").
-			Description("Sort records by field").
 
 			Handler(func(ctx *cf.Context) error {
 				var field string
@@ -257,23 +284,16 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Done().
+
+		// Subcommand: distinct
+		Subcommand("distinct").
+			Description("Remove duplicate records").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
 				Help("Generate Go code instead of executing").
-				Done().
-
-			Flag("-field", "-f").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Global().
-				Help("Field to sort by").
-				Done().
-
-			Flag("-desc", "-d").
-				Bool().
-				Global().
-				Help("Sort descending").
 				Done().
 
 			Flag("FILE").
@@ -283,12 +303,6 @@ func buildRootCommand() *cf.Command {
 				Default("").
 				Help("Input JSONL file (or stdin if not specified)").
 				Done().
-
-			Done().
-
-		// Subcommand: distinct
-		Subcommand("distinct").
-			Description("Remove duplicate records").
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
@@ -332,6 +346,12 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Done().
+
+		// Subcommand: read-csv
+		Subcommand("read-csv").
+			Description("Read CSV file and output JSONL stream").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -340,17 +360,11 @@ func buildRootCommand() *cf.Command {
 
 			Flag("FILE").
 				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
 				Global().
 				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
+				Help("Input CSV file (or stdin if not specified)").
 				Done().
-
-			Done().
-
-		// Subcommand: read-csv
-		Subcommand("read-csv").
-			Description("Read CSV file and output JSONL stream").
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
@@ -389,6 +403,12 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
+			Done().
+
+		// Subcommand: write-csv
+		Subcommand("write-csv").
+			Description("Read JSONL stream and write as CSV file").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -400,14 +420,8 @@ func buildRootCommand() *cf.Command {
 				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
 				Global().
 				Default("").
-				Help("Input CSV file (or stdin if not specified)").
+				Help("Output CSV file (or stdout if not specified)").
 				Done().
-
-			Done().
-
-		// Subcommand: write-csv
-		Subcommand("write-csv").
-			Description("Read JSONL stream and write as CSV file").
 
 			Handler(func(ctx *cf.Context) error {
 				var outputFile string
@@ -437,25 +451,34 @@ func buildRootCommand() *cf.Command {
 				}
 			}).
 
+			Done().
+
+		// Subcommand: where
+		Subcommand("where").
+			Description("Filter records based on field conditions").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
 				Help("Generate Go code instead of executing").
 				Done().
 
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
-				Global().
-				Default("").
-				Help("Output CSV file (or stdout if not specified)").
+			Flag("-match", "-m").
+				Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
+				Arg("operator").Completer(&cf.StaticCompleter{Options: []string{"eq", "ne", "gt", "ge", "lt", "le", "contains", "startswith", "endswith", "pattern", "regexp", "regex"}}).Done().
+				Arg("value").Completer(cf.NoCompleter{Hint: "<value>"}).Done().
+				Accumulate().
+				Local().
+				Help("Filter condition: -match <field> <operator> <value>").
 				Done().
 
-			Done().
-
-		// Subcommand: where
-		Subcommand("where").
-			Description("Filter records based on field conditions").
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("Input JSONL file (or stdin if not specified)").
+				Done().
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
@@ -553,19 +576,24 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
-			Flag("-generate", "-g").
-				Bool().
-				Global().
-				Help("Generate Go code instead of executing").
+			Done().
+
+		// Subcommand: select
+		Subcommand("select").
+			Description("Select and optionally rename fields").
+
+			Flag("-field", "-f").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Local().
+				Help("Field to select").
 				Done().
 
-			Flag("-match", "-m").
-				Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
-				Arg("operator").Completer(&cf.StaticCompleter{Options: []string{"eq", "ne", "gt", "ge", "lt", "le", "contains", "startswith", "endswith", "pattern", "regexp", "regex"}}).Done().
-				Arg("value").Completer(cf.NoCompleter{Hint: "<value>"}).Done().
-				Accumulate().
+			Flag("-as", "-a").
+				String().
+				Completer(cf.NoCompleter{Hint: "<new-name>"}).
 				Local().
-				Help("Filter condition: -match <field> <operator> <value>").
+				Help("Rename field to (optional)").
 				Done().
 
 			Flag("FILE").
@@ -575,12 +603,6 @@ func buildRootCommand() *cf.Command {
 				Default("").
 				Help("Input JSONL file (or stdin if not specified)").
 				Done().
-
-			Done().
-
-		// Subcommand: select
-		Subcommand("select").
-			Description("Select and optionally rename fields").
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
@@ -641,33 +663,53 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
-			Flag("-field", "-f").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Local().
-				Help("Field to select").
-				Done().
-
-			Flag("-as", "-a").
-				String().
-				Completer(cf.NoCompleter{Hint: "<new-name>"}).
-				Local().
-				Help("Rename field to (optional)").
-				Done().
-
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
-				Global().
-				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
-				Done().
-
 			Done().
 
 		// Subcommand: group-by
 		Subcommand("group-by").
 			Description("Group records by fields and apply aggregations").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("-by", "-b").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("Field to group by").
+				Done().
+
+			Flag("-function", "-func").
+				String().
+				Completer(&cf.StaticCompleter{Options: []string{"count", "sum", "avg", "min", "max"}}).
+				Local().
+				Help("Aggregation function (count, sum, avg, min, max)").
+				Done().
+
+			Flag("-field", "-f").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Local().
+				Help("Field to aggregate (not needed for count)").
+				Done().
+
+			Flag("-result", "-r").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Local().
+				Help("Output field name").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
+				Global().
+				Default("").
+				Help("Input JSONL file (or stdin if not specified)").
+				Done().
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
@@ -780,53 +822,56 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
-			Flag("-generate", "-g").
-				Bool().
-				Global().
-				Help("Generate Go code instead of executing").
-				Done().
-
-			Flag("-by", "-b").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Global().
-				Help("Field to group by").
-				Done().
-
-			Flag("-function", "-func").
-				String().
-				Completer(&cf.StaticCompleter{Options: []string{"count", "sum", "avg", "min", "max"}}).
-				Local().
-				Help("Aggregation function (count, sum, avg, min, max)").
-				Done().
-
-			Flag("-field", "-f").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Local().
-				Help("Field to aggregate (not needed for count)").
-				Done().
-
-			Flag("-result", "-r").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Local().
-				Help("Output field name").
-				Done().
-
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
-				Global().
-				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
-				Done().
-
 			Done().
 
 		// Subcommand: join
 		Subcommand("join").
 			Description("Join records from two data sources (SQL JOIN)").
+
+			Flag("-type", "-t").
+				String().
+				Completer(&cf.StaticCompleter{Options: []string{"inner", "left", "right", "full"}}).
+				Global().
+				Default("inner").
+				Help("Join type: inner, left, right, full (default: inner)").
+				Done().
+
+			Flag("-right", "-r").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.{csv,jsonl}"}).
+				Global().
+				Help("Right-side file to join with (CSV or JSONL)").
+				Done().
+
+			Flag("-on").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Accumulate().
+				Local().
+				Help("Field name for equality join (same name in both sides)").
+				Done().
+
+			Flag("-left-field").
+				String().
+				Completer(cf.NoCompleter{Hint: "<left-field>"}).
+				Local().
+				Help("Field name from left side").
+				Done().
+
+			Flag("-right-field").
+				String().
+				Completer(cf.NoCompleter{Hint: "<right-field>"}).
+				Local().
+				Help("Field name from right side").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("Left-side input JSONL file (or stdin if not specified)").
+				Done().
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile, rightFile, joinType string
@@ -950,56 +995,33 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
-			Flag("-type", "-t").
-				String().
-				Completer(&cf.StaticCompleter{Options: []string{"inner", "left", "right", "full"}}).
-				Global().
-				Default("inner").
-				Help("Join type: inner, left, right, full (default: inner)").
-				Done().
-
-			Flag("-right", "-r").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.{csv,jsonl}"}).
-				Global().
-				Help("Right-side file to join with (CSV or JSONL)").
-				Done().
-
-			Flag("-on").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Accumulate().
-				Local().
-				Help("Field name for equality join (same name in both sides)").
-				Done().
-
-			Flag("-left-field").
-				String().
-				Completer(cf.NoCompleter{Hint: "<left-field>"}).
-				Local().
-				Help("Field name from left side").
-				Done().
-
-			Flag("-right-field").
-				String().
-				Completer(cf.NoCompleter{Hint: "<right-field>"}).
-				Local().
-				Help("Field name from right side").
-				Done().
-
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
-				Global().
-				Default("").
-				Help("Left-side input JSONL file (or stdin if not specified)").
-				Done().
-
 			Done().
 
 		// Subcommand: union
 		Subcommand("union").
 			Description("Combine records from multiple sources (SQL UNION)").
+
+			Flag("-file", "-f").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.{csv,jsonl}"}).
+				Accumulate().
+				Local().
+				Help("Additional file to union (CSV or JSONL)").
+				Done().
+
+			Flag("-all", "-a").
+				Bool().
+				Global().
+				Help("Keep duplicates (UNION ALL instead of UNION)").
+				Done().
+
+			Flag("-input", "-i").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("First input JSONL file (or stdin if not specified)").
+				Done().
 
 			Handler(func(ctx *cf.Context) error {
 				var inputFile string
@@ -1061,28 +1083,6 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
-			Flag("-file", "-f").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.{csv,jsonl}"}).
-				Accumulate().
-				Local().
-				Help("Additional file to union (CSV or JSONL)").
-				Done().
-
-			Flag("-all", "-a").
-				Bool().
-				Global().
-				Help("Keep duplicates (UNION ALL instead of UNION)").
-				Done().
-
-			Flag("-input", "-i").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
-				Global().
-				Default("").
-				Help("First input JSONL file (or stdin if not specified)").
-				Done().
-
 			Done().
 
 		// Subcommand: exec
@@ -1117,6 +1117,42 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: chart
 		Subcommand("chart").
 			Description("Create interactive HTML chart from data").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("-x").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("X-axis field").
+				Done().
+
+			Flag("-y").
+				String().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("Y-axis field").
+				Done().
+
+			Flag("-output", "-o").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.html"}).
+				Global().
+				Default("chart.html").
+				Help("Output HTML file (default: chart.html)").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
+				Global().
+				Default("").
+				Help("Input JSONL file (or stdin if not specified)").
+				Done().
 
 			Handler(func(ctx *cf.Context) error {
 				var xField, yField, outputFile, inputFile string
@@ -1172,47 +1208,19 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
-			Flag("-generate", "-g").
-				Bool().
-				Global().
-				Help("Generate Go code instead of executing").
-				Done().
-
-			Flag("-x").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Global().
-				Help("X-axis field").
-				Done().
-
-			Flag("-y").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Global().
-				Help("Y-axis field").
-				Done().
-
-			Flag("-output", "-o").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.html"}).
-				Global().
-				Default("chart.html").
-				Help("Output HTML file (default: chart.html)").
-				Done().
-
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
-				Global().
-				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
-				Done().
-
 			Done().
 
 		// Subcommand: generate-go
 		Subcommand("generate-go").
 			Description("Generate Go code from StreamV3 CLI pipeline").
+
+			Flag("OUTPUT").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.go"}).
+				Global().
+				Default("").
+				Help("Output Go file (or stdout if not specified)").
+				Done().
 
 			Handler(func(ctx *cf.Context) error {
 				var outputFile string
@@ -1240,14 +1248,6 @@ func buildRootCommand() *cf.Command {
 				return nil
 			}).
 
-			Flag("OUTPUT").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.go"}).
-				Global().
-				Default("").
-				Help("Output Go file (or stdout if not specified)").
-				Done().
-
 			Done().
 
 		// Root handler (when no subcommand specified)
@@ -1255,6 +1255,9 @@ func buildRootCommand() *cf.Command {
 			fmt.Println("streamv3 - Unix-style data processing tools")
 			fmt.Println()
 			fmt.Println("Use -help to see available subcommands")
+			fmt.Println()
+			fmt.Println("To enable tab completion, add to your ~/.bashrc:")
+			fmt.Println("  eval \"$(streamv3 -completion-script)\"")
 			return nil
 		}).
 
