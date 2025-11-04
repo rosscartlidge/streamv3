@@ -914,27 +914,28 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	// Generate Update code
 	var setStatements []string
 	for _, op := range setOps {
-		// Generate SetAny call with type inference
+		// Generate typed setter call based on inferred type
 		parsedValue := parseValue(op.value)
 
-		var valueExpr string
+		var stmt string
 		switch v := parsedValue.(type) {
 		case int64:
-			valueExpr = fmt.Sprintf("int64(%d)", v)
+			stmt = fmt.Sprintf("\t\tmut = mut.Int(%q, int64(%d))", op.field, v)
 		case float64:
-			valueExpr = fmt.Sprintf("%f", v)
+			stmt = fmt.Sprintf("\t\tmut = mut.Float(%q, %f)", op.field, v)
 		case bool:
-			valueExpr = fmt.Sprintf("%t", v)
+			stmt = fmt.Sprintf("\t\tmut = mut.Bool(%q, %t)", op.field, v)
 		case time.Time:
-			valueExpr = fmt.Sprintf("time.Date(%d, %d, %d, %d, %d, %d, %d, time.UTC)",
+			timeExpr := fmt.Sprintf("time.Date(%d, %d, %d, %d, %d, %d, %d, time.UTC)",
 				v.Year(), v.Month(), v.Day(), v.Hour(), v.Minute(), v.Second(), v.Nanosecond())
+			stmt = fmt.Sprintf("\t\tmut = streamv3.Set(mut, %q, %s)", op.field, timeExpr)
 		case string:
-			valueExpr = fmt.Sprintf("%q", v)
+			stmt = fmt.Sprintf("\t\tmut = mut.String(%q, %q)", op.field, v)
 		default:
-			valueExpr = fmt.Sprintf("%q", op.value)
+			stmt = fmt.Sprintf("\t\tmut = mut.String(%q, %q)", op.field, op.value)
 		}
 
-		setStatements = append(setStatements, fmt.Sprintf("\t\tmut = mut.SetAny(%q, %s)", op.field, valueExpr))
+		setStatements = append(setStatements, stmt)
 	}
 
 	outputVar := "updated"

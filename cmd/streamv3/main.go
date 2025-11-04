@@ -5,6 +5,7 @@ import (
 	"iter"
 	"os"
 	"strings"
+	"time"
 
 	cf "github.com/rosscartlidge/completionflags"
 	"github.com/rosscartlidge/streamv3"
@@ -759,9 +760,20 @@ func buildRootCommand() *cf.Command {
 				// Build update filter
 				updateFilter := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
 					for _, op := range setOps {
-						// Parse value and infer type
+						// Parse value and use typed setter based on inferred type
 						parsedValue := parseValue(op.value)
-						mut = mut.SetAny(op.field, parsedValue)
+						switch v := parsedValue.(type) {
+						case int64:
+							mut = mut.Int(op.field, v)
+						case float64:
+							mut = mut.Float(op.field, v)
+						case bool:
+							mut = mut.Bool(op.field, v)
+						case time.Time:
+							mut = streamv3.Set(mut, op.field, v)
+						case string:
+							mut = mut.String(op.field, v)
+						}
 					}
 					return mut
 				})

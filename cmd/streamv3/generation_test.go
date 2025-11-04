@@ -406,7 +406,7 @@ func TestUpdateGeneration(t *testing.T) {
 				`"type":"stmt"`,
 				`"var":"updated"`,
 				`streamv3.Update`,
-				`mut = mut.SetAny(\"status\", \"processed\")`,
+				`mut = mut.String(\"status\", \"processed\")`,
 			},
 		},
 		{
@@ -415,22 +415,22 @@ func TestUpdateGeneration(t *testing.T) {
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`streamv3.Update`,
-				`mut = mut.SetAny(\"status\", \"done\")`,
-				`mut = mut.SetAny(\"count\", int64(42))`,
+				`mut = mut.String(\"status\", \"done\")`,
+				`mut = mut.Int(\"count\", int64(42))`,
 			},
 		},
 		{
 			name:    "type inference - bool",
 			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -set active true`,
 			wantStrs: []string{
-				`mut = mut.SetAny(\"active\", true)`,
+				`mut = mut.Bool(\"active\", true)`,
 			},
 		},
 		{
 			name:    "type inference - float",
 			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test update -set price 99.99`,
 			wantStrs: []string{
-				`mut = mut.SetAny(\"price\", 99.9`,
+				`mut = mut.Float(\"price\", 99.9`,
 			},
 		},
 	}
