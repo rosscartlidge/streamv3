@@ -536,3 +536,59 @@ func TestUpdateConditionalGeneration(t *testing.T) {
 		})
 	}
 }
+
+// TestTableGeneration tests that the table command generates correct Go code
+func TestTableGeneration(t *testing.T) {
+	// Build the binary first
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string
+	}{
+		{
+			name:    "basic table generation",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test table`,
+			wantStrs: []string{
+				`"type":"final"`,
+				`allRecords`,
+				`columnSet`,
+				`sort.Strings`,
+				`colWidths`,
+				`fmt.Printf`,
+			},
+		},
+		{
+			name:    "table with max-width",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test table -max-width 30`,
+			wantStrs: []string{
+				`"type":"final"`,
+				`colWidths[field] = 30`,
+				`strValue[:27]`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}

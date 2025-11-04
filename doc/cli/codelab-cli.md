@@ -225,6 +225,49 @@ streamv3 read-csv employees.csv | \
   streamv3 write-csv engineers.csv
 ```
 
+### Displaying Data as Tables
+
+Display records in a formatted table on the terminal:
+
+```bash
+# Simple table display
+streamv3 read-csv employees.csv | streamv3 table
+
+# With filtering
+streamv3 read-csv employees.csv | \
+  streamv3 where -match department eq Engineering | \
+  streamv3 table
+
+# Limit column width to prevent wrapping
+streamv3 read-csv employees.csv | \
+  streamv3 table -max-width 30
+
+# Complex pipeline with updates and filtering
+streamv3 read-csv customers.csv | \
+  streamv3 update \
+    -match purchases gt 5000 -set tier "Gold" + \
+    -match purchases gt 1000 -set tier "Silver" + \
+    -set tier "Bronze" | \
+  streamv3 where -match tier eq Gold | \
+  streamv3 table
+```
+
+**Features:**
+- Automatically calculates column widths
+- Sorts columns alphabetically for consistent output
+- Truncates long values with `...` when exceeding `-max-width`
+- Works with all field types (strings, numbers, dates, etc.)
+- Supports code generation with `-generate` flag
+
+**Example output:**
+```
+_row_number   age   city      name      salary
+----------------------------------------------
+0             30    NYC       Alice     95000
+1             25    LA        Bob       75000
+2             35    Chicago   Charlie   120000
+```
+
 ---
 
 ## Working with Real Data
@@ -723,6 +766,7 @@ go build -o monitor monitor.go
 
 ### Outputs
 - `write-csv [file]` - Write CSV file (or stdout)
+- `table` - Display records as formatted table
 - `chart` - Create interactive HTML chart
 
 ### Code Generation
