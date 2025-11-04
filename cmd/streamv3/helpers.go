@@ -1153,96 +1153,10 @@ func generateTableCode(maxWidth int) error {
 		inputVar = "records"
 	}
 
-	// Generate table display code
-	var code strings.Builder
-	code.WriteString(fmt.Sprintf(`	// Collect records and determine columns
-	var allRecords []streamv3.Record
-	columnSet := make(map[string]bool)
-
-	for record := range %s {
-		allRecords = append(allRecords, record)
-		for field := range record.All() {
-			columnSet[field] = true
-		}
-	}
-
-	if len(allRecords) == 0 {
-		return // No records to display
-	}
-
-	// Get sorted column names for consistent ordering
-	columns := make([]string, 0, len(columnSet))
-	for col := range columnSet {
-		columns = append(columns, col)
-	}
-	sort.Strings(columns)
-
-	// Calculate max width for each column
-	colWidths := make(map[string]int)
-	for _, col := range columns {
-		colWidths[col] = len(col) // Start with header width
-	}
-
-	for _, record := range allRecords {
-		for field, value := range record.All() {
-			strValue := fmt.Sprintf("%%v", value)
-			if len(strValue) > colWidths[field] {
-				if len(strValue) > %d {
-					colWidths[field] = %d
-				} else {
-					colWidths[field] = len(strValue)
-				}
-			}
-		}
-	}
-
-	// Print header
-	for i, col := range columns {
-		if i > 0 {
-			fmt.Print("   ")
-		}
-		fmt.Printf("%%-*s", colWidths[col], col)
-	}
-	fmt.Println()
-
-	// Print separator line
-	totalWidth := 0
-	for i, col := range columns {
-		if i > 0 {
-			totalWidth += 3 // separator spacing
-		}
-		totalWidth += colWidths[col]
-	}
-	fmt.Println(strings.Repeat("-", totalWidth))
-
-	// Print data rows
-	for _, record := range allRecords {
-		for i, col := range columns {
-			if i > 0 {
-				fmt.Print("   ")
-			}
-
-			// Get value as any type
-			var strValue string
-			if value, exists := streamv3.Get[any](record, col); exists {
-				strValue = fmt.Sprintf("%%v", value)
-			} else {
-				strValue = ""
-			}
-
-			// Truncate if too long
-			if len(strValue) > %d {
-				strValue = strValue[:%d] + "..."
-			}
-
-			fmt.Printf("%%-*s", colWidths[col], strValue)
-		}
-		fmt.Println()
-	}
-`, inputVar, maxWidth, maxWidth, maxWidth, maxWidth-3))
+	// Generate simple call to DisplayTable
+	code := fmt.Sprintf("\tstreamv3.DisplayTable(%s, %d)\n", inputVar, maxWidth)
 
 	// Create final fragment (table is a sink - no output variable)
-	imports := []string{"fmt", "sort", "strings"}
-	frag := lib.NewFinalFragment(inputVar, code.String(), imports, getCommandString())
+	frag := lib.NewFinalFragment(inputVar, code, nil, getCommandString())
 	return lib.WriteCodeFragment(frag)
 }

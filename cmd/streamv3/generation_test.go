@@ -556,11 +556,9 @@ func TestTableGeneration(t *testing.T) {
 			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test table`,
 			wantStrs: []string{
 				`"type":"final"`,
-				`allRecords`,
-				`columnSet`,
-				`sort.Strings`,
-				`colWidths`,
-				`fmt.Printf`,
+				`streamv3.DisplayTable`,
+				`records`,
+				`50`,
 			},
 		},
 		{
@@ -568,8 +566,8 @@ func TestTableGeneration(t *testing.T) {
 			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test table -max-width 30`,
 			wantStrs: []string{
 				`"type":"final"`,
-				`colWidths[field] = 30`,
-				`strValue[:27]`,
+				`streamv3.DisplayTable`,
+				`30`,
 			},
 		},
 	}
