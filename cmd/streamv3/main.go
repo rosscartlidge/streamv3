@@ -1120,6 +1120,7 @@ func buildRootCommand() *cf.Command {
 
 			Handler(func(ctx *cf.Context) error {
 				var xField, yField, outputFile, inputFile string
+				var generate bool
 
 				if xVal, ok := ctx.GlobalFlags["-x"]; ok {
 					xField = xVal.(string)
@@ -1134,6 +1135,14 @@ func buildRootCommand() *cf.Command {
 				}
 				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 					inputFile = fileVal.(string)
+				}
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateChartCode(xField, yField, outputFile)
 				}
 
 				// Validate required fields
@@ -1162,6 +1171,12 @@ func buildRootCommand() *cf.Command {
 				fmt.Printf("Chart created: %s\n", outputFile)
 				return nil
 			}).
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
 
 			Flag("-x").
 				String().

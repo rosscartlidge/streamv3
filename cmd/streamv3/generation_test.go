@@ -241,3 +241,146 @@ func TestLimitOffsetSortDistinct(t *testing.T) {
 		})
 	}
 }
+
+// TestAllCommandsSupportGeneration ensures every command supports code generation
+// This is a critical test to prevent losing the generation feature
+func TestAllCommandsSupportGeneration(t *testing.T) {
+	// Build the binary
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	// Create test CSV file for commands that need input files
+	csvContent := "name,age,dept,salary\nAlice,30,Engineering,95000\nBob,25,Sales,75000\nCharlie,35,Engineering,105000\n"
+	tmpFile := "/tmp/test_all_commands.csv"
+	if err := os.WriteFile(tmpFile, []byte(csvContent), 0644); err != nil {
+		t.Fatalf("Failed to create test CSV: %v", err)
+	}
+	defer os.Remove(tmpFile)
+
+	tests := []struct {
+		name          string
+		cmdLine       string
+		expectFragment bool // false for commands that shouldn't generate (like generate-go)
+		wantSubstring string // substring to verify in generated code
+	}{
+		{
+			name:           "read-csv",
+			cmdLine:        "STREAMV3_GENERATE_GO=1 /tmp/streamv3_test read-csv " + tmpFile,
+			expectFragment: true,
+			wantSubstring:  `"type":"init"`,
+		},
+		{
+			name:           "where",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test where -match age gt 25`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.Where`,
+		},
+		{
+			name:           "limit",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test limit -n 10`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.Limit`,
+		},
+		{
+			name:           "offset",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test offset -n 5`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.Offset`,
+		},
+		{
+			name:           "sort",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test sort -field age`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.SortBy`,
+		},
+		{
+			name:           "distinct",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test distinct`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.DistinctBy`,
+		},
+		{
+			name:           "group-by",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test group-by -by dept -func count -result count`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.GroupByFields`,
+		},
+		{
+			name:           "write-csv",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test write-csv /tmp/out.csv`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.WriteCSV`,
+		},
+		{
+			name:           "chart",
+			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test chart -x age -y salary`,
+			expectFragment: true,
+			wantSubstring:  `streamv3.QuickChart`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil && tt.expectFragment {
+				// Some commands may error for other reasons, but should still generate
+				t.Logf("Command had error (may be ok): %v\nOutput: %s", err, output)
+			}
+
+			outputStr := string(output)
+
+			if tt.expectFragment {
+				// Verify it generates a code fragment (JSONL output)
+				if !strings.Contains(outputStr, `"type":`) {
+					t.Errorf("Command %q did not generate a code fragment.\nOutput: %s", tt.name, outputStr)
+				}
+
+				// Verify expected code appears in fragment
+				if !strings.Contains(outputStr, tt.wantSubstring) {
+					t.Errorf("Command %q fragment missing expected substring %q.\nOutput: %s",
+						tt.name, tt.wantSubstring, outputStr)
+				}
+			}
+		})
+	}
+}
+
+// TestChartGeneration specifically tests that chart generates code instead of creating HTML
+func TestChartGeneration(t *testing.T) {
+	// Build the binary
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	// Test that chart generates code when STREAMV3_GENERATE_GO=1
+	cmdLine := `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test chart -x z_kind -y count`
+	cmd := exec.Command("bash", "-c", cmdLine)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Command output: %s", output)
+	}
+
+	outputStr := string(output)
+
+	// Should generate a code fragment
+	if !strings.Contains(outputStr, `"type":"final"`) {
+		t.Errorf("Chart command did not generate a final fragment.\nOutput: %s", outputStr)
+	}
+
+	// Should contain QuickChart call
+	if !strings.Contains(outputStr, `streamv3.QuickChart`) {
+		t.Errorf("Chart fragment missing QuickChart call.\nOutput: %s", outputStr)
+	}
+
+	// Verify chart.html was NOT created (generation shouldn't execute)
+	if _, err := os.Stat("chart.html"); err == nil {
+		t.Error("chart.html file was created when it should only generate code")
+		os.Remove("chart.html") // Clean up
+	}
+}
