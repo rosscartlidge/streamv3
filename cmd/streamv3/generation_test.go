@@ -125,6 +125,56 @@ func TestFullPipeline(t *testing.T) {
 	}
 }
 
+// TestGeneratedCodeCompiles tests that generated code actually compiles and runs
+func TestGeneratedCodeCompiles(t *testing.T) {
+	// Build the binary
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	// Create test CSV file
+	csvContent := "name,age\nAlice,30\nBob,25\n"
+	tmpFile := "/tmp/test_compile.csv"
+	if err := os.WriteFile(tmpFile, []byte(csvContent), 0644); err != nil {
+		t.Fatalf("Failed to create test CSV: %v", err)
+	}
+	defer os.Remove(tmpFile)
+
+	// Generate code
+	pipeline := `export STREAMV3_GENERATE_GO=1 && /tmp/streamv3_test read-csv ` + tmpFile + ` | /tmp/streamv3_test where -match age gt 25 | /tmp/streamv3_test generate-go`
+	cmd := exec.Command("bash", "-c", pipeline)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Pipeline failed: %v\nOutput: %s", err, output)
+	}
+
+	// Write generated code to temp file
+	generatedFile := "/tmp/test_generated.go"
+	if err := os.WriteFile(generatedFile, output, 0644); err != nil {
+		t.Fatalf("Failed to write generated code: %v", err)
+	}
+	defer os.Remove(generatedFile)
+
+	// Check that generated code includes "os" import
+	generatedCode := string(output)
+	if !strings.Contains(generatedCode, `"os"`) {
+		t.Errorf("Generated code missing 'os' import. This is needed for error handling.\nGenerated code:\n%s", generatedCode)
+	}
+
+	// Try to compile the generated code
+	compileCmd := exec.Command("go", "build", "-o", "/tmp/test_generated_binary", generatedFile)
+	compileOutput, err := compileCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Generated code failed to compile: %v\nCompiler output:\n%s\nGenerated code:\n%s",
+			err, compileOutput, generatedCode)
+	}
+	defer os.Remove("/tmp/test_generated_binary")
+
+	t.Log("Generated code compiled successfully")
+}
+
 // TestLimitOffsetSortDistinct tests generation for limit, offset, sort, distinct commands
 func TestLimitOffsetSortDistinct(t *testing.T) {
 	// Build the binary

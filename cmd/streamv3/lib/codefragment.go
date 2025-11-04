@@ -192,6 +192,15 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 		importSet["fmt"] = true
 	}
 
+	// If any init fragments have error handling (contain "return fmt.Errorf"), we need os
+	for _, frag := range initFragments {
+		if findString(frag.Code, "return fmt.Errorf") != -1 {
+			importSet["os"] = true
+			importSet["fmt"] = true
+			break
+		}
+	}
+
 	for _, frag := range fragments {
 		for _, imp := range frag.Imports {
 			if imp != "" {
