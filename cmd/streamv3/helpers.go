@@ -950,6 +950,8 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	// Generate Update code with conditional clauses
 	var codeBody strings.Builder
 	needsTime := false
+	needsStrings := false
+	needsRegexp := false
 
 	codeBody.WriteString("\t\tfrozen := mut.Freeze()\n\n")
 
@@ -970,11 +972,15 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 				if j > 0 {
 					codeBody.WriteString(" && ")
 				}
-				codeBody.WriteString(fmt.Sprintf("streamv3.GetOr(frozen, %q, %s) %s %s",
-					cond.field,
-					getDefaultValueForComparison(cond.value),
-					getOperatorCode(cond.op),
-					getComparisonValue(cond.value)))
+				codeBody.WriteString(generateConditionCode(cond.field, cond.op, cond.value))
+
+				// Track which imports are needed
+				switch cond.op {
+				case "contains", "startswith", "endswith":
+					needsStrings = true
+				case "pattern", "regexp", "regex":
+					needsRegexp = true
+				}
 			}
 			codeBody.WriteString(" {\n")
 			indent = "\t\t\t"
@@ -1027,10 +1033,49 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	if needsTime {
 		imports = append(imports, "time")
 	}
+	if needsStrings {
+		imports = append(imports, "strings")
+	}
+	if needsRegexp {
+		imports = append(imports, "regexp")
+	}
 
 	// Create and write fragment
 	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports, getCommandString())
 	return lib.WriteCodeFragment(frag)
+}
+
+// generateConditionCode generates the Go code for a single condition check
+func generateConditionCode(field, op, value string) string {
+	switch op {
+	case "eq":
+		return fmt.Sprintf("streamv3.GetOr(frozen, %q, %s) == %s",
+			field, getDefaultValueForComparison(value), getComparisonValue(value))
+	case "ne":
+		return fmt.Sprintf("streamv3.GetOr(frozen, %q, %s) != %s",
+			field, getDefaultValueForComparison(value), getComparisonValue(value))
+	case "gt", "ge", "lt", "le":
+		// Numeric comparisons
+		return fmt.Sprintf("streamv3.GetOr(frozen, %q, float64(0)) %s %s",
+			field, getOperatorCode(op), getComparisonValue(value))
+	case "contains":
+		return fmt.Sprintf("strings.Contains(streamv3.GetOr(frozen, %q, \"\"), %s)",
+			field, getComparisonValue(value))
+	case "startswith":
+		return fmt.Sprintf("strings.HasPrefix(streamv3.GetOr(frozen, %q, \"\"), %s)",
+			field, getComparisonValue(value))
+	case "endswith":
+		return fmt.Sprintf("strings.HasSuffix(streamv3.GetOr(frozen, %q, \"\"), %s)",
+			field, getComparisonValue(value))
+	case "pattern", "regexp", "regex":
+		// For regexp, we need to compile the pattern
+		return fmt.Sprintf("regexp.MustCompile(%s).MatchString(streamv3.GetOr(frozen, %q, \"\"))",
+			getComparisonValue(value), field)
+	default:
+		// Fallback to equality
+		return fmt.Sprintf("streamv3.GetOr(frozen, %q, %s) == %s",
+			field, getDefaultValueForComparison(value), getComparisonValue(value))
+	}
 }
 
 // getDefaultValueForComparison returns the default value for GetOr based on the comparison value's type
