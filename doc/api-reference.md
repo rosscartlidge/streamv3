@@ -418,6 +418,46 @@ Transforms each element using the provided function (SQL SELECT equivalent).
 doubled := streamv3.Select(func(x int) int { return x * 2 })(numbers)
 ```
 
+### Update
+```go
+func Update(fn func(MutableRecord) MutableRecord) Filter[Record, Record]
+```
+Convenience wrapper around Select for updating record fields. Automatically handles `ToMutable()` and `Freeze()` boilerplate, making field updates more concise.
+
+**Example - Update single field:**
+```go
+updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+    return mut.String("status", "processed")
+})(records)
+```
+
+**Example - Update multiple fields:**
+```go
+updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+    return mut.
+        String("status", "active").
+        Time("updated_at", time.Now())
+})(records)
+```
+
+**Example - Computed field:**
+```go
+updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+    frozen := mut.Freeze()
+    price := streamv3.GetOr(frozen, "price", float64(0))
+    qty := streamv3.GetOr(frozen, "quantity", int64(0))
+    return mut.Float("total", price * float64(qty))
+})(records)
+```
+
+**Equivalent without Update:**
+```go
+// More verbose - need explicit ToMutable() and Freeze()
+updated := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+    return r.ToMutable().String("status", "processed").Freeze()
+})(records)
+```
+
 ### SelectSafe[T, U]
 ```go
 func SelectSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U]

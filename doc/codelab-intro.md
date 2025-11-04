@@ -200,6 +200,68 @@ record := streamv3.MakeMutableRecord().
     Freeze()
 ```
 
+### Updating Record Fields
+
+Need to modify existing records? The `Update` helper eliminates boilerplate:
+
+```go
+package main
+
+import (
+    "fmt"
+    "slices"
+    "github.com/rosscartlidge/streamv3"
+)
+
+func main() {
+    // Create some records
+    people := []streamv3.Record{
+        streamv3.MakeMutableRecord().String("name", "Alice").String("status", "pending").Freeze(),
+        streamv3.MakeMutableRecord().String("name", "Bob").String("status", "pending").Freeze(),
+    }
+
+    // Update status field for all records
+    processed := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+        return mut.String("status", "processed")
+    })(slices.Values(people))
+
+    for person := range processed {
+        name := streamv3.GetOr(person, "name", "")
+        status := streamv3.GetOr(person, "status", "")
+        fmt.Printf("%s: %s\n", name, status)
+    }
+    // Output:
+    // Alice: processed
+    // Bob: processed
+}
+```
+
+**Why use Update?** It's cleaner than `Select`:
+
+```go
+// Without Update - verbose
+updated := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+    return r.ToMutable().String("status", "processed").Freeze()
+})(people)
+
+// With Update - concise
+updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+    return mut.String("status", "processed")
+})(people)
+```
+
+**Adding computed fields** is easy too:
+
+```go
+// Add total = price * quantity
+withTotals := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+    frozen := mut.Freeze()  // Freeze to read values
+    price := streamv3.GetOr(frozen, "price", 0.0)
+    qty := streamv3.GetOr(frozen, "quantity", int64(0))
+    return mut.Float("total", price * float64(qty))
+})(orders)
+```
+
 > 📚 **Reference**: See [Helper Functions](api-reference.md#helper-functions) for Record access utilities.
 
 ---
