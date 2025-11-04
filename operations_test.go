@@ -53,6 +53,178 @@ func TestSelectSafe(t *testing.T) {
 	}
 }
 
+func TestUpdate(t *testing.T) {
+	// Create test records
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["age"] = int64(30)
+	r1.fields["status"] = "pending"
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["age"] = int64(25)
+	r2.fields["status"] = "pending"
+
+	input := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
+
+	// Update status field to "processed"
+	filter := Update(func(mut MutableRecord) MutableRecord {
+		return mut.String("status", "processed")
+	})
+
+	result := slices.Collect(filter(input))
+
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 records, got %d", len(result))
+	}
+
+	// Check that status was updated
+	if GetOr(result[0], "status", "") != "processed" {
+		t.Errorf("Expected status='processed', got '%s'", GetOr(result[0], "status", ""))
+	}
+	if GetOr(result[1], "status", "") != "processed" {
+		t.Errorf("Expected status='processed', got '%s'", GetOr(result[1], "status", ""))
+	}
+
+	// Check that other fields are unchanged
+	if GetOr(result[0], "name", "") != "Alice" {
+		t.Errorf("Expected name='Alice', got '%s'", GetOr(result[0], "name", ""))
+	}
+	if GetOr(result[0], "age", int64(0)) != int64(30) {
+		t.Errorf("Expected age=30, got %d", GetOr(result[0], "age", int64(0)))
+	}
+}
+
+func TestUpdateMultipleFields(t *testing.T) {
+	r := MakeMutableRecord()
+	r.fields["name"] = "Alice"
+	r.fields["age"] = int64(30)
+
+	input := slices.Values([]Record{r.Freeze()})
+
+	// Update multiple fields with chaining
+	filter := Update(func(mut MutableRecord) MutableRecord {
+		return mut.
+			String("status", "active").
+			Int("score", int64(100))
+	})
+
+	result := slices.Collect(filter(input))
+
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 record, got %d", len(result))
+	}
+
+	// Check all fields
+	if GetOr(result[0], "name", "") != "Alice" {
+		t.Errorf("Expected name='Alice', got '%s'", GetOr(result[0], "name", ""))
+	}
+	if GetOr(result[0], "status", "") != "active" {
+		t.Errorf("Expected status='active', got '%s'", GetOr(result[0], "status", ""))
+	}
+	if GetOr(result[0], "score", int64(0)) != int64(100) {
+		t.Errorf("Expected score=100, got %d", GetOr(result[0], "score", int64(0)))
+	}
+}
+
+func TestUpdateComputedField(t *testing.T) {
+	r1 := MakeMutableRecord()
+	r1.fields["price"] = float64(10.0)
+	r1.fields["quantity"] = int64(5)
+
+	r2 := MakeMutableRecord()
+	r2.fields["price"] = float64(20.0)
+	r2.fields["quantity"] = int64(3)
+
+	input := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
+
+	// Add computed "total" field
+	filter := Update(func(mut MutableRecord) MutableRecord {
+		frozen := mut.Freeze()
+		price := GetOr(frozen, "price", float64(0))
+		qty := GetOr(frozen, "quantity", int64(0))
+		return mut.Float("total", price*float64(qty))
+	})
+
+	result := slices.Collect(filter(input))
+
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 records, got %d", len(result))
+	}
+
+	// Check computed totals
+	if GetOr(result[0], "total", float64(0)) != float64(50.0) {
+		t.Errorf("Expected total=50.0, got %f", GetOr(result[0], "total", float64(0)))
+	}
+	if GetOr(result[1], "total", float64(0)) != float64(60.0) {
+		t.Errorf("Expected total=60.0, got %f", GetOr(result[1], "total", float64(0)))
+	}
+}
+
+func TestUpdateConditional(t *testing.T) {
+	r1 := MakeMutableRecord()
+	r1.fields["name"] = "Alice"
+	r1.fields["age"] = int64(30)
+
+	r2 := MakeMutableRecord()
+	r2.fields["name"] = "Bob"
+	r2.fields["age"] = int64(17)
+
+	input := slices.Values([]Record{r1.Freeze(), r2.Freeze()})
+
+	// Conditionally set category based on age
+	filter := Update(func(mut MutableRecord) MutableRecord {
+		frozen := mut.Freeze()
+		age := GetOr(frozen, "age", int64(0))
+		if age >= 18 {
+			return mut.String("category", "adult")
+		}
+		return mut.String("category", "minor")
+	})
+
+	result := slices.Collect(filter(input))
+
+	if len(result) != 2 {
+		t.Fatalf("Expected 2 records, got %d", len(result))
+	}
+
+	// Check categories
+	if GetOr(result[0], "category", "") != "adult" {
+		t.Errorf("Expected category='adult', got '%s'", GetOr(result[0], "category", ""))
+	}
+	if GetOr(result[1], "category", "") != "minor" {
+		t.Errorf("Expected category='minor', got '%s'", GetOr(result[1], "category", ""))
+	}
+}
+
+func TestUpdateImmutability(t *testing.T) {
+	r := MakeMutableRecord()
+	r.fields["name"] = "Alice"
+	r.fields["status"] = "pending"
+	original := r.Freeze()
+
+	input := slices.Values([]Record{original})
+
+	// Update status
+	filter := Update(func(mut MutableRecord) MutableRecord {
+		return mut.String("status", "processed")
+	})
+
+	result := slices.Collect(filter(input))
+
+	// Verify original record is unchanged
+	if GetOr(original, "status", "") != "pending" {
+		t.Errorf("Original record was mutated! Expected status='pending', got '%s'",
+			GetOr(original, "status", ""))
+	}
+
+	// Verify result has updated value
+	if GetOr(result[0], "status", "") != "processed" {
+		t.Errorf("Expected updated status='processed', got '%s'",
+			GetOr(result[0], "status", ""))
+	}
+}
+
 func TestSelectMany(t *testing.T) {
 	// Expand each number into a sequence of numbers from 1 to n
 	input := slices.Values([]int{2, 3})

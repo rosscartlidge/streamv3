@@ -45,6 +45,58 @@ func Select[T, U any](fn func(T) U) Filter[T, U] {
 	}
 }
 
+// Update transforms records by applying mutations via MutableRecord.
+// The function receives a mutable copy of each record and should return
+// the mutated record (which will be frozen before yielding).
+//
+// This is a convenience wrapper around Select that handles the
+// ToMutable() and Freeze() boilerplate, making field updates more concise.
+//
+// Example - Update single field:
+//
+//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	    return mut.String("status", "processed")
+//	})(records)
+//
+// Example - Update multiple fields with chaining:
+//
+//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	    return mut.
+//	        String("status", "processed").
+//	        Time("updated_at", time.Now())
+//	})(records)
+//
+// Example - Computed field update:
+//
+//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	    frozen := mut.Freeze()
+//	    price := streamv3.GetOr(frozen, "price", float64(0))
+//	    qty := streamv3.GetOr(frozen, "quantity", int64(0))
+//	    return mut.Float("total", price * float64(qty))
+//	})(records)
+//
+// Example - Conditional update:
+//
+//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	    frozen := mut.Freeze()
+//	    if streamv3.GetOr(frozen, "age", int64(0)) >= 18 {
+//	        return mut.String("category", "adult")
+//	    }
+//	    return mut.String("category", "minor")
+//	})(records)
+//
+// Equivalent to:
+//
+//	Select(func(r Record) Record {
+//	    return r.ToMutable().String("status", "processed").Freeze()
+//	})
+func Update(fn func(MutableRecord) MutableRecord) Filter[Record, Record] {
+	return Select(func(r Record) Record {
+		mut := r.ToMutable()
+		return fn(mut).Freeze()
+	})
+}
+
 // SelectSafe transforms each element with error handling (SQL SELECT with errors)
 func SelectSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U] {
 	return func(input iter.Seq2[T, error]) iter.Seq2[U, error] {
