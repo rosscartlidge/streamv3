@@ -1160,3 +1160,161 @@ func generateTableCode(maxWidth int) error {
 	frag := lib.NewFinalFragment(inputVar, code, nil, getCommandString())
 	return lib.WriteCodeFragment(frag)
 }
+
+// generateIncludeCode generates Go code for the include command
+func generateIncludeCode(fields []string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate field list
+	var fieldsList strings.Builder
+	fieldsList.WriteString("[]string{")
+	for i, field := range fields {
+		if i > 0 {
+			fieldsList.WriteString(", ")
+		}
+		fieldsList.WriteString(fmt.Sprintf("%q", field))
+	}
+	fieldsList.WriteString("}")
+
+	// Generate code
+	outputVar := "included"
+	code := fmt.Sprintf(`%s := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+		fields := %s
+		mut := streamv3.MakeMutableRecord()
+		for _, field := range fields {
+			if val, ok := streamv3.Get[any](r, field); ok {
+				mut = mut.SetAny(field, val)
+			}
+		}
+		return mut.Freeze()
+	})(%s)`, outputVar, fieldsList.String(), inputVar)
+
+	// Create stmt fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}
+
+// generateExcludeCode generates Go code for the exclude command
+func generateExcludeCode(fields []string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate excluded map
+	var excludedMap strings.Builder
+	excludedMap.WriteString("map[string]bool{")
+	for i, field := range fields {
+		if i > 0 {
+			excludedMap.WriteString(", ")
+		}
+		excludedMap.WriteString(fmt.Sprintf("%q: true", field))
+	}
+	excludedMap.WriteString("}")
+
+	// Generate code
+	outputVar := "excluded"
+	code := fmt.Sprintf(`%s := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+		excluded := %s
+		mut := streamv3.MakeMutableRecord()
+		for k, v := range r.All() {
+			if !excluded[k] {
+				mut = mut.SetAny(k, v)
+			}
+		}
+		return mut.Freeze()
+	})(%s)`, outputVar, excludedMap.String(), inputVar)
+
+	// Create stmt fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}
+
+// generateRenameCode generates Go code for the rename command
+func generateRenameCode(renames []struct{ oldField, newField string }) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate rename map
+	var renameMap strings.Builder
+	renameMap.WriteString("map[string]string{")
+	for i, r := range renames {
+		if i > 0 {
+			renameMap.WriteString(", ")
+		}
+		renameMap.WriteString(fmt.Sprintf("%q: %q", r.oldField, r.newField))
+	}
+	renameMap.WriteString("}")
+
+	// Generate code
+	outputVar := "renamed"
+	code := fmt.Sprintf(`%s := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+		renames := %s
+		mut := streamv3.MakeMutableRecord()
+		for k, v := range r.All() {
+			if newName, ok := renames[k]; ok {
+				mut = mut.SetAny(newName, v)
+			} else {
+				mut = mut.SetAny(k, v)
+			}
+		}
+		return mut.Freeze()
+	})(%s)`, outputVar, renameMap.String(), inputVar)
+
+	// Create stmt fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}

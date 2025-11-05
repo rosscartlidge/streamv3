@@ -897,6 +897,256 @@ func buildRootCommand() *cf.Command {
 
 			Done().
 
+		// Subcommand: include
+		Subcommand("include").
+			Description("Include only specified fields").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("FIELDS").
+				String().
+				Variadic().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("Fields to include").
+				Done().
+
+			Handler(func(ctx *cf.Context) error {
+				var generate bool
+				var fields []string
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				if fieldsVal, ok := ctx.GlobalFlags["FIELDS"]; ok {
+					switch v := fieldsVal.(type) {
+					case []string:
+						fields = v
+					case []any:
+						for _, item := range v {
+							if s, ok := item.(string); ok {
+								fields = append(fields, s)
+							}
+						}
+					case string:
+						fields = []string{v}
+					}
+				}
+
+				if len(fields) == 0 {
+					return fmt.Errorf("no fields specified")
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateIncludeCode(fields)
+				}
+
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
+
+				// Build inclusion function
+				includer := func(r streamv3.Record) streamv3.Record {
+					result := streamv3.MakeMutableRecord()
+					for _, field := range fields {
+						if val, exists := streamv3.Get[any](r, field); exists {
+							result = result.SetAny(field, val)
+						}
+					}
+					return result.Freeze()
+				}
+
+				// Apply inclusion
+				included := streamv3.Select(includer)(records)
+
+				// Write output as JSONL
+				if err := lib.WriteJSONL(os.Stdout, included); err != nil {
+					return fmt.Errorf("writing output: %w", err)
+				}
+
+				return nil
+			}).
+
+			Done().
+
+		// Subcommand: exclude
+		Subcommand("exclude").
+			Description("Exclude specified fields").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("FIELDS").
+				String().
+				Variadic().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("Fields to exclude").
+				Done().
+
+			Handler(func(ctx *cf.Context) error {
+				var generate bool
+				var fields []string
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				if fieldsVal, ok := ctx.GlobalFlags["FIELDS"]; ok {
+					switch v := fieldsVal.(type) {
+					case []string:
+						fields = v
+					case []any:
+						for _, item := range v {
+							if s, ok := item.(string); ok {
+								fields = append(fields, s)
+							}
+						}
+					case string:
+						fields = []string{v}
+					}
+				}
+
+				if len(fields) == 0 {
+					return fmt.Errorf("no fields specified")
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateExcludeCode(fields)
+				}
+
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
+
+				// Build exclusion map
+				excluded := make(map[string]bool)
+				for _, field := range fields {
+					excluded[field] = true
+				}
+
+				// Build exclusion function
+				excluder := func(r streamv3.Record) streamv3.Record {
+					result := streamv3.MakeMutableRecord()
+					for k, v := range r.All() {
+						if !excluded[k] {
+							result = result.SetAny(k, v)
+						}
+					}
+					return result.Freeze()
+				}
+
+				// Apply exclusion
+				excludedRecords := streamv3.Select(excluder)(records)
+
+				// Write output as JSONL
+				if err := lib.WriteJSONL(os.Stdout, excludedRecords); err != nil {
+					return fmt.Errorf("writing output: %w", err)
+				}
+
+				return nil
+			}).
+
+			Done().
+
+		// Subcommand: rename
+		Subcommand("rename").
+			Description("Rename fields").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("-as").
+				Arg("old-field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
+				Arg("new-field").Completer(cf.NoCompleter{Hint: "<new-name>"}).Done().
+				Accumulate().
+				Global().
+				Help("Rename old-field to new-field").
+				Done().
+
+			Handler(func(ctx *cf.Context) error {
+				var generate bool
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Extract rename mappings from -as flags
+				var renames []struct{ oldField, newField string }
+				if asVal, ok := ctx.GlobalFlags["-as"]; ok {
+					asSlice, ok := asVal.([]any)
+					if !ok {
+						return fmt.Errorf("invalid -as flag format")
+					}
+					for _, item := range asSlice {
+						asMap, ok := item.(map[string]any)
+						if !ok {
+							return fmt.Errorf("invalid -as flag: expected map format")
+						}
+						oldField, _ := asMap["old-field"].(string)
+						newField, _ := asMap["new-field"].(string)
+						if oldField == "" || newField == "" {
+							return fmt.Errorf("invalid -as flag: both old-field and new-field are required")
+						}
+						renames = append(renames, struct{ oldField, newField string }{oldField, newField})
+					}
+				}
+
+				if len(renames) == 0 {
+					return fmt.Errorf("no renames specified")
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateRenameCode(renames)
+				}
+
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
+
+				// Build rename map
+				renameMap := make(map[string]string)
+				for _, r := range renames {
+					renameMap[r.oldField] = r.newField
+				}
+
+				// Build renamer function
+				renamer := func(r streamv3.Record) streamv3.Record {
+					result := streamv3.MakeMutableRecord()
+					for k, v := range r.All() {
+						if newName, ok := renameMap[k]; ok {
+							result = result.SetAny(newName, v)
+						} else {
+							result = result.SetAny(k, v)
+						}
+					}
+					return result.Freeze()
+				}
+
+				// Apply rename
+				renamed := streamv3.Select(renamer)(records)
+
+				// Write output as JSONL
+				if err := lib.WriteJSONL(os.Stdout, renamed); err != nil {
+					return fmt.Errorf("writing output: %w", err)
+				}
+
+				return nil
+			}).
+
+			Done().
+
 		// Subcommand: group-by
 		Subcommand("group-by").
 			Description("Group records by fields and apply aggregations").

@@ -590,3 +590,166 @@ func TestTableGeneration(t *testing.T) {
 		})
 	}
 }
+
+// TestIncludeGeneration tests code generation for the include command
+func TestIncludeGeneration(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string
+	}{
+		{
+			name:    "include basic",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test include name age`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`"var":"included"`,
+				`streamv3.Select`,
+				`[]string{\"name\", \"age\"}`,
+			},
+		},
+		{
+			name:    "include multiple fields",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test include field1 field2 field3`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`"var":"included"`,
+				`[]string{\"field1\", \"field2\", \"field3\"}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}
+
+// TestExcludeGeneration tests code generation for the exclude command
+func TestExcludeGeneration(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string
+	}{
+		{
+			name:    "exclude basic",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test exclude salary city`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`"var":"excluded"`,
+				`streamv3.Select`,
+				`map[string]bool{\"salary\": true, \"city\": true}`,
+			},
+		},
+		{
+			name:    "exclude multiple fields",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test exclude field1 field2 field3`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`"var":"excluded"`,
+				`\"field1\": true`,
+				`\"field2\": true`,
+				`\"field3\": true`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}
+
+// TestRenameGeneration tests code generation for the rename command
+func TestRenameGeneration(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string
+	}{
+		{
+			name:    "rename basic",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test rename -as name full_name -as age years`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`"var":"renamed"`,
+				`streamv3.Select`,
+				`map[string]string{`,
+				`\"name\": \"full_name\"`,
+				`\"age\": \"years\"`,
+			},
+		},
+		{
+			name:    "rename single field",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test rename -as old new`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`"var":"renamed"`,
+				`\"old\": \"new\"`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}
