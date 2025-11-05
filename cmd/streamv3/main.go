@@ -530,8 +530,8 @@ func buildRootCommand() *cf.Command {
 				String().
 				Completer(&cf.FileCompleter{Pattern: "*.json,*.jsonl"}).
 				Global().
-				Required().
-				Help("Output JSON/JSONL file").
+				Default("").
+				Help("Output JSON/JSONL file (or stdout if not specified)").
 				Done().
 
 			Handler(func(ctx *cf.Context) error {
@@ -541,8 +541,6 @@ func buildRootCommand() *cf.Command {
 
 				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 					outputFile = fileVal.(string)
-				} else {
-					return fmt.Errorf("FILE is required")
 				}
 
 				if prettyVal, ok := ctx.GlobalFlags["-pretty"]; ok {
@@ -561,15 +559,17 @@ func buildRootCommand() *cf.Command {
 				// Read JSONL from stdin
 				records := lib.ReadJSONL(os.Stdin)
 
-				// Open output file
-				output, err := lib.OpenOutput(outputFile)
-				if err != nil {
-					return err
+				// Write to stdout or file
+				if outputFile == "" {
+					return lib.WriteJSON(os.Stdout, records, pretty)
+				} else {
+					output, err := lib.OpenOutput(outputFile)
+					if err != nil {
+						return err
+					}
+					defer output.Close()
+					return lib.WriteJSON(output, records, pretty)
 				}
-				defer output.Close()
-
-				// Write as JSON
-				return lib.WriteJSON(output, records, pretty)
 			}).
 
 			Done().

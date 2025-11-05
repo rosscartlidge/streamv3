@@ -1359,19 +1359,54 @@ func generateWriteJSONCode(filename string, pretty bool) error {
 	}
 
 	var code string
-	if pretty {
-		code = fmt.Sprintf(`	if err := streamv3.WriteJSONPretty(%s, %q); err != nil {
+	if filename == "" {
+		// Write to stdout
+		if pretty {
+			code = fmt.Sprintf(`	// Collect and pretty-print records to stdout
+	var recordMaps []map[string]interface{}
+	for record := range %s {
+		data := make(map[string]interface{})
+		for k, v := range record.All() {
+			data[k] = v
+		}
+		recordMaps = append(recordMaps, data)
+	}
+	jsonBytes, err := json.MarshalIndent(recordMaps, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %%v\n", err)
+		os.Exit(1)
+	}
+	if _, err := os.Stdout.Write(jsonBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
 		os.Exit(1)
-	}`, inputVar, filename)
+	}
+	os.Stdout.Write([]byte("\n"))`, inputVar)
+		} else {
+			code = fmt.Sprintf(`	if err := streamv3.WriteJSONToWriter(%s, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}`, inputVar)
+		}
 	} else {
-		code = fmt.Sprintf(`	if err := streamv3.WriteJSON(%s, %q); err != nil {
+		// Write to file
+		if pretty {
+			code = fmt.Sprintf(`	if err := streamv3.WriteJSONPretty(%s, %q); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
 		os.Exit(1)
 	}`, inputVar, filename)
+		} else {
+			code = fmt.Sprintf(`	if err := streamv3.WriteJSON(%s, %q); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}`, inputVar, filename)
+		}
 	}
 
 	imports := []string{"fmt", "os"}
+	// Add encoding/json import if pretty printing to stdout
+	if filename == "" && pretty {
+		imports = append(imports, "encoding/json")
+	}
 	frag := lib.NewFinalFragment(inputVar, code, imports, getCommandString())
 	return lib.WriteCodeFragment(frag)
 }
