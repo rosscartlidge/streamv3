@@ -601,7 +601,7 @@ func generateDistinctCode() error {
 }
 
 // generateGroupByCode generates Go code for the group-by command
-func generateGroupByCode(ctx *cf.Context, byField string) error {
+func generateGroupByCode(ctx *cf.Context, groupByFields []string) error {
 	// Read all previous code fragments from stdin (if any)
 	fragments, err := lib.ReadAllCodeFragments()
 	if err != nil {
@@ -623,11 +623,10 @@ func generateGroupByCode(ctx *cf.Context, byField string) error {
 		inputVar = "records"
 	}
 
-	// Get group-by field from config (it's global)
-	if byField == "" {
+	// Validate group-by fields
+	if len(groupByFields) == 0 {
 		return fmt.Errorf("no group-by field specified (use -by)")
 	}
-	groupByFields := []string{byField}
 
 	// Parse aggregation specifications from clauses
 	type aggSpec struct {

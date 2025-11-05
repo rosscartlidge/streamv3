@@ -1277,11 +1277,12 @@ func buildRootCommand() *cf.Command {
 				Help("Generate Go code instead of executing").
 				Done().
 
-			Flag("-by", "-b").
+			Flag("FIELDS").
 				String().
+				Variadic().
 				Completer(cf.NoCompleter{Hint: "<field-name>"}).
 				Global().
-				Help("Field to group by").
+				Help("Fields to group by").
 				Done().
 
 			Flag("-function", "-func").
@@ -1305,41 +1306,38 @@ func buildRootCommand() *cf.Command {
 				Help("Output field name").
 				Done().
 
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.csv"}).
-				Global().
-				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
-				Done().
-
 			Handler(func(ctx *cf.Context) error {
-				var inputFile string
-				var byField string
+				var groupByFields []string
 				var generate bool
 
-				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
-					inputFile = fileVal.(string)
-				}
-
-				if byVal, ok := ctx.GlobalFlags["-by"]; ok {
-					byField = byVal.(string)
+				// Extract group-by fields from variadic positional
+				if fieldsVal, ok := ctx.GlobalFlags["FIELDS"]; ok {
+					switch v := fieldsVal.(type) {
+					case []string:
+						groupByFields = v
+					case []any:
+						for _, item := range v {
+							if s, ok := item.(string); ok {
+								groupByFields = append(groupByFields, s)
+							}
+						}
+					case string:
+						groupByFields = []string{v}
+					}
 				}
 
 				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
 					generate = genVal.(bool)
 				}
 
-				if byField == "" {
-					return fmt.Errorf("no group-by field specified (use -by)")
+				if len(groupByFields) == 0 {
+					return fmt.Errorf("no group-by fields specified")
 				}
 
 				// Check if generation is enabled (flag or env var)
 				if shouldGenerate(generate) {
-					return generateGroupByCode(ctx, byField)
+					return generateGroupByCode(ctx, groupByFields)
 				}
-
-				groupByFields := []string{byField}
 
 				// Parse aggregation specifications from clauses
 				type aggSpec struct {
@@ -1391,14 +1389,8 @@ func buildRootCommand() *cf.Command {
 					return fmt.Errorf("no aggregations specified (use -function and -result)")
 				}
 
-				// Read JSONL from stdin or file
-				input, err := lib.OpenInput(inputFile)
-				if err != nil {
-					return err
-				}
-				defer input.Close()
-
-				records := lib.ReadJSONL(input)
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
 
 				// Apply GroupByFields
 				grouped := streamv3.GroupByFields("_group", groupByFields...)(records)
