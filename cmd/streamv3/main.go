@@ -456,7 +456,7 @@ func buildRootCommand() *cf.Command {
 
 		// Subcommand: read-json
 		Subcommand("read-json").
-			Description("Read JSON or JSONL file and output JSONL stream").
+			Description("Read JSON array or JSONL file (auto-detects format)").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -512,7 +512,7 @@ func buildRootCommand() *cf.Command {
 
 		// Subcommand: write-json
 		Subcommand("write-json").
-			Description("Read JSONL stream and write as JSON or JSONL file").
+			Description("Write as JSONL (default) or pretty JSON array (-pretty)").
 
 			Flag("-generate", "-g").
 				Bool().
