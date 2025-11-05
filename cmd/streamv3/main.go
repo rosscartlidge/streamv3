@@ -466,7 +466,7 @@ func buildRootCommand() *cf.Command {
 
 			Flag("FILE").
 				String().
-				Completer(&cf.FileCompleter{Pattern: "*.json,*.jsonl"}).
+				Completer(&cf.FileCompleter{Pattern: "*.{json,jsonl}"}).
 				Global().
 				Required().
 				Help("Input JSON/JSONL file").
@@ -528,7 +528,7 @@ func buildRootCommand() *cf.Command {
 
 			Flag("FILE").
 				String().
-				Completer(&cf.FileCompleter{Pattern: "*.json,*.jsonl"}).
+				Completer(&cf.FileCompleter{Pattern: "*.{json,jsonl}"}).
 				Global().
 				Default("").
 				Help("Output JSON/JSONL file (or stdout if not specified)").
