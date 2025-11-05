@@ -1318,3 +1318,60 @@ func generateRenameCode(renames []struct{ oldField, newField string }) error {
 	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
 	return lib.WriteCodeFragment(frag)
 }
+
+// generateReadJSONCode generates Go code for the read-json command
+func generateReadJSONCode(filename string) error {
+	// No previous fragments for init command
+	outputVar := "records"
+	imports := []string{"fmt", "os"}
+
+	code := fmt.Sprintf(`records, err := streamv3.ReadJSONAuto(%q)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %%v\n", fmt.Errorf("reading JSON: %%w", err))
+		os.Exit(1)
+	}`, filename)
+
+	frag := lib.NewInitFragment(outputVar, code, imports, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}
+
+// generateWriteJSONCode generates Go code for the write-json command
+func generateWriteJSONCode(filename string, pretty bool) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	var code string
+	if pretty {
+		code = fmt.Sprintf(`	if err := streamv3.WriteJSONPretty(%s, %q); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}`, inputVar, filename)
+	} else {
+		code = fmt.Sprintf(`	if err := streamv3.WriteJSON(%s, %q); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}`, inputVar, filename)
+	}
+
+	imports := []string{"fmt", "os"}
+	frag := lib.NewFinalFragment(inputVar, code, imports, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}

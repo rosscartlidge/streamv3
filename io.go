@@ -2,6 +2,7 @@ package streamv3
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -1344,5 +1345,115 @@ func FromChannelSafe[T any](itemCh <-chan T, errCh <-chan error) iter.Seq2[T, er
 				}
 			}
 		}
+	}
+}
+// ReadJSONAuto reads JSON from a file, auto-detecting JSON array vs JSONL format
+func ReadJSONAuto(filename string) (iter.Seq[Record], error) {
+	// Read all file content to detect format
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
+	}
+
+	// Trim whitespace
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 {
+		// Return empty sequence
+		return func(yield func(Record) bool) {}, nil
+	}
+
+	// Check if it starts with '[' (JSON array)
+	if data[0] == '[' {
+		// Parse as JSON array
+		var records []map[string]interface{}
+		if err := json.Unmarshal(data, &records); err != nil {
+			return nil, fmt.Errorf("failed to parse JSON array: %w", err)
+		}
+
+		return func(yield func(Record) bool) {
+			for _, rec := range records {
+				record := MakeMutableRecord()
+				for k, v := range rec {
+					record = record.SetAny(k, convertJSONValue(v))
+				}
+				if !yield(record.Freeze()) {
+					return
+				}
+			}
+		}, nil
+	}
+
+	// Otherwise parse as JSONL
+	return ReadJSON(filename)
+}
+
+// WriteJSONPretty writes records as a pretty-printed JSON array
+func WriteJSONPretty(sb iter.Seq[Record], filename string) error {
+	// Collect all records
+	var recordMaps []map[string]interface{}
+	for record := range sb {
+		data := make(map[string]interface{})
+		for k, v := range record.All() {
+			data[k] = convertRecordValueForJSON(v)
+		}
+		recordMaps = append(recordMaps, data)
+	}
+
+	// Marshal as pretty JSON
+	jsonBytes, err := json.MarshalIndent(recordMaps, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(filename, append(jsonBytes, '\n'), 0644); err != nil {
+		return fmt.Errorf("failed to write file %s: %w", filename, err)
+	}
+
+	return nil
+}
+
+// convertJSONValue converts JSON values to StreamV3 canonical types
+func convertJSONValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case float64:
+		// JSON numbers are always float64
+		// Check if it's actually an integer
+		if val == float64(int64(val)) {
+			return int64(val)
+		}
+		return val
+	case bool, string:
+		return val
+	case nil:
+		return nil
+	case []interface{}:
+		return val
+	case map[string]interface{}:
+		// Nested object - convert to Record
+		record := MakeMutableRecord()
+		for k, subv := range val {
+			record = record.SetAny(k, convertJSONValue(subv))
+		}
+		return record.Freeze()
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// convertRecordValueForJSON converts StreamV3 Record values to JSON-friendly types
+func convertRecordValueForJSON(v interface{}) interface{} {
+	switch val := v.(type) {
+	case Record:
+		// Convert nested Record to map
+		result := make(map[string]interface{})
+		for k, subv := range val.All() {
+			result[k] = convertRecordValueForJSON(subv)
+		}
+		return result
+	case int64, float64, bool, string, nil:
+		return val
+	default:
+		return fmt.Sprintf("%v", v)
 	}
 }

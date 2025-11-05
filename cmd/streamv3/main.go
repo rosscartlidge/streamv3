@@ -454,6 +454,126 @@ func buildRootCommand() *cf.Command {
 
 			Done().
 
+		// Subcommand: read-json
+		Subcommand("read-json").
+			Description("Read JSON or JSONL file and output JSONL stream").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.json,*.jsonl"}).
+				Global().
+				Required().
+				Help("Input JSON/JSONL file").
+				Done().
+
+			Handler(func(ctx *cf.Context) error {
+				var inputFile string
+				var generate bool
+
+				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
+					inputFile = fileVal.(string)
+				} else {
+					return fmt.Errorf("FILE is required")
+				}
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateReadJSONCode(inputFile)
+				}
+
+				// Open and read JSON file
+				input, err := lib.OpenInput(inputFile)
+				if err != nil {
+					return err
+				}
+				defer input.Close()
+
+				records := lib.ReadJSON(input)
+
+				// Write as JSONL to stdout
+				if err := lib.WriteJSONL(os.Stdout, records); err != nil {
+					return fmt.Errorf("writing JSONL: %w", err)
+				}
+
+				return nil
+			}).
+
+			Done().
+
+		// Subcommand: write-json
+		Subcommand("write-json").
+			Description("Read JSONL stream and write as JSON or JSONL file").
+
+			Flag("-generate", "-g").
+				Bool().
+				Global().
+				Help("Generate Go code instead of executing").
+				Done().
+
+			Flag("-pretty", "-p").
+				Bool().
+				Global().
+				Help("Pretty-print as JSON array (default: JSONL)").
+				Done().
+
+			Flag("FILE").
+				String().
+				Completer(&cf.FileCompleter{Pattern: "*.json,*.jsonl"}).
+				Global().
+				Required().
+				Help("Output JSON/JSONL file").
+				Done().
+
+			Handler(func(ctx *cf.Context) error {
+				var outputFile string
+				var pretty bool
+				var generate bool
+
+				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
+					outputFile = fileVal.(string)
+				} else {
+					return fmt.Errorf("FILE is required")
+				}
+
+				if prettyVal, ok := ctx.GlobalFlags["-pretty"]; ok {
+					pretty = prettyVal.(bool)
+				}
+
+				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+					generate = genVal.(bool)
+				}
+
+				// Check if generation is enabled (flag or env var)
+				if shouldGenerate(generate) {
+					return generateWriteJSONCode(outputFile, pretty)
+				}
+
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
+
+				// Open output file
+				output, err := lib.OpenOutput(outputFile)
+				if err != nil {
+					return err
+				}
+				defer output.Close()
+
+				// Write as JSON
+				return lib.WriteJSON(output, records, pretty)
+			}).
+
+			Done().
+
 		// Subcommand: table
 		Subcommand("table").
 			Description("Display records as a formatted table").

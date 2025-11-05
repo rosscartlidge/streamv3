@@ -753,3 +753,99 @@ func TestRenameGeneration(t *testing.T) {
 		})
 	}
 }
+
+// TestReadJSONGeneration tests code generation for the read-json command
+func TestReadJSONGeneration(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string
+	}{
+		{
+			name:    "read-json basic",
+			cmdLine: `STREAMV3_GENERATE_GO=1 /tmp/streamv3_test read-json /tmp/test.json`,
+			wantStrs: []string{
+				`"type":"init"`,
+				`"var":"records"`,
+				`streamv3.ReadJSONAuto`,
+				`/tmp/test.json`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}
+
+// TestWriteJSONGeneration tests code generation for the write-json command
+func TestWriteJSONGeneration(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/streamv3_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build streamv3: %v", err)
+	}
+	defer os.Remove("/tmp/streamv3_test")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string
+	}{
+		{
+			name:    "write-json JSONL mode",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test write-json /tmp/output.jsonl`,
+			wantStrs: []string{
+				`"type":"final"`,
+				`streamv3.WriteJSON`,
+				`/tmp/output.jsonl`,
+			},
+		},
+		{
+			name:    "write-json pretty mode",
+			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/streamv3_test write-json -pretty /tmp/output.json`,
+			wantStrs: []string{
+				`"type":"final"`,
+				`streamv3.WriteJSONPretty`,
+				`/tmp/output.json`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}
