@@ -41,6 +41,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("limit").
 			Description("Take first N records (SQL LIMIT)").
 
+			Example("streamv3 read-csv data.csv | streamv3 limit -n 10", "Show first 10 records").
+			Example("streamv3 read-csv large.csv | streamv3 limit -n 100 | streamv3 table", "Preview first 100 records").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -191,6 +194,9 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: sort
 		Subcommand("sort").
 			Description("Sort records by field").
+
+			Example("streamv3 read-csv data.csv | streamv3 sort -field age", "Sort by age ascending").
+			Example("streamv3 read-csv sales.csv | streamv3 sort -field amount -desc", "Sort by amount descending").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -412,6 +418,9 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: write-csv
 		Subcommand("write-csv").
 			Description("Read JSONL stream and write as CSV file").
+
+			Example("streamv3 read-json data.json | streamv3 write-csv output.csv", "Convert JSON to CSV").
+			Example("streamv3 read-csv data.csv | streamv3 where -match status eq active | streamv3 write-csv active.csv", "Filter and save to CSV").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -755,6 +764,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("select").
 			Description("Select and optionally rename fields").
 
+			Example("streamv3 read-csv users.csv | streamv3 select -field name -field email", "Select specific fields").
+			Example("streamv3 read-csv data.csv | streamv3 select -field id -as user_id -field name", "Select and rename id to user_id").
+
 			Flag("-field", "-f").
 				String().
 				Completer(cf.NoCompleter{Hint: "<field-name>"}).
@@ -841,6 +853,10 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: update
 		Subcommand("update").
 			Description("Conditionally update record fields with new values").
+
+			Example("streamv3 read-csv users.csv | streamv3 update -match status eq pending -set status approved", "Update status from pending to approved").
+			Example("streamv3 read-csv sales.csv | streamv3 update -match region eq US -set tax_rate 0.08 -set currency USD", "Set multiple fields for US region").
+			Example("streamv3 read-csv data.csv | streamv3 update -match age lt 18 -set category minor + -match age ge 18 -set category adult", "Categorize by age using OR logic").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -1111,6 +1127,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("exclude").
 			Description("Exclude specified fields").
 
+			Example("streamv3 read-csv data.csv | streamv3 exclude id created_at updated_at", "Remove metadata fields").
+			Example("streamv3 read-json api.json | streamv3 exclude internal_* debug_*", "Remove all internal and debug fields").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -1193,6 +1212,9 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: rename
 		Subcommand("rename").
 			Description("Rename fields").
+
+			Example("streamv3 read-csv data.csv | streamv3 rename -as oldname newname", "Rename a single field").
+			Example("streamv3 read-csv users.csv | streamv3 rename -as first_name firstName -as last_name lastName", "Rename multiple fields to camelCase").
 
 			Flag("-generate", "-g").
 				Bool().
