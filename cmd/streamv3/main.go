@@ -41,8 +41,8 @@ func buildRootCommand() *cf.Command {
 		Subcommand("limit").
 			Description("Take first N records (SQL LIMIT)").
 
-			Example("streamv3 read-csv data.csv | streamv3 limit -n 10", "Show first 10 records").
-			Example("streamv3 read-csv large.csv | streamv3 limit -n 100 | streamv3 table", "Preview first 100 records").
+			Example("streamv3 read-csv data.csv | streamv3 limit 10", "Show first 10 records").
+			Example("streamv3 read-csv large.csv | streamv3 limit 100 | streamv3 table", "Preview first 100 records").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -50,35 +50,22 @@ func buildRootCommand() *cf.Command {
 				Help("Generate Go code instead of executing").
 				Done().
 
-			Flag("-n").
+			Flag("N").
 				Int().
 				Required().
 				Global().
 				Help("Number of records to take").
 				Done().
 
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
-				Global().
-				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
-				Done().
-
 			Handler(func(ctx *cf.Context) error {
 				var n int
-				var inputFile string
 				var generate bool
 
 				// Get flags from context
-				if nVal, ok := ctx.GlobalFlags["-n"]; ok {
+				if nVal, ok := ctx.GlobalFlags["N"]; ok {
 					n = nVal.(int)
 				} else {
-					return fmt.Errorf("-n flag is required")
-				}
-
-				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
-					inputFile = fileVal.(string)
+					return fmt.Errorf("N argument is required")
 				}
 
 				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
@@ -94,14 +81,8 @@ func buildRootCommand() *cf.Command {
 					return generateLimitCode(n)
 				}
 
-				// Read JSONL from stdin or file
-				input, err := lib.OpenInput(inputFile)
-				if err != nil {
-					return err
-				}
-				defer input.Close()
-
-				records := lib.ReadJSONL(input)
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
 
 				// Apply limit
 				limited := streamv3.Limit[streamv3.Record](n)(records)
@@ -120,40 +101,30 @@ func buildRootCommand() *cf.Command {
 		Subcommand("offset").
 			Description("Skip first N records (SQL OFFSET)").
 
+			Example("streamv3 read-csv data.csv | streamv3 offset 10", "Skip first 10 records").
+			Example("streamv3 read-csv data.csv | streamv3 offset 100 | streamv3 limit 10", "Get records 101-110 (pagination)").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
 				Help("Generate Go code instead of executing").
 				Done().
 
-			Flag("-n").
+			Flag("N").
 				Int().
 				Required().
 				Global().
 				Help("Number of records to skip").
 				Done().
 
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
-				Global().
-				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
-				Done().
-
 			Handler(func(ctx *cf.Context) error {
 				var n int
-				var inputFile string
 				var generate bool
 
-				if nVal, ok := ctx.GlobalFlags["-n"]; ok {
+				if nVal, ok := ctx.GlobalFlags["N"]; ok {
 					n = nVal.(int)
 				} else {
-					return fmt.Errorf("-n flag is required")
-				}
-
-				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
-					inputFile = fileVal.(string)
+					return fmt.Errorf("N argument is required")
 				}
 
 				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
@@ -169,14 +140,8 @@ func buildRootCommand() *cf.Command {
 					return generateOffsetCode(n)
 				}
 
-				// Read JSONL from stdin or file
-				input, err := lib.OpenInput(inputFile)
-				if err != nil {
-					return err
-				}
-				defer input.Close()
-
-				records := lib.ReadJSONL(input)
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
 
 				// Apply offset
 				offsetted := streamv3.Offset[streamv3.Record](n)(records)
