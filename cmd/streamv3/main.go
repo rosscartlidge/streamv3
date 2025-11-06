@@ -856,7 +856,9 @@ func buildRootCommand() *cf.Command {
 
 			Example("streamv3 read-csv users.csv | streamv3 update -match status eq pending -set status approved", "Update status from pending to approved").
 			Example("streamv3 read-csv sales.csv | streamv3 update -match region eq US -set tax_rate 0.08 -set currency USD", "Set multiple fields for US region").
-			Example("streamv3 read-csv data.csv | streamv3 update -match age lt 18 -set category minor + -match age ge 18 -set category adult", "Categorize by age using OR logic").
+			Example("streamv3 read-csv data.csv | streamv3 update -match age lt 18 -set category minor + -match age ge 18 -set category adult", "Categorize by age using if-else logic").
+
+			ClauseDescription("Clauses are evaluated in order using if-then-else logic.\nSeparators: +, -\nThe FIRST matching clause applies its updates, then processing stops (first-match-wins).\nThis is different from 'where' which uses OR logic - all clauses are evaluated.").
 
 			Flag("-generate", "-g").
 				Bool().
