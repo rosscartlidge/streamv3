@@ -353,6 +353,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("read-csv").
 			Description("Read CSV file and output JSONL stream").
 
+			Example("streamv3 read-csv data.csv | streamv3 table", "Read CSV and display as table").
+			Example("cat data.csv | streamv3 read-csv | streamv3 limit -n 10", "Read from stdin and show first 10 records").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -578,6 +581,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("table").
 			Description("Display records as a formatted table").
 
+			Example("streamv3 read-csv data.csv | streamv3 table", "Display CSV as formatted table").
+			Example("streamv3 read-csv data.csv | streamv3 where -match age gt 21 | streamv3 table -max-width 30", "Filter and display with custom column width").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -619,6 +625,10 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: where
 		Subcommand("where").
 			Description("Filter records based on field conditions").
+
+			Example("streamv3 read-csv data.csv | streamv3 where -match age gt 18", "Filter records where age > 18").
+			Example("streamv3 read-csv sales.csv | streamv3 where -match status eq active -match amount gt 1000", "Active records with amount > 1000 (AND logic)").
+			Example("streamv3 read-csv users.csv | streamv3 where -match dept eq Sales + -match dept eq Marketing", "Sales OR Marketing departments").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -1021,6 +1031,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("include").
 			Description("Include only specified fields").
 
+			Example("streamv3 read-csv data.csv | streamv3 include name age", "Select only name and age columns").
+			Example("streamv3 read-json users.json | streamv3 include email status | streamv3 write-csv out.csv", "Extract email and status to CSV").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -1270,6 +1283,10 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: group-by
 		Subcommand("group-by").
 			Description("Group records by fields and apply aggregations").
+
+			Example("streamv3 read-csv sales.csv | streamv3 group-by region -func count -result total", "Count records by region").
+			Example("streamv3 read-csv sales.csv | streamv3 group-by region -func sum -field amount -result total_sales", "Sum sales amount by region").
+			Example("streamv3 read-csv data.csv | streamv3 group-by dept status -func count -result count + -func avg -field salary -result avg_salary", "Group by dept and status with multiple aggregations").
 
 			Flag("-generate", "-g").
 				Bool().
