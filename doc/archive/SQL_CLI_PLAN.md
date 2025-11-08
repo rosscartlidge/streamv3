@@ -1,4 +1,4 @@
-# Plan: SQL-Like CLI Commands for StreamV3
+# Plan: SQL-Like CLI Commands for ssql
 
 ## Current State (CLI Commands)
 
@@ -31,17 +31,17 @@
 **Proposed CLI Syntax:**
 ```bash
 # Inner join
-streamv3 read-csv employees.csv | \
-  streamv3 join -type inner -right departments.csv -on department_id
+ssql read-csv employees.csv | \
+  ssql join -type inner -right departments.csv -on department_id
 
 # Left join with explicit field names
-streamv3 read-csv employees.csv | \
-  streamv3 join -type left -right departments.csv \
+ssql read-csv employees.csv | \
+  ssql join -type left -right departments.csv \
     -left-field dept_id -right-field id
 
 # Join on multiple fields
-streamv3 read-csv employees.csv | \
-  streamv3 join -type inner -right assignments.csv \
+ssql read-csv employees.csv | \
+  ssql join -type inner -right assignments.csv \
     -on employee_id -on department_id
 ```
 
@@ -60,11 +60,11 @@ streamv3 read-csv employees.csv | \
 **Proposed CLI Syntax:**
 ```bash
 # Distinct on all fields (whole record)
-streamv3 read-csv data.csv | streamv3 distinct
+ssql read-csv data.csv | ssql distinct
 
 # Distinct on specific fields
-streamv3 read-csv data.csv | \
-  streamv3 distinct -by department -by location
+ssql read-csv data.csv | \
+  ssql distinct -by department -by location
 ```
 
 **Implementation:**
@@ -80,12 +80,12 @@ streamv3 read-csv data.csv | \
 **Proposed CLI Syntax:**
 ```bash
 # Skip first 20 records
-streamv3 read-csv data.csv | streamv3 offset -n 20
+ssql read-csv data.csv | ssql offset -n 20
 
 # Pagination: skip 20, take 10
-streamv3 read-csv data.csv | \
-  streamv3 offset -n 20 | \
-  streamv3 limit -n 10
+ssql read-csv data.csv | \
+  ssql offset -n 20 | \
+  ssql limit -n 10
 ```
 
 **Implementation:**
@@ -100,12 +100,12 @@ streamv3 read-csv data.csv | \
 **Proposed CLI Syntax:**
 ```bash
 # Union (distinct)
-streamv3 read-csv file1.csv | \
-  streamv3 union file2.csv file3.csv
+ssql read-csv file1.csv | \
+  ssql union file2.csv file3.csv
 
 # Union all (keep duplicates)
-streamv3 read-csv file1.csv | \
-  streamv3 union -all file2.csv file3.csv
+ssql read-csv file1.csv | \
+  ssql union -all file2.csv file3.csv
 ```
 
 **Implementation:**
@@ -124,12 +124,12 @@ streamv3 read-csv file1.csv | \
 **Proposed Enhancement:**
 ```bash
 # Multiple sort fields with mixed order
-streamv3 read-csv data.csv | \
-  streamv3 sort -field department + -field salary -desc
+ssql read-csv data.csv | \
+  ssql sort -field department + -field salary -desc
 
 # Alternative: use repeating flags
-streamv3 read-csv data.csv | \
-  streamv3 sort -field department -asc -field salary -desc
+ssql read-csv data.csv | \
+  ssql sort -field department -asc -field salary -desc
 ```
 
 **Implementation:**
@@ -144,9 +144,9 @@ streamv3 read-csv data.csv | \
 
 **Proposed CLI Syntax:**
 ```bash
-streamv3 read-csv data.csv | \
-  streamv3 group -by department -function count -result total | \
-  streamv3 having -match total gt 5
+ssql read-csv data.csv | \
+  ssql group -by department -function count -result total | \
+  ssql having -match total gt 5
 ```
 
 **Implementation:**
@@ -164,12 +164,12 @@ streamv3 read-csv data.csv | \
 **Proposed CLI Syntax:**
 ```bash
 # Simple arithmetic
-streamv3 read-csv data.csv | \
-  streamv3 derive -expr "salary * 1.1" -as new_salary
+ssql read-csv data.csv | \
+  ssql derive -expr "salary * 1.1" -as new_salary
 
 # Multiple derivations
-streamv3 read-csv data.csv | \
-  streamv3 derive -expr "salary * 1.1" -as new_salary + \
+ssql read-csv data.csv | \
+  ssql derive -expr "salary * 1.1" -as new_salary + \
     -expr "age + 1" -as next_year_age
 ```
 
@@ -186,8 +186,8 @@ streamv3 read-csv data.csv | \
 
 **Proposed CLI Syntax:**
 ```bash
-streamv3 read-csv data.csv | \
-  streamv3 case -field age \
+ssql read-csv data.csv | \
+  ssql case -field age \
     -when "lt 18" -then minor \
     -when "ge 18" -then adult \
     -else unknown \
@@ -250,7 +250,7 @@ streamv3 read-csv data.csv | \
 
 ### 4. Code Generation Support
 - Every command must support `-generate` flag
-- Generate equivalent Go code using streamv3 library
+- Generate equivalent Go code using ssql library
 - Pass through code fragments correctly
 
 ## SQL Feature Comparison
@@ -275,7 +275,7 @@ streamv3 read-csv data.csv | \
 | Computed columns | ❌ Missing | P3 | ❌ | High |
 | CASE/WHEN | ❌ Missing | P3 | ❌ | High |
 
-## Examples: SQL to StreamV3 CLI
+## Examples: SQL to ssql CLI
 
 ### Example 1: Simple Join
 **SQL:**
@@ -286,13 +286,13 @@ INNER JOIN departments d ON e.dept_id = d.id
 WHERE e.salary > 50000
 ```
 
-**StreamV3 CLI (After Implementation):**
+**ssql CLI (After Implementation):**
 ```bash
-streamv3 read-csv employees.csv | \
-  streamv3 join -type inner -right departments.csv \
+ssql read-csv employees.csv | \
+  ssql join -type inner -right departments.csv \
     -left-field dept_id -right-field id | \
-  streamv3 where -match salary gt 50000 | \
-  streamv3 select -field name + -field salary + -field department_name
+  ssql where -match salary gt 50000 | \
+  ssql select -field name + -field salary + -field department_name
 ```
 
 ### Example 2: Group By with Having
@@ -305,14 +305,14 @@ HAVING COUNT(*) > 5
 ORDER BY avg_salary DESC
 ```
 
-**StreamV3 CLI (After Implementation):**
+**ssql CLI (After Implementation):**
 ```bash
-streamv3 read-csv employees.csv | \
-  streamv3 group -by department \
+ssql read-csv employees.csv | \
+  ssql group -by department \
     -function count -result total + \
     -function avg -field salary -result avg_salary | \
-  streamv3 having -match total gt 5 | \
-  streamv3 sort -field avg_salary -desc
+  ssql having -match total gt 5 | \
+  ssql sort -field avg_salary -desc
 ```
 
 ### Example 3: Union
@@ -323,11 +323,11 @@ UNION
 SELECT name, city FROM suppliers
 ```
 
-**StreamV3 CLI (After Implementation):**
+**ssql CLI (After Implementation):**
 ```bash
-streamv3 read-csv customers.csv | \
-  streamv3 select -field name + -field city | \
-  streamv3 union suppliers.csv
+ssql read-csv customers.csv | \
+  ssql select -field name + -field city | \
+  ssql union suppliers.csv
 ```
 
 ## Testing Strategy

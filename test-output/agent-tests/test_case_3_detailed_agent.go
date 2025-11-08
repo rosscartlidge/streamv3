@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {

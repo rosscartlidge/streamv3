@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -44,19 +44,19 @@ func main() {
 
 func testFiniteStream() {
 	// Small finite dataset
-	data := []streamv3.Record{
-		streamv3.MakeMutableRecord().Int("id", 1).Int("value", 10).Freeze(),
-		streamv3.MakeMutableRecord().Int("id", 2).Int("value", 20).Freeze(),
-		streamv3.MakeMutableRecord().Int("id", 3).Int("value", 30).Freeze(),
-		streamv3.MakeMutableRecord().Int("id", 4).Int("value", 40).Freeze(),
-		streamv3.MakeMutableRecord().Int("id", 5).Int("value", 50).Freeze(),
+	data := []ssql.Record{
+		ssql.MakeMutableRecord().Int("id", 1).Int("value", 10).Freeze(),
+		ssql.MakeMutableRecord().Int("id", 2).Int("value", 20).Freeze(),
+		ssql.MakeMutableRecord().Int("id", 3).Int("value", 30).Freeze(),
+		ssql.MakeMutableRecord().Int("id", 4).Int("value", 40).Freeze(),
+		ssql.MakeMutableRecord().Int("id", 5).Int("value", 50).Freeze(),
 	}
 
-	stream := streamv3.From(data)
+	stream := ssql.From(data)
 
 	// Test regular Tee
 	fmt.Println("Regular Tee:")
-	regularStreams := streamv3.Tee(stream, 2)
+	regularStreams := ssql.Tee(stream, 2)
 
 	// Consumer 1: Count
 	count1 := 0
@@ -67,7 +67,7 @@ func testFiniteStream() {
 	// Consumer 2: Sum
 	sum1 := 0.0
 	for record := range regularStreams[1] {
-		sum1 += streamv3.GetOr(record, "value", 0.0)
+		sum1 += ssql.GetOr(record, "value", 0.0)
 	}
 
 	fmt.Printf("  Stream 1 count: %d\n", count1)
@@ -75,8 +75,8 @@ func testFiniteStream() {
 
 	// Test LazyTee
 	fmt.Println("LazyTee:")
-	stream2 := streamv3.From(data) // Create fresh stream
-	lazyStreams := streamv3.LazyTee(stream2, 2)
+	stream2 := ssql.From(data) // Create fresh stream
+	lazyStreams := ssql.LazyTee(stream2, 2)
 
 	// Consumer 1: Count
 	count2 := 0
@@ -87,7 +87,7 @@ func testFiniteStream() {
 	// Consumer 2: Sum
 	sum2 := 0.0
 	for record := range lazyStreams[1] {
-		sum2 += streamv3.GetOr(record, "value", 0.0)
+		sum2 += ssql.GetOr(record, "value", 0.0)
 	}
 
 	fmt.Printf("  Stream 1 count: %d\n", count2)
@@ -96,9 +96,9 @@ func testFiniteStream() {
 
 func testInfiniteStream() {
 	// Create a simulated infinite stream generator
-	infiniteGenerator := func(yield func(streamv3.Record) bool) {
+	infiniteGenerator := func(yield func(ssql.Record) bool) {
 		for i := 0; i < 1000; i++ { // Simulate infinite with large number
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				Int("id", int64(i)).
 				Float("value", float64(i*2)).
 				String("timestamp", time.Now().Add(time.Duration(i)*time.Millisecond).Format("15:04:05.000")).
@@ -119,7 +119,7 @@ func testInfiniteStream() {
 	fmt.Println("Processing simulated infinite stream with LazyTee...")
 
 	// Use LazyTee for infinite stream
-	lazyStreams := streamv3.LazyTee(infiniteGenerator, 3)
+	lazyStreams := ssql.LazyTee(infiniteGenerator, 3)
 
 	// Consumer 1: Count first 50 items
 	go func() {
@@ -138,7 +138,7 @@ func testInfiniteStream() {
 		sum := 0.0
 		count := 0
 		for record := range lazyStreams[1] {
-			sum += streamv3.GetOr(record, "value", 0.0)
+			sum += ssql.GetOr(record, "value", 0.0)
 			count++
 			if count >= 30 {
 				fmt.Printf("  Consumer 2: Sum of %d records = %.0f\n", count, sum)
@@ -153,7 +153,7 @@ func testInfiniteStream() {
 		total := 0
 		for record := range lazyStreams[2] {
 			total++
-			id := streamv3.GetOr(record, "id", -1)
+			id := ssql.GetOr(record, "id", -1)
 			if id%2 == 0 {
 				evenCount++
 			}
@@ -170,9 +170,9 @@ func testInfiniteStream() {
 
 func testDifferentSpeeds() {
 	// Generator that produces data at steady rate
-	slowGenerator := func(yield func(streamv3.Record) bool) {
+	slowGenerator := func(yield func(ssql.Record) bool) {
 		for i := 0; i < 20; i++ {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				Int("batch", int64(i)).
 				String("data", fmt.Sprintf("item_%d", i)).
 				Freeze()
@@ -188,7 +188,7 @@ func testDifferentSpeeds() {
 
 	fmt.Println("Testing different consumer speeds with LazyTee...")
 
-	lazyStreams := streamv3.LazyTee(slowGenerator, 2)
+	lazyStreams := ssql.LazyTee(slowGenerator, 2)
 
 	// Fast consumer
 	go func() {

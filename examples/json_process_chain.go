@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"os"
 	"slices"
 	"strings"
@@ -63,8 +63,8 @@ func generateData() {
 	tags3 := slices.Values([]string{"books", "education"})
 	tags4 := slices.Values([]string{"clothing", "winter"})
 
-	salesData := []streamv3.Record{
-		streamv3.MakeMutableRecord().
+	salesData := []ssql.Record{
+		ssql.MakeMutableRecord().
 			String("id", "SALE-001").
 			String("product", "iPhone 15").
 			String("category", "electronics").
@@ -74,7 +74,7 @@ func generateData() {
 			StringSeq("tags", tags1).
 			Freeze(),
 
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "SALE-002").
 			String("product", "MacBook Pro").
 			String("category", "electronics").
@@ -84,7 +84,7 @@ func generateData() {
 			StringSeq("tags", tags2).
 			Freeze(),
 
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "SALE-003").
 			String("product", "Python Guide").
 			String("category", "books").
@@ -94,7 +94,7 @@ func generateData() {
 			StringSeq("tags", tags3).
 			Freeze(),
 
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "SALE-004").
 			String("product", "Winter Jacket").
 			String("category", "clothing").
@@ -104,7 +104,7 @@ func generateData() {
 			StringSeq("tags", tags4).
 			Freeze(),
 
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "SALE-005").
 			String("product", "iPad Air").
 			String("category", "electronics").
@@ -115,8 +115,8 @@ func generateData() {
 			Freeze(),
 	}
 
-	stream := streamv3.From(salesData)
-	err := streamv3.WriteJSONToWriter(stream, os.Stdout)
+	stream := ssql.From(salesData)
+	err := ssql.WriteJSONToWriter(stream, os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -130,21 +130,21 @@ func filterData() {
 	fmt.Fprintln(os.Stderr, "🔍 Filtering high-value sales (>= $500)...")
 
 	// Read JSON from stdin
-	stream := streamv3.ReadJSONFromReader(os.Stdin)
+	stream := ssql.ReadJSONFromReader(os.Stdin)
 
 	// Process records manually for simplicity
-	var records []streamv3.Record
+	var records []ssql.Record
 	for record := range stream {
-		price := streamv3.GetOr(record, "price", float64(0))
+		price := ssql.GetOr(record, "price", float64(0))
 
 		// Filter: only high-value items
 		if price >= 500.0 {
 			// Add calculated fields
-			quantity := streamv3.GetOr(record, "quantity", int64(0))
+			quantity := ssql.GetOr(record, "quantity", int64(0))
 			totalValue := price * float64(quantity)
 
 			// Create new record with additional fields
-			mutable := streamv3.MakeMutableRecord()
+			mutable := ssql.MakeMutableRecord()
 			for k, v := range record.All() {
 				mutable.SetAny(k, v)
 			}
@@ -154,7 +154,7 @@ func filterData() {
 		}
 	}
 
-	err := streamv3.WriteJSONToWriter(streamv3.From(records), os.Stdout)
+	err := ssql.WriteJSONToWriter(ssql.From(records), os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -168,32 +168,32 @@ func aggregateData() {
 	fmt.Fprintln(os.Stderr, "📊 Aggregating sales by region...")
 
 	// Read JSON from stdin
-	stream := streamv3.ReadJSONFromReader(os.Stdin)
+	stream := ssql.ReadJSONFromReader(os.Stdin)
 
 	// Collect all records
-	var records []streamv3.Record
+	var records []ssql.Record
 	for record := range stream {
 		records = append(records, record)
 	}
 
 	// Group by region and aggregate
-	results := streamv3.Chain(
-		streamv3.GroupByFields("group_data", "region"),
-		streamv3.Aggregate("group_data", map[string]streamv3.AggregateFunc{
-			"total_sales":   streamv3.Count(),
-			"total_revenue": streamv3.Sum("total_value"),
-			"avg_price":     streamv3.Avg("price"),
-			"products":      streamv3.Collect("product"),
+	results := ssql.Chain(
+		ssql.GroupByFields("group_data", "region"),
+		ssql.Aggregate("group_data", map[string]ssql.AggregateFunc{
+			"total_sales":   ssql.Count(),
+			"total_revenue": ssql.Sum("total_value"),
+			"avg_price":     ssql.Avg("price"),
+			"products":      ssql.Collect("product"),
 		}),
 	)(slices.Values(records))
 
 	// Convert results to slice and output
-	var aggregated []streamv3.Record
+	var aggregated []ssql.Record
 	for result := range results {
 		aggregated = append(aggregated, result)
 	}
 
-	err := streamv3.WriteJSONToWriter(streamv3.From(aggregated), os.Stdout)
+	err := ssql.WriteJSONToWriter(ssql.From(aggregated), os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -207,17 +207,17 @@ func formatOutput() {
 	fmt.Fprintln(os.Stderr, "📝 Formatting final report...")
 
 	// Read JSON from stdin
-	stream := streamv3.ReadJSONFromReader(os.Stdin)
+	stream := ssql.ReadJSONFromReader(os.Stdin)
 
 	fmt.Println("🏪 REGIONAL SALES REPORT")
 	fmt.Println("========================")
 	fmt.Println()
 
 	for record := range stream {
-		region := streamv3.GetOr(record, "region", "Unknown")
-		totalSales := streamv3.GetOr(record, "total_sales", int64(0))
-		totalRevenue := streamv3.GetOr(record, "total_revenue", float64(0))
-		avgPrice := streamv3.GetOr(record, "avg_price", float64(0))
+		region := ssql.GetOr(record, "region", "Unknown")
+		totalSales := ssql.GetOr(record, "total_sales", int64(0))
+		totalRevenue := ssql.GetOr(record, "total_revenue", float64(0))
+		avgPrice := ssql.GetOr(record, "avg_price", float64(0))
 
 		fmt.Printf("📍 Region: %s\n", region)
 		fmt.Printf("   Sales Count: %d\n", totalSales)
@@ -225,7 +225,7 @@ func formatOutput() {
 		fmt.Printf("   Average Price: $%.2f\n", avgPrice)
 
 		// Show products if available
-		if products, ok := streamv3.Get[[]any](record, "products"); ok {
+		if products, ok := ssql.Get[[]any](record, "products"); ok {
 			fmt.Print("   Products: ")
 			for i, product := range products {
 				if i > 0 {
@@ -255,8 +255,8 @@ func runChainDemo() {
 
 	var step1Output strings.Builder
 	tags := slices.Values([]string{"electronics", "premium"})
-	sampleData := []streamv3.Record{
-		streamv3.MakeMutableRecord().
+	sampleData := []ssql.Record{
+		ssql.MakeMutableRecord().
 			String("id", "DEMO-001").
 			String("product", "Premium Laptop").
 			Float("price", 1999.99).
@@ -265,7 +265,7 @@ func runChainDemo() {
 			StringSeq("tags", tags).
 			Freeze(),
 	}
-	streamv3.WriteJSONToWriter(streamv3.From(sampleData), &step1Output)
+	ssql.WriteJSONToWriter(ssql.From(sampleData), &step1Output)
 	fmt.Printf("Output: %s\n", strings.TrimSpace(step1Output.String()))
 
 	// Step 2: Filter data
@@ -273,17 +273,17 @@ func runChainDemo() {
 	fmt.Println("Commands: ... | go run json_process_chain.go filter")
 
 	step2Input := strings.NewReader(step1Output.String())
-	inputStream := streamv3.ReadJSONFromReader(step2Input)
+	inputStream := ssql.ReadJSONFromReader(step2Input)
 
-	var filteredRecords []streamv3.Record
+	var filteredRecords []ssql.Record
 	for record := range inputStream {
-		price := streamv3.GetOr(record, "price", float64(0))
+		price := ssql.GetOr(record, "price", float64(0))
 		if price >= 500.0 {
-			quantity := streamv3.GetOr(record, "quantity", int64(0))
+			quantity := ssql.GetOr(record, "quantity", int64(0))
 			totalValue := price * float64(quantity)
 
 			// Create new record with additional fields
-			mutable := streamv3.MakeMutableRecord()
+			mutable := ssql.MakeMutableRecord()
 			for k, v := range record.All() {
 				mutable.SetAny(k, v)
 			}
@@ -294,7 +294,7 @@ func runChainDemo() {
 	}
 
 	var step2Output strings.Builder
-	streamv3.WriteJSONToWriter(streamv3.From(filteredRecords), &step2Output)
+	ssql.WriteJSONToWriter(ssql.From(filteredRecords), &step2Output)
 	fmt.Printf("Output: %s\n", strings.TrimSpace(step2Output.String()))
 
 	fmt.Println("\n✅ Key Benefits Demonstrated:")

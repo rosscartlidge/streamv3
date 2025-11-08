@@ -14,7 +14,7 @@ This runs all 5 reference implementations, validates patterns, and ensures they 
 **Expected output:**
 ```
 ========================================
-StreamV3 AI Code Generation Test Suite
+ssql AI Code Generation Test Suite
 ========================================
 
 Testing Reference Implementations...
@@ -103,58 +103,58 @@ Each test checks:
 
 ### 1. Import Path
 ```go
-✅ import "github.com/rosscartlidge/streamv3"
+✅ import "github.com/rosscartlidge/ssql"
 ❌ import "github.com/rocketlaunchr/streamv3"  // Wrong!
 ```
 
 ### 2. SQL-Style Naming
 ```go
-✅ streamv3.Where(predicate)
-❌ streamv3.Filter(predicate)  // Wrong! Filter is a type, not a function
+✅ ssql.Where(predicate)
+❌ ssql.Filter(predicate)  // Wrong! Filter is a type, not a function
 ```
 
 ### 3. Error Handling
 ```go
-✅ data, err := streamv3.ReadCSV("file.csv")
+✅ data, err := ssql.ReadCSV("file.csv")
    if err != nil {
        log.Fatalf("Failed: %v", err)
    }
 
-❌ data, _ := streamv3.ReadCSV("file.csv")  // Wrong! Always check errors
+❌ data, _ := ssql.ReadCSV("file.csv")  // Wrong! Always check errors
 ```
 
 ### 4. GroupByFields Syntax
 ```go
-✅ streamv3.GroupByFields("namespace", "field1", "field2")
+✅ ssql.GroupByFields("namespace", "field1", "field2")
 
-❌ streamv3.GroupByFields([]string{"field1"}, []Aggregation{...})  // Wrong API!
+❌ ssql.GroupByFields([]string{"field1"}, []Aggregation{...})  // Wrong API!
 ```
 
 ### 5. Aggregate Syntax
 ```go
-✅ streamv3.Aggregate("namespace", map[string]streamv3.AggregateFunc{
-       "count": streamv3.Count(),
-       "total": streamv3.Sum("amount"),
+✅ ssql.Aggregate("namespace", map[string]ssql.AggregateFunc{
+       "count": ssql.Count(),
+       "total": ssql.Sum("amount"),
    })
 
-❌ streamv3.Aggregate("namespace", streamv3.Count("count"))  // Wrong!
+❌ ssql.Aggregate("namespace", ssql.Count("count"))  // Wrong!
 ```
 
 ### 6. Count Syntax
 ```go
-✅ "employee_count": streamv3.Count()  // Field name is map key
+✅ "employee_count": ssql.Count()  // Field name is map key
 
-❌ streamv3.Count("employee_count")  // Wrong! Count takes no parameters
+❌ ssql.Count("employee_count")  // Wrong! Count takes no parameters
 ```
 
 ### 7. Composition Style
 ```go
-✅ streamv3.Chain(
-       streamv3.Where(pred),
-       streamv3.Select(transform),
+✅ ssql.Chain(
+       ssql.Where(pred),
+       ssql.Select(transform),
    )(data)
 
-⚠️  streamv3.Select(transform)(data)  // Works but Chain is clearer
+⚠️  ssql.Select(transform)(data)  // Works but Chain is clearer
 ```
 
 ### 8. Compilation
@@ -263,7 +263,7 @@ fi
 
 This ensures:
 - ✅ All reference implementations compile
-- ✅ All code follows StreamV3 best practices
+- ✅ All code follows ssql best practices
 - ✅ AI documentation stays accurate
 - ✅ Examples work as expected
 

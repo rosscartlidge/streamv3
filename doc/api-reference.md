@@ -1,13 +1,13 @@
-# StreamV3 API Reference
+# ssql API Reference
 
-*Complete reference for all StreamV3 types, functions, and methods*
+*Complete reference for all ssql types, functions, and methods*
 
-> 📖 **Documentation Note**: This is a learning-focused API reference with examples and best practices. For raw API documentation directly from source code, use `go doc github.com/rosscartlidge/streamv3` or browse specific functions with `go doc github.com/rosscartlidge/streamv3.FunctionName`
+> 📖 **Documentation Note**: This is a learning-focused API reference with examples and best practices. For raw API documentation directly from source code, use `go doc github.com/rosscartlidge/ssql` or browse specific functions with `go doc github.com/rosscartlidge/ssql.FunctionName`
 
 ## Table of Contents
 
 ### Documentation Navigation
-- [Getting Started Guide](codelab-intro.md) - Learn StreamV3 basics step-by-step
+- [Getting Started Guide](codelab-intro.md) - Learn ssql basics step-by-step
 - [Advanced Tutorial](advanced-tutorial.md) - Complex patterns and real-world examples
 
 ### API Reference Sections
@@ -84,14 +84,14 @@ go mod init myproject
 # go mod init github.com/yourusername/myproject
 ```
 
-### Step 3: Install StreamV3
+### Step 3: Install ssql
 
 ```bash
-go get github.com/rosscartlidge/streamv3
+go get github.com/rosscartlidge/ssql
 ```
 
 This will:
-- Download StreamV3 and its dependencies
+- Download ssql and its dependencies
 - Update your `go.mod` file with the dependency
 - Create/update `go.sum` with checksums
 
@@ -104,17 +104,17 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
-    data, err := streamv3.ReadCSV("data.csv")
+    data, err := ssql.ReadCSV("data.csv")
     if err != nil {
         log.Fatalf("Failed to read CSV: %v", err)
     }
 
     for record := range data {
-        name := streamv3.GetOr(record, "name", "")
+        name := ssql.GetOr(record, "name", "")
         fmt.Println(name)
     }
 }
@@ -137,7 +137,7 @@ go build
 ## Core Types
 
 ### Iterator Types
-StreamV3 uses Go 1.23+ iterators as its core abstraction:
+ssql uses Go 1.23+ iterators as its core abstraction:
 
 ```go
 iter.Seq[T]           // Simple iterator
@@ -167,18 +167,18 @@ for k, v := range record {      // ❌ Compile error!
 **✅ CORRECT - Use the builder pattern and accessor functions:**
 ```go
 // Creating - Use MakeMutableRecord builder
-record := streamv3.MakeMutableRecord().
+record := ssql.MakeMutableRecord().
     String("name", "Alice").
     Int("age", int64(30)).
     Float("score", 95.5).
     Freeze()
 
 // Reading - Use Get/GetOr
-name := streamv3.GetOr(record, "name", "")
-age, exists := streamv3.Get[int64](record, "age")
+name := ssql.GetOr(record, "name", "")
+age, exists := ssql.Get[int64](record, "age")
 
 // Modifying - Use SetImmutable (creates new record)
-updated := streamv3.SetImmutable(record, "score", 98.0)
+updated := ssql.SetImmutable(record, "score", 98.0)
 
 // Iterating - Use .All() method
 for key, value := range record.All() {
@@ -202,7 +202,7 @@ MutableRecord is the recommended way to build new records efficiently. Unlike Re
 **Building with MutableRecord:**
 ```go
 // Efficient building with mutation
-record := streamv3.MakeMutableRecord().
+record := ssql.MakeMutableRecord().
     String("name", "Alice").
     Int("age", int64(30)).
     Float("salary", 95000.50).
@@ -210,8 +210,8 @@ record := streamv3.MakeMutableRecord().
     Freeze()  // Convert to immutable Record
 
 // For use in slices, always call .Freeze()
-records := []streamv3.Record{
-    streamv3.MakeMutableRecord().
+records := []ssql.Record{
+    ssql.MakeMutableRecord().
         String("id", "001").
         Int("count", 42).
         Freeze(),
@@ -247,7 +247,7 @@ JSONString provides type safety and rich methods for working with JSON-structure
 **Example:**
 ```go
 // Create JSONString from Go value
-jsonStr, err := streamv3.NewJSONString(map[string]any{
+jsonStr, err := ssql.NewJSONString(map[string]any{
     "status": "active",
     "count": 42,
 })
@@ -256,13 +256,13 @@ if err != nil {
 }
 
 // Use in Record
-record := streamv3.MakeMutableRecord().
+record := ssql.MakeMutableRecord().
     String("id", "user123").
     JSONString("metadata", jsonStr).
     Freeze()
 
 // Parse back to Go value
-metadata := streamv3.GetOr(record, "metadata", streamv3.JSONString(""))
+metadata := ssql.GetOr(record, "metadata", ssql.JSONString(""))
 value, err := metadata.Parse()
 
 // Pretty print
@@ -319,8 +319,8 @@ Creates an iterator from a slice - convenience wrapper providing a more discover
 
 **Example:**
 ```go
-numbers := streamv3.From([]int{1, 2, 3, 4, 5})
-records := streamv3.From([]streamv3.Record{...})
+numbers := ssql.From([]int{1, 2, 3, 4, 5})
+records := ssql.From([]ssql.Record{...})
 ```
 
 **Note:** This is equivalent to `slices.Values()` from the standard library, but provides a more intuitive name for users familiar with other streaming libraries.
@@ -329,7 +329,7 @@ records := streamv3.From([]streamv3.Record{...})
 ```go
 slices.Values([]T) iter.Seq[T]
 ```
-Creates an iterator from a slice (standard library function). You can use either this or `streamv3.From()`.
+Creates an iterator from a slice (standard library function). You can use either this or `ssql.From()`.
 
 **Example:**
 ```go
@@ -356,11 +356,11 @@ Converts an error-aware iterator to separate item and error channels.
 
 **Example:**
 ```go
-data, err := streamv3.ReadCSVSafe("data.csv")
+data, err := ssql.ReadCSVSafe("data.csv")
 if err != nil {
     log.Fatal(err)
 }
-itemCh, errCh := streamv3.ToChannelWithErrors(data)
+itemCh, errCh := ssql.ToChannelWithErrors(data)
 
 go func() {
     for err := range errCh {
@@ -382,15 +382,15 @@ Creates a new mutable record for efficient building. Use `.Freeze()` to convert 
 **Example:**
 ```go
 // Efficient building with mutation
-record := streamv3.MakeMutableRecord().
+record := ssql.MakeMutableRecord().
     String("name", "Alice").
     Int("age", 30).
     Float("score", 95.5).
     Freeze()  // Convert to frozen Record
 
 // For use in slices, always call .Freeze()
-records := []streamv3.Record{
-    streamv3.MakeMutableRecord().
+records := []ssql.Record{
+    ssql.MakeMutableRecord().
         String("id", "001").
         Int("count", 42).
         Freeze(),
@@ -415,7 +415,7 @@ Transforms each element using the provided function (SQL SELECT equivalent).
 
 **Example:**
 ```go
-doubled := streamv3.Select(func(x int) int { return x * 2 })(numbers)
+doubled := ssql.Select(func(x int) int { return x * 2 })(numbers)
 ```
 
 ### Update
@@ -426,14 +426,14 @@ Convenience wrapper around Select for updating record fields. Automatically hand
 
 **Example - Update single field:**
 ```go
-updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+updated := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
     return mut.String("status", "processed")
 })(records)
 ```
 
 **Example - Update multiple fields:**
 ```go
-updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+updated := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
     return mut.
         String("status", "active").
         Time("updated_at", time.Now())
@@ -442,10 +442,10 @@ updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableReco
 
 **Example - Computed field:**
 ```go
-updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+updated := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
     frozen := mut.Freeze()
-    price := streamv3.GetOr(frozen, "price", float64(0))
-    qty := streamv3.GetOr(frozen, "quantity", int64(0))
+    price := ssql.GetOr(frozen, "price", float64(0))
+    qty := ssql.GetOr(frozen, "quantity", int64(0))
     return mut.Float("total", price * float64(qty))
 })(records)
 ```
@@ -453,7 +453,7 @@ updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableReco
 **Equivalent without Update:**
 ```go
 // More verbose - need explicit ToMutable() and Freeze()
-updated := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+updated := ssql.Select(func(r ssql.Record) ssql.Record {
     return r.ToMutable().String("status", "processed").Freeze()
 })(records)
 ```
@@ -472,7 +472,7 @@ Flattens nested sequences (FlatMap equivalent).
 
 **Example:**
 ```go
-words := streamv3.SelectMany(func(line string) iter.Seq[string] {
+words := ssql.SelectMany(func(line string) iter.Seq[string] {
     return slices.Values(strings.Fields(line))
 })(lines)
 ```
@@ -491,7 +491,7 @@ Filters elements based on a predicate (SQL WHERE equivalent).
 
 **Example:**
 ```go
-evens := streamv3.Where(func(x int) bool { return x%2 == 0 })(numbers)
+evens := ssql.Where(func(x int) bool { return x%2 == 0 })(numbers)
 ```
 
 ### WhereSafe[T]
@@ -526,7 +526,7 @@ Takes only the first n elements (SQL LIMIT equivalent).
 
 **Example:**
 ```go
-first5 := streamv3.Limit[int](5)(numbers)
+first5 := ssql.Limit[int](5)(numbers)
 ```
 
 ### LimitSafe[T]
@@ -629,7 +629,7 @@ Groups elements into fixed-size windows.
 
 **Example:**
 ```go
-batches := streamv3.CountWindow[int](3)(numbers) // [1,2,3], [4,5,6], ...
+batches := ssql.CountWindow[int](3)(numbers) // [1,2,3], [4,5,6], ...
 ```
 
 ### SlidingCountWindow[T]
@@ -713,12 +713,12 @@ JoinPredicate defines the condition for joining two records. Returns true if the
 **Example:**
 ```go
 // Using OnFields helper
-predicate := streamv3.OnFields("user_id")
+predicate := ssql.OnFields("user_id")
 
 // Custom predicate
-customPredicate := streamv3.OnCondition(func(left, right streamv3.Record) bool {
-    leftID := streamv3.GetOr(left, "user_id", "")
-    rightID := streamv3.GetOr(right, "customer_id", "")
+customPredicate := ssql.OnCondition(func(left, right ssql.Record) bool {
+    leftID := ssql.GetOr(left, "user_id", "")
+    rightID := ssql.GetOr(right, "customer_id", "")
     return leftID == rightID
 })
 ```
@@ -763,9 +763,9 @@ Creates custom join predicate.
 
 **Example:**
 ```go
-joined := streamv3.InnerJoin(
+joined := ssql.InnerJoin(
     rightStream,
-    streamv3.OnFields("user_id")
+    ssql.OnFields("user_id")
 )(leftStream)
 ```
 
@@ -785,7 +785,7 @@ Groups records by field values.
 
 **Example:**
 ```go
-grouped := streamv3.GroupByFields("sales_data", "region", "product")(records)
+grouped := ssql.GroupByFields("sales_data", "region", "product")(records)
 ```
 
 ### Aggregation Functions
@@ -846,10 +846,10 @@ Applies multiple aggregations to grouped data.
 
 **Example:**
 ```go
-results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
-    "total_sales": streamv3.Sum("amount"),
-    "avg_sale":    streamv3.Avg("amount"),
-    "count":       streamv3.Count(),
+results := ssql.Aggregate("sales_data", map[string]ssql.AggregateFunc{
+    "total_sales": ssql.Sum("amount"),
+    "avg_sale":    ssql.Avg("amount"),
+    "count":       ssql.Count(),
 })(groupedRecords)
 ```
 
@@ -866,9 +866,9 @@ Composes two filters into a single filter.
 **Example:**
 ```go
 // Compose "double" and "add 1" into single filter
-double := streamv3.Select(func(x int) int { return x * 2 })
-addOne := streamv3.Select(func(x int) int { return x + 1 })
-composed := streamv3.Pipe(double, addOne)
+double := ssql.Select(func(x int) int { return x * 2 })
+addOne := ssql.Select(func(x int) int { return x + 1 })
+composed := ssql.Pipe(double, addOne)
 
 result := composed(numbers) // Doubles then adds 1
 ```
@@ -905,7 +905,7 @@ Flattens multiple sequence fields using dot product (parallel iteration). If you
 ```go
 // Input: {names: ["Alice", "Bob"], ages: [30, 25]}
 // Output: [{name: "Alice", age: 30}, {name: "Bob", age: 25}]
-flattened := streamv3.DotFlatten(",", "names", "ages")(records)
+flattened := ssql.DotFlatten(",", "names", "ages")(records)
 ```
 
 ### CrossFlatten
@@ -919,7 +919,7 @@ Flattens multiple sequence fields using Cartesian product. Each element from the
 // Input: {colors: ["red", "blue"], sizes: ["S", "M"]}
 // Output: [{color: "red", size: "S"}, {color: "red", size: "M"},
 //          {color: "blue", size: "S"}, {color: "blue", size: "M"}]
-flattened := streamv3.CrossFlatten(",", "colors", "sizes")(records)
+flattened := ssql.CrossFlatten(",", "colors", "sizes")(records)
 ```
 
 ---
@@ -935,10 +935,10 @@ Creates a SHA256 hash of a string field for efficient grouping. Useful for group
 **Example:**
 ```go
 // Hash long URLs for efficient grouping
-hashed := streamv3.Hash("url", "url_hash")(records)
+hashed := ssql.Hash("url", "url_hash")(records)
 
 // Now group by the hash instead of the full URL
-grouped := streamv3.GroupByFields("data", "url_hash")(hashed)
+grouped := ssql.GroupByFields("data", "url_hash")(hashed)
 ```
 
 **Use cases:**
@@ -978,10 +978,10 @@ Chains multiple same-type filters together.
 
 **Example:**
 ```go
-pipeline := streamv3.Chain(
-    streamv3.Where(func(x int) bool { return x > 0 }),
-    streamv3.Where(func(x int) bool { return x < 100 }),
-    streamv3.Sort[int](),
+pipeline := ssql.Chain(
+    ssql.Where(func(x int) bool { return x > 0 }),
+    ssql.Where(func(x int) bool { return x < 100 }),
+    ssql.Sort[int](),
 )
 result := pipeline(numbers)
 ```
@@ -1007,27 +1007,27 @@ This means when reading CSV data, you must use the correct type when accessing f
 // CSV file: name,age,score
 //           Alice,30,95.5
 
-data := streamv3.ReadCSV("data.csv")
+data := ssql.ReadCSV("data.csv")
 for record := range data {
     // ❌ WRONG - age is int64, not string
-    age := streamv3.GetOr(record, "age", "")
+    age := ssql.GetOr(record, "age", "")
 
     // ✅ CORRECT - use int64 for numeric CSV values
-    age := streamv3.GetOr(record, "age", int64(0))
+    age := ssql.GetOr(record, "age", int64(0))
 
     // ✅ CORRECT - use float64 for decimal CSV values
-    score := streamv3.GetOr(record, "score", 0.0)
+    score := ssql.GetOr(record, "score", 0.0)
 
     // ✅ CORRECT - strings remain strings
-    name := streamv3.GetOr(record, "name", "")
+    name := ssql.GetOr(record, "name", "")
 }
 ```
 
 When filtering CSV data, use the parsed types:
 ```go
 // Filter for ages greater than 25
-filtered := streamv3.Where(func(r streamv3.Record) bool {
-    age := streamv3.GetOr(r, "age", int64(0))
+filtered := ssql.Where(func(r ssql.Record) bool {
+    age := ssql.GetOr(r, "age", int64(0))
     return age > 25  // Compare as int64
 })(data)
 ```
@@ -1040,7 +1040,7 @@ Reads CSV file into Record iterator. Returns error if file cannot be opened. **V
 
 **Example:**
 ```go
-data, err := streamv3.ReadCSV("data.csv")
+data, err := ssql.ReadCSV("data.csv")
 if err != nil {
     log.Fatalf("Failed to read CSV: %v", err)
 }
@@ -1063,7 +1063,7 @@ Error-aware version of ReadCSV. Returns iterator that yields both records and er
 
 **Example:**
 ```go
-data, err := streamv3.ReadCSVSafe("data.csv")
+data, err := ssql.ReadCSVSafe("data.csv")
 if err != nil {
     log.Fatalf("Failed to open CSV: %v", err)
 }
@@ -1097,7 +1097,7 @@ Writes Record iterator to any io.Writer as CSV.
 **Example:**
 ```go
 var buf bytes.Buffer
-err := streamv3.WriteCSVToWriter(records, &buf)
+err := ssql.WriteCSVToWriter(records, &buf)
 if err != nil {
     log.Fatalf("Failed to write CSV: %v", err)
 }
@@ -1132,7 +1132,7 @@ Reads JSONL (JSON Lines) file into Record iterator. Returns error if file cannot
 
 **Example:**
 ```go
-data, err := streamv3.ReadJSON("data.jsonl")
+data, err := ssql.ReadJSON("data.jsonl")
 if err != nil {
     log.Fatalf("Failed to read JSON: %v", err)
 }
@@ -1155,7 +1155,7 @@ Error-aware version of ReadJSON. Returns iterator that yields both records and p
 
 **Example:**
 ```go
-data, err := streamv3.ReadJSONSafe("data.jsonl")
+data, err := ssql.ReadJSONSafe("data.jsonl")
 if err != nil {
     log.Fatalf("Failed to open JSON file: %v", err)
 }
@@ -1196,12 +1196,12 @@ Reads text file line by line into Records with a "line" field. Returns error if 
 
 **Example:**
 ```go
-lines, err := streamv3.ReadLines("logfile.txt")
+lines, err := ssql.ReadLines("logfile.txt")
 if err != nil {
     log.Fatalf("Failed to read file: %v", err)
 }
 for record := range lines {
-    line := streamv3.GetOr(record, "line", "")
+    line := ssql.GetOr(record, "line", "")
     fmt.Println(line)
 }
 ```
@@ -1228,12 +1228,12 @@ Executes a command and parses its column-aligned output into Records. Returns er
 
 **Example:**
 ```go
-processes, err := streamv3.ExecCommand("ps", []string{"-efl"})
+processes, err := ssql.ExecCommand("ps", []string{"-efl"})
 if err != nil {
     log.Fatalf("Failed to execute command: %v", err)
 }
 for process := range processes {
-    cmd := streamv3.GetOr(process, "CMD", "")
+    cmd := ssql.GetOr(process, "CMD", "")
     fmt.Println(cmd)
 }
 ```
@@ -1258,7 +1258,7 @@ Error-aware version of ExecCommand. Returns iterator that yields both records an
 
 **Example:**
 ```go
-processes, err := streamv3.ExecCommandSafe("ps", []string{"-efl"})
+processes, err := ssql.ExecCommandSafe("ps", []string{"-efl"})
 if err != nil {
     log.Fatalf("Failed to start command: %v", err)
 }
@@ -1267,7 +1267,7 @@ for process, err := range processes {
         log.Printf("Error parsing output: %v", err)
         continue
     }
-    cmd := streamv3.GetOr(process, "CMD", "")
+    cmd := ssql.GetOr(process, "CMD", "")
     fmt.Println(cmd)
 }
 ```
@@ -1351,11 +1351,11 @@ Creates chart with default settings using specified X and Y fields.
 
 **Example:**
 ```go
-config := streamv3.DefaultChartConfig()
+config := ssql.DefaultChartConfig()
 config.Title = "Sales Analysis"
 config.ChartType = "bar"
 
-err := streamv3.InteractiveChart(
+err := ssql.InteractiveChart(
     salesData,
     "sales_chart.html",
     config,
@@ -1376,13 +1376,13 @@ Safely gets typed value from Record. Includes automatic type conversion for nume
 
 **Example:**
 ```go
-name, exists := streamv3.Get[string](record, "name")
+name, exists := ssql.Get[string](record, "name")
 if !exists {
     log.Println("name field not found")
 }
 
 // Type conversion: string "42" → int64(42)
-age, ok := streamv3.Get[int64](record, "age")
+age, ok := ssql.Get[int64](record, "age")
 ```
 
 #### GetOr[T]
@@ -1393,8 +1393,8 @@ Gets value with default fallback. Includes automatic type conversion.
 
 **Example:**
 ```go
-age := streamv3.GetOr(record, "age", int64(0))
-name := streamv3.GetOr(record, "name", "Unknown")
+age := ssql.GetOr(record, "age", int64(0))
+name := ssql.GetOr(record, "name", "Unknown")
 ```
 
 #### Set[V]
@@ -1405,9 +1405,9 @@ Sets field value in a MutableRecord (mutates in place).
 
 **Example:**
 ```go
-mut := streamv3.MakeMutableRecord()
-streamv3.Set(mut, "name", "Alice")
-streamv3.Set(mut, "age", int64(30))
+mut := ssql.MakeMutableRecord()
+ssql.Set(mut, "name", "Alice")
+ssql.Set(mut, "age", int64(30))
 record := mut.Freeze()
 ```
 
@@ -1419,7 +1419,7 @@ Creates a new Record with the field value set (immutable operation).
 
 **Example:**
 ```go
-updated := streamv3.SetImmutable(record, "processed", true)
+updated := ssql.SetImmutable(record, "processed", true)
 // original record is unchanged
 ```
 
@@ -1431,7 +1431,7 @@ Creates a single-field Record.
 
 **Example:**
 ```go
-nameField := streamv3.Field("name", "Alice")
+nameField := ssql.Field("name", "Alice")
 // Returns: Record{"name": "Alice"}
 ```
 
@@ -1443,7 +1443,7 @@ Validates that a Record contains only supported value types.
 
 **Example:**
 ```go
-err := streamv3.ValidateRecord(record)
+err := ssql.ValidateRecord(record)
 if err != nil {
     log.Printf("Invalid record: %v", err)
 }
@@ -1455,29 +1455,29 @@ if err != nil {
 
 > 🛡️ **Production Patterns**: Learn robust error handling strategies in the [Advanced Tutorial](advanced-tutorial.md#error-handling-and-resilience).
 
-StreamV3 provides multiple error handling approaches:
+ssql provides multiple error handling approaches:
 
 ### Source Functions (I/O Operations)
 Source functions that read from files or execute commands return errors explicitly:
 
 ```go
 // Source functions return (iter.Seq[Record], error)
-data, err := streamv3.ReadCSV("data.csv")
+data, err := ssql.ReadCSV("data.csv")
 if err != nil {
     log.Fatalf("Failed to open file: %v", err)
 }
 
-records, err := streamv3.ReadJSON("data.jsonl")
+records, err := ssql.ReadJSON("data.jsonl")
 if err != nil {
     log.Fatalf("Failed to open file: %v", err)
 }
 
-lines, err := streamv3.ReadLines("logfile.txt")
+lines, err := ssql.ReadLines("logfile.txt")
 if err != nil {
     log.Fatalf("Failed to open file: %v", err)
 }
 
-processes, err := streamv3.ExecCommand("ps", []string{"-efl"})
+processes, err := ssql.ExecCommand("ps", []string{"-efl"})
 if err != nil {
     log.Fatalf("Failed to execute command: %v", err)
 }
@@ -1487,12 +1487,12 @@ if err != nil {
 Sink functions that write to files also return errors:
 
 ```go
-err := streamv3.WriteCSV(records, "output.csv")
+err := ssql.WriteCSV(records, "output.csv")
 if err != nil {
     log.Fatalf("Failed to write CSV: %v", err)
 }
 
-err = streamv3.WriteJSON(records, "output.jsonl")
+err = ssql.WriteJSON(records, "output.jsonl")
 if err != nil {
     log.Fatalf("Failed to write JSON: %v", err)
 }
@@ -1507,12 +1507,12 @@ Filter functions have two versions for transformation error handling:
 **Example:**
 ```go
 // Regular filter - for transformations that don't fail
-result := streamv3.Select(func(x int) int {
+result := ssql.Select(func(x int) int {
     return x * 2
 })(data)
 
 // Safe filter - for transformations that can fail
-safeResult := streamv3.SelectSafe(func(x int) (int, error) {
+safeResult := ssql.SelectSafe(func(x int) (int, error) {
     if x < 0 {
         return 0, fmt.Errorf("negative value: %d", x)
     }
@@ -1547,9 +1547,9 @@ for value, err := range safeResult {
 
 ## Related Documentation
 
-- **[Getting Started Guide](codelab-intro.md)** - Learn StreamV3 basics with hands-on examples
+- **[Getting Started Guide](codelab-intro.md)** - Learn ssql basics with hands-on examples
 - **[Advanced Tutorial](advanced-tutorial.md)** - Complex patterns, performance optimization, and real-world use cases
 
 ---
 
-*Generated for StreamV3 - Modern Go stream processing library*
+*Generated for ssql - Modern Go stream processing library*

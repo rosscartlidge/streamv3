@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -37,9 +37,9 @@ func main() {
 
 func testInfiniteCountWindow() {
 	// Simulate an infinite stream using a generator
-	dataGenerator := func(yield func(streamv3.Record) bool) {
+	dataGenerator := func(yield func(ssql.Record) bool) {
 		for i := 0; i < 50; i++ { // Simulate first 50 records
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				Int("id", int64(i)).
 				Float("value", float64(100+i*5)).
 				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("2006-01-02 15:04:05")).
@@ -55,7 +55,7 @@ func testInfiniteCountWindow() {
 	fmt.Println("Processing infinite stream in windows of 5...")
 
 	// Apply CountWindow to break infinite stream into manageable chunks
-	windowOp := streamv3.CountWindow[streamv3.Record](5)
+	windowOp := ssql.CountWindow[ssql.Record](5)
 	windows := windowOp(dataGenerator)
 
 	windowCount := 0
@@ -70,8 +70,8 @@ func testInfiniteCountWindow() {
 		var sum float64
 		var ids []any
 		for _, record := range window {
-			sum += streamv3.GetOr(record, "value", 0.0)
-			id := streamv3.GetOr(record, "id", int64(0))
+			sum += ssql.GetOr(record, "value", 0.0)
+			id := ssql.GetOr(record, "id", int64(0))
 			ids = append(ids, id)
 		}
 
@@ -84,12 +84,12 @@ func testTimeWindowProcessing() {
 	// Create time-series data spanning multiple minutes
 	baseTime := time.Now().Truncate(time.Minute)
 
-	dataGenerator := func(yield func(streamv3.Record) bool) {
+	dataGenerator := func(yield func(ssql.Record) bool) {
 		for i := 0; i < 30; i++ {
 			// Spread data across 3 minutes
 			timestamp := baseTime.Add(time.Duration(i*6) * time.Second)
 
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				Int("id", int64(i)).
 				Float("temperature", 20.0+float64(i%10)).
 				Float("humidity", 50.0+float64(i%5)*2).
@@ -106,7 +106,7 @@ func testTimeWindowProcessing() {
 	fmt.Println("Processing time-series data in 1-minute windows...")
 
 	// Apply TimeWindow for time-based aggregation
-	windowOp := streamv3.TimeWindow[streamv3.Record](time.Minute, "timestamp")
+	windowOp := ssql.TimeWindow[ssql.Record](time.Minute, "timestamp")
 	windows := windowOp(dataGenerator)
 
 	windowCount := 0
@@ -122,9 +122,9 @@ func testTimeWindowProcessing() {
 		var locations = make(map[string]int)
 
 		for _, record := range window {
-			tempSum += streamv3.GetOr(record, "temperature", 0.0)
-			humiditySum += streamv3.GetOr(record, "humidity", 0.0)
-			location := streamv3.GetOr(record, "location", "unknown")
+			tempSum += ssql.GetOr(record, "temperature", 0.0)
+			humiditySum += ssql.GetOr(record, "humidity", 0.0)
+			location := ssql.GetOr(record, "location", "unknown")
 			locations[location]++
 		}
 
@@ -140,7 +140,7 @@ func testTimeWindowProcessing() {
 
 func testSlidingWindowAnalysis() {
 	// Generate stock price-like data
-	dataGenerator := func(yield func(streamv3.Record) bool) {
+	dataGenerator := func(yield func(ssql.Record) bool) {
 		basePrice := 100.0
 
 		for i := 0; i < 20; i++ {
@@ -148,7 +148,7 @@ func testSlidingWindowAnalysis() {
 			change := float64(i%5-2) * 2.5 // -5, -2.5, 0, 2.5, 5
 			basePrice += change
 
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				Int("tick", int64(i)).
 				Float("price", basePrice).
 				Int("volume", int64(1000+i*50)).
@@ -164,7 +164,7 @@ func testSlidingWindowAnalysis() {
 	fmt.Println("Calculating moving averages with sliding windows (window=5, step=1)...")
 
 	// Apply SlidingCountWindow for moving averages
-	windowOp := streamv3.SlidingCountWindow[streamv3.Record](5, 1)
+	windowOp := ssql.SlidingCountWindow[ssql.Record](5, 1)
 	windows := windowOp(dataGenerator)
 
 	windowCount := 0
@@ -181,8 +181,8 @@ func testSlidingWindowAnalysis() {
 		var ticks []any
 
 		for _, record := range window {
-			priceSum += streamv3.GetOr(record, "price", 0.0)
-			tick := streamv3.GetOr(record, "tick", int64(0))
+			priceSum += ssql.GetOr(record, "price", 0.0)
+			tick := ssql.GetOr(record, "tick", int64(0))
 			ticks = append(ticks, tick)
 		}
 

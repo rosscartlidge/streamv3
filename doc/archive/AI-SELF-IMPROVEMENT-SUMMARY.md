@@ -53,17 +53,17 @@ This document describes how we created a self-improving AI code generation syste
 **What LLMs hallucinate:**
 ```go
 // This API DOESN'T EXIST but LLMs often generate it
-result := streamv3.GroupByFields(
+result := ssql.GroupByFields(
     []string{"department"},
-    []streamv3.Aggregation{
-        streamv3.Count("employee_count"),
+    []ssql.Aggregation{
+        ssql.Count("employee_count"),
     },
 )
 ```
 
 **Why it happens:**
 - LLMs trained on SQL/Pandas see combined group+aggregate operations
-- They infer a similar combined API for StreamV3
+- They infer a similar combined API for ssql
 - No explicit anti-pattern in the original prompt
 
 **Fix:** Added ANTI-PATTERNS section showing this exact mistake!
@@ -72,7 +72,7 @@ result := streamv3.GroupByFields(
 
 **What LLMs get wrong:**
 ```go
-❌ streamv3.Count("employee_count")  // Doesn't compile
+❌ ssql.Count("employee_count")  // Doesn't compile
 ```
 
 **Why it happens:**
@@ -89,8 +89,8 @@ result := streamv3.GroupByFields(
 
 **What LLMs get wrong:**
 ```go
-grouped := streamv3.GroupByFields("sales", "region")(data)
-results := streamv3.Aggregate("analysis", aggs)(grouped)  // Different!
+grouped := ssql.GroupByFields("sales", "region")(data)
+results := ssql.Aggregate("analysis", aggs)(grouped)  // Different!
 ```
 
 **Why it happens:**
@@ -118,7 +118,7 @@ results := streamv3.Aggregate("analysis", aggs)(grouped)  // Different!
 
 **What was unclear:**
 ```go
-return -streamv3.GetOr(r, "total", 0.0)  // Why negative?
+return -ssql.GetOr(r, "total", 0.0)  // Why negative?
 ```
 
 **Why it happens:**
@@ -134,8 +134,8 @@ return -streamv3.GetOr(r, "total", 0.0)  // Why negative?
 ```markdown
 ### Aggregation Functions
 
-streamv3.Count()
-streamv3.Sum("field")
+ssql.Count()
+ssql.Sum("field")
 ...
 ```
 
@@ -149,8 +149,8 @@ streamv3.Sum("field")
 ```markdown
 ### Aggregation Functions
 
-streamv3.Count()                    // ⚠️ NO PARAMETERS! Field name goes in map key
-streamv3.Sum("field")               // Takes field parameter
+ssql.Count()                    // ⚠️ NO PARAMETERS! Field name goes in map key
+ssql.Sum("field")               // Takes field parameter
 ...
 
 ### ⛔ CRITICAL ANTI-PATTERNS

@@ -57,7 +57,7 @@ The generated HTML chart includes:
 
 ## Dependencies
 
-- StreamV3 library (`github.com/rosscartlidge/streamv3`)
+- StreamV3 library (`github.com/rosscartlidge/ssql`)
 - Go 1.23+ (for iter.Seq support)
 
 ## Key StreamV3 Concepts Demonstrated

@@ -1,33 +1,33 @@
-# StreamV3 🚀
+# ssql 🚀
 
 **Modern Go stream processing made simple** - Transform data with intuitive operations, create interactive visualizations, and even generate code from natural language descriptions.
 
 Built on Go 1.23+ with first-class support for iterators, generics, and functional composition.
 
-## ✨ What Makes StreamV3 Special
+## ✨ What Makes ssql Special
 
 ### 🎯 **Simple Yet Powerful**
 
 **Go Library:**
 ```go
 // Read data, filter, group, and visualize - all type-safe
-sales, err := streamv3.ReadCSV("sales.csv")
+sales, err := ssql.ReadCSV("sales.csv")
 if err != nil {
     log.Fatal(err)
 }
 
-topRegions := streamv3.Chain(
-    streamv3.GroupByFields("sales", "region"),
-    streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
-        "total_revenue": streamv3.Sum("amount"),
+topRegions := ssql.Chain(
+    ssql.GroupByFields("sales", "region"),
+    ssql.Aggregate("sales", map[string]ssql.AggregateFunc{
+        "total_revenue": ssql.Sum("amount"),
     }),
-    streamv3.SortBy(func(r streamv3.Record) float64 {
-        return -streamv3.GetOr(r, "total_revenue", 0.0) // Descending
+    ssql.SortBy(func(r ssql.Record) float64 {
+        return -ssql.GetOr(r, "total_revenue", 0.0) // Descending
     }),
-    streamv3.Limit[streamv3.Record](5),
+    ssql.Limit[ssql.Record](5),
 )(sales)
 
-streamv3.QuickChart(topRegions, "region", "total_revenue", "top_regions.html")
+ssql.QuickChart(topRegions, "region", "total_revenue", "top_regions.html")
 ```
 
 <details>
@@ -39,7 +39,7 @@ package main
 import (
     "log"
     "os"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -63,23 +63,23 @@ West,Gadget,3100`
     }
 
     // Read data, filter, group, and visualize - all type-safe
-    sales, err := streamv3.ReadCSV("/tmp/sales.csv")
+    sales, err := ssql.ReadCSV("/tmp/sales.csv")
     if err != nil {
         log.Fatal(err)
     }
 
-    topRegions := streamv3.Chain(
-        streamv3.GroupByFields("sales", "region"),
-        streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
-            "total_revenue": streamv3.Sum("amount"),
+    topRegions := ssql.Chain(
+        ssql.GroupByFields("sales", "region"),
+        ssql.Aggregate("sales", map[string]ssql.AggregateFunc{
+            "total_revenue": ssql.Sum("amount"),
         }),
-        streamv3.SortBy(func(r streamv3.Record) float64 {
-            return -streamv3.GetOr(r, "total_revenue", 0.0) // Descending
+        ssql.SortBy(func(r ssql.Record) float64 {
+            return -ssql.GetOr(r, "total_revenue", 0.0) // Descending
         }),
-        streamv3.Limit[streamv3.Record](5),
+        ssql.Limit[ssql.Record](5),
     )(sales)
 
-    if err := streamv3.QuickChart(topRegions, "region", "total_revenue", "/tmp/top_regions.html"); err != nil {
+    if err := ssql.QuickChart(topRegions, "region", "total_revenue", "/tmp/top_regions.html"); err != nil {
         log.Fatalf("Failed to create chart: %v", err)
     }
 
@@ -93,19 +93,19 @@ West,Gadget,3100`
 **Or use the CLI:**
 ```bash
 # Prototype with Unix-style pipelines, then generate production Go code
-streamv3 exec -- ps -efl | \
-  streamv3 group -by UID -function count -result process_count | \
-  streamv3 chart -x UID -y process_count -output chart.html
+ssql exec -- ps -efl | \
+  ssql group -by UID -function count -result process_count | \
+  ssql chart -x UID -y process_count -output chart.html
 
 # Debug pipelines with jq (JSONL streaming format)
-streamv3 read-csv data.csv | jq '.' | head -5  # Inspect data
-streamv3 read-csv data.csv | streamv3 where -match age gt 30 | jq -s 'length'  # Count results
+ssql read-csv data.csv | jq '.' | head -5  # Inspect data
+ssql read-csv data.csv | ssql where -match age gt 30 | jq -s 'length'  # Count results
 ```
 
 [**Try the CLI →**](doc/cli/codelab-cli.md) | [**Debug with jq →**](doc/cli/debugging_pipelines.md)
 
 ### 🤖 **AI-Powered Code Generation**
-Describe what you want in plain English, get working StreamV3 code:
+Describe what you want in plain English, get working ssql code:
 
 > *"Read customer data, find high-value customers, group by region, create a chart"*
 
@@ -117,7 +117,7 @@ Describe what you want in plain English, get working StreamV3 code:
 Create modern, responsive charts with zoom, pan, and filtering capabilities:
 
 ```go
-streamv3.QuickChart(data, "month", "revenue", "chart.html")  // One line = full dashboard
+ssql.QuickChart(data, "month", "revenue", "chart.html")  // One line = full dashboard
 ```
 
 [**See Chart Demo →**](examples/chart_demo.go)
@@ -138,15 +138,15 @@ streamv3.QuickChart(data, "month", "revenue", "chart.html")  // One line = full 
 
 ```bash
 # Install the command-line tool
-go install github.com/rosscartlidge/streamv3/cmd/streamv3@latest
+go install github.com/rosscartlidge/ssql/cmd/ssql@latest
 
 # Verify installation
-streamv3 -version
+ssql -version
 
 # Try it out
 echo "name,age,salary
 Alice,30,95000
-Bob,25,65000" | streamv3 read-csv | streamv3 where -match age gt 28
+Bob,25,65000" | ssql read-csv | ssql where -match age gt 28
 ```
 
 [**See CLI Tutorial →**](doc/cli/codelab-cli.md)
@@ -160,29 +160,29 @@ cd my-project
 go mod init myproject  # Initialize Go module (required!)
 ```
 
-**Step 2: Install StreamV3**
+**Step 2: Install ssql**
 ```bash
-go get github.com/rosscartlidge/streamv3
+go get github.com/rosscartlidge/ssql
 ```
 
-### Hello StreamV3
+### Hello ssql
 ```go
 package main
 
 import (
     "fmt"
     "slices"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     numbers := slices.Values([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 
-    evenNumbers := streamv3.Where(func(x int) bool {
+    evenNumbers := ssql.Where(func(x int) bool {
         return x%2 == 0
     })(numbers)
 
-    first3 := streamv3.Limit[int](3)(evenNumbers)
+    first3 := ssql.Limit[int](3)(evenNumbers)
 
     fmt.Println("First 3 even numbers:")
     for num := range first3 {
@@ -197,28 +197,28 @@ package main
 
 import (
     "slices"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Create sample data
-    monthlyRevenue := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("month", "Jan").Float("revenue", 120000).Freeze(),
-        streamv3.MakeMutableRecord().String("month", "Feb").Float("revenue", 135000).Freeze(),
-        streamv3.MakeMutableRecord().String("month", "Mar").Float("revenue", 118000).Freeze(),
+    monthlyRevenue := []ssql.Record{
+        ssql.MakeMutableRecord().String("month", "Jan").Float("revenue", 120000).Freeze(),
+        ssql.MakeMutableRecord().String("month", "Feb").Float("revenue", 135000).Freeze(),
+        ssql.MakeMutableRecord().String("month", "Mar").Float("revenue", 118000).Freeze(),
     }
 
     data := slices.Values(monthlyRevenue)
 
     // Generate interactive chart
-    streamv3.QuickChart(data, "month", "revenue", "revenue_chart.html")
+    ssql.QuickChart(data, "month", "revenue", "revenue_chart.html")
     // Opens in browser with zoom, pan, and export features
 }
 ```
 
 ## 🎓 Learning Path
 
-**New to StreamV3?** We've got you covered with step-by-step guides:
+**New to ssql?** We've got you covered with step-by-step guides:
 
 ### 1. ⚡ **[CLI Tutorial](doc/cli/codelab-cli.md)** *(In Development)*
 *Prototype fast with Unix-style pipelines, generate production code*
@@ -252,7 +252,7 @@ func main() {
 - Performance optimization
 
 ### 5. 🤖 **[AI Code Generation](doc/ai-human-guide.md)**
-*Generate StreamV3 code from natural language*
+*Generate ssql code from natural language*
 - Use any AI assistant (Claude, ChatGPT, Gemini)
 - Describe what you want, get working code
 - Human-readable, verifiable results
@@ -266,11 +266,11 @@ func main() {
 **Quick view:**
 ```go
 // Group sales by region, calculate totals, get top 5
-topRegions := streamv3.Chain(
-    streamv3.GroupByFields("sales", "region"),
-    streamv3.Aggregate("sales", aggregations),
-    streamv3.SortBy(keyFunc),
-    streamv3.Limit[streamv3.Record](5),
+topRegions := ssql.Chain(
+    ssql.GroupByFields("sales", "region"),
+    ssql.Aggregate("sales", aggregations),
+    ssql.SortBy(keyFunc),
+    ssql.Limit[ssql.Record](5),
 )(salesData)
 ```
 
@@ -283,41 +283,41 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Read sales data
-    salesData, err := streamv3.ReadCSV("sales.csv")
+    salesData, err := ssql.ReadCSV("sales.csv")
     if err != nil {
         log.Fatal(err)
     }
 
     // Define aggregations
-    aggregations := map[string]streamv3.AggregateFunc{
-        "total_revenue": streamv3.Sum("amount"),
-        "sale_count":    streamv3.Count(),
+    aggregations := map[string]ssql.AggregateFunc{
+        "total_revenue": ssql.Sum("amount"),
+        "sale_count":    ssql.Count(),
     }
 
     // Define sort key function
-    keyFunc := func(r streamv3.Record) float64 {
-        return -streamv3.GetOr(r, "total_revenue", 0.0) // Negative for descending
+    keyFunc := func(r ssql.Record) float64 {
+        return -ssql.GetOr(r, "total_revenue", 0.0) // Negative for descending
     }
 
     // Group sales by region, calculate totals, get top 5
-    topRegions := streamv3.Chain(
-        streamv3.GroupByFields("sales", "region"),
-        streamv3.Aggregate("sales", aggregations),
-        streamv3.SortBy(keyFunc),
-        streamv3.Limit[streamv3.Record](5),
+    topRegions := ssql.Chain(
+        ssql.GroupByFields("sales", "region"),
+        ssql.Aggregate("sales", aggregations),
+        ssql.SortBy(keyFunc),
+        ssql.Limit[ssql.Record](5),
     )(salesData)
 
     // Display results
     fmt.Println("Top 5 Regions by Revenue:")
     for region := range topRegions {
-        name := streamv3.GetOr(region, "region", "")
-        revenue := streamv3.GetOr(region, "total_revenue", 0.0)
-        count := streamv3.GetOr(region, "sale_count", int64(0))
+        name := ssql.GetOr(region, "region", "")
+        revenue := ssql.GetOr(region, "total_revenue", 0.0)
+        count := ssql.GetOr(region, "sale_count", int64(0))
         fmt.Printf("%s: $%.2f (%d sales)\n", name, revenue, count)
     }
 }
@@ -330,7 +330,7 @@ func main() {
 **Quick view:**
 ```go
 // Process sensor data in 5-minute windows
-windowed := streamv3.TimeWindow[streamv3.Record](5*time.Minute, "timestamp")(sensorStream)
+windowed := ssql.TimeWindow[ssql.Record](5*time.Minute, "timestamp")(sensorStream)
 for window := range windowed {
     // Analyze each time window
 }
@@ -346,18 +346,18 @@ import (
     "fmt"
     "log"
     "time"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Read sensor data
-    sensorStream, err := streamv3.ReadCSV("sensor_data.csv")
+    sensorStream, err := ssql.ReadCSV("sensor_data.csv")
     if err != nil {
         log.Fatal(err)
     }
 
     // Process sensor data in 5-minute windows
-    windowed := streamv3.TimeWindow[streamv3.Record](5*time.Minute, "timestamp")(sensorStream)
+    windowed := ssql.TimeWindow[ssql.Record](5*time.Minute, "timestamp")(sensorStream)
 
     fmt.Println("Processing 5-minute windows:")
     for window := range windowed {
@@ -367,7 +367,7 @@ func main() {
         // Calculate average temperature
         var totalTemp float64
         for _, record := range window {
-            temp := streamv3.GetOr(record, "temperature", 0.0)
+            temp := ssql.GetOr(record, "temperature", 0.0)
             totalTemp += temp
         }
         avgTemp := totalTemp / float64(count)
@@ -383,10 +383,10 @@ func main() {
 
 **Quick view:**
 ```go
-config := streamv3.DefaultChartConfig()
+config := ssql.DefaultChartConfig()
 config.Title = "Sales Dashboard"
 config.ChartType = "line"
-streamv3.InteractiveChart(data, "dashboard.html", config)
+ssql.InteractiveChart(data, "dashboard.html", config)
 ```
 
 <details>
@@ -398,22 +398,22 @@ package main
 import (
     "log"
     "slices"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Create sample sales data
-    salesData := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("month", "Jan").Float("revenue", 120000).Freeze(),
-        streamv3.MakeMutableRecord().String("month", "Feb").Float("revenue", 135000).Freeze(),
-        streamv3.MakeMutableRecord().String("month", "Mar").Float("revenue", 145000).Freeze(),
-        streamv3.MakeMutableRecord().String("month", "Apr").Float("revenue", 132000).Freeze(),
+    salesData := []ssql.Record{
+        ssql.MakeMutableRecord().String("month", "Jan").Float("revenue", 120000).Freeze(),
+        ssql.MakeMutableRecord().String("month", "Feb").Float("revenue", 135000).Freeze(),
+        ssql.MakeMutableRecord().String("month", "Mar").Float("revenue", 145000).Freeze(),
+        ssql.MakeMutableRecord().String("month", "Apr").Float("revenue", 132000).Freeze(),
     }
 
     data := slices.Values(salesData)
 
     // Create interactive dashboard
-    config := streamv3.DefaultChartConfig()
+    config := ssql.DefaultChartConfig()
     config.Title = "Sales Dashboard"
     config.ChartType = "line"
     config.Width = 1200
@@ -421,7 +421,7 @@ func main() {
     config.EnableZoom = true
     config.EnablePan = true
 
-    err := streamv3.InteractiveChart(data, "dashboard.html", config)
+    err := ssql.InteractiveChart(data, "dashboard.html", config)
     if err != nil {
         log.Fatalf("Failed to create chart: %v", err)
     }
@@ -437,9 +437,9 @@ func main() {
 **Quick view:**
 ```go
 // Join customer and order data
-customerOrders := streamv3.InnerJoin(
+customerOrders := ssql.InnerJoin(
     orderStream,
-    streamv3.OnFields("customer_id")
+    ssql.OnFields("customer_id")
 )(customerStream)
 ```
 
@@ -452,34 +452,34 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Read customer data
-    customerStream, err := streamv3.ReadCSV("customers.csv")
+    customerStream, err := ssql.ReadCSV("customers.csv")
     if err != nil {
         log.Fatal(err)
     }
 
     // Read order data
-    orderStream, err := streamv3.ReadCSV("orders.csv")
+    orderStream, err := ssql.ReadCSV("orders.csv")
     if err != nil {
         log.Fatal(err)
     }
 
     // Join customer and order data
-    customerOrders := streamv3.InnerJoin(
+    customerOrders := ssql.InnerJoin(
         orderStream,
-        streamv3.OnFields("customer_id"),
+        ssql.OnFields("customer_id"),
     )(customerStream)
 
     // Display joined results
     fmt.Println("Customer Orders:")
     for record := range customerOrders {
-        custName := streamv3.GetOr(record, "customer_name", "")
-        orderID := streamv3.GetOr(record, "order_id", "")
-        amount := streamv3.GetOr(record, "amount", 0.0)
+        custName := ssql.GetOr(record, "customer_name", "")
+        orderID := ssql.GetOr(record, "order_id", "")
+        amount := ssql.GetOr(record, "amount", 0.0)
         fmt.Printf("%s - Order %s: $%.2f\n", custName, orderID, amount)
     }
 }
@@ -489,7 +489,7 @@ func main() {
 
 ## 🎨 Try the Examples
 
-Run these to see StreamV3 in action:
+Run these to see ssql in action:
 
 ```bash
 # Interactive chart showcase
@@ -502,9 +502,9 @@ go run examples/functional_example.go
 go run examples/early_termination_example.go
 ```
 
-## 🌟 Why Choose StreamV3?
+## 🌟 Why Choose ssql?
 
-- **🎯 Simple API** - If you know SQL, you know StreamV3
+- **🎯 Simple API** - If you know SQL, you know ssql
 - **🔒 Type Safe** - Go generics catch errors at compile time
 - **📊 Visual** - Create charts as easily as processing data
 - **🤖 AI Ready** - Generate code from descriptions
@@ -522,7 +522,7 @@ go run examples/early_termination_example.go
 
 ## 🚀 What's Next?
 
-1. **[Install StreamV3](#installation)** and try the quick start
+1. **[Install ssql](#installation)** and try the quick start
 2. **[Try the CLI](doc/cli/codelab-cli.md)** for rapid prototyping *(in development)*
 3. **[Follow the Getting Started Guide](doc/codelab-intro.md)** for library fundamentals
 4. **[Try the AI Assistant](doc/ai-human-guide.md)** for code generation
@@ -541,7 +541,7 @@ go run examples/early_termination_example.go
 
 ## 🤝 Community
 
-StreamV3 is production-ready and actively maintained. Questions, issues, and contributions are welcome!
+ssql is production-ready and actively maintained. Questions, issues, and contributions are welcome!
 
 - 📖 **Documentation**: Complete guides and API reference
 - 🤖 **AI Integration**: Generate code from natural language
@@ -553,4 +553,4 @@ StreamV3 is production-ready and actively maintained. Questions, issues, and con
 
 **Ready to transform how you process data?** [Get started now →](doc/codelab-intro.md)
 
-*StreamV3: Where data processing meets AI-powered development* ✨
+*ssql: Where data processing meets AI-powered development* ✨

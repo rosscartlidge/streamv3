@@ -63,7 +63,7 @@ Just add `.All()` - nearly drop-in!
 5. [ ] `sql.go` - Range loops, len() calls
 6. [ ] `chart.go` - Range loops, len() calls
 7. [ ] `operations.go` - If needed
-8. [ ] CLI commands in `cmd/streamv3/` - Check for issues
+8. [ ] CLI commands in `cmd/ssql/` - Check for issues
 
 ### Testing & Documentation
 9. [ ] Run tests, fix breakage
@@ -132,6 +132,6 @@ mutable.Delete(field)
 ## Version Strategy
 
 - **v1.0.0** - Breaking change, but worth it
-- Update version in `cmd/streamv3/main.go` and `cmd/streamv3/lib/codefragment.go`
+- Update version in `cmd/ssql/main.go` and `cmd/ssql/lib/codefragment.go`
 - Create annotated git tag
 - Update CLAUDE.md to document the change

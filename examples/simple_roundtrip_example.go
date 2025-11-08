@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"slices"
 )
 
@@ -14,17 +14,17 @@ func main() {
 	tags := slices.Values([]string{"urgent", "security"})
 	scores := slices.Values([]int{95, 88})
 
-	metadata := streamv3.MakeMutableRecord().
+	metadata := ssql.MakeMutableRecord().
 		String("priority", "high").
 		Int("version", 2).
 		Freeze()
 
-	configJSON, _ := streamv3.NewJSONString(map[string]any{
+	configJSON, _ := ssql.NewJSONString(map[string]any{
 		"timeout": 30,
 		"enabled": true,
 	})
 
-	original := streamv3.MakeMutableRecord().
+	original := ssql.MakeMutableRecord().
 		String("id", "TASK-001").
 		Int("priority_num", 1).
 		Float("score", 95.5).
@@ -42,10 +42,10 @@ func main() {
 	fmt.Println("\n🔧 Round-trip process:")
 
 	// 1. Stream → JSON
-	originalStream := streamv3.From([]streamv3.Record{original})
+	originalStream := ssql.From([]ssql.Record{original})
 	jsonFile := "/tmp/simple_roundtrip.json"
 
-	err := streamv3.WriteJSON(originalStream, jsonFile)
+	err := ssql.WriteJSON(originalStream, jsonFile)
 	if err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 		return
@@ -53,12 +53,12 @@ func main() {
 	fmt.Printf("  1. ✅ Stream → JSON file: %s\n", jsonFile)
 
 	// 2. JSON → Stream
-	reconstructedStream, err := streamv3.ReadJSON(jsonFile)
+	reconstructedStream, err := ssql.ReadJSON(jsonFile)
 	if err != nil {
 		fmt.Printf("❌ Error reading JSON: %v\n", err)
 		return
 	}
-	var reconstructed streamv3.Record
+	var reconstructed ssql.Record
 	for record := range reconstructedStream {
 		reconstructed = record
 		break
@@ -72,31 +72,31 @@ func main() {
 	fmt.Println("===========")
 
 	// Manual verification of key data points
-	originalID := streamv3.GetOr(original, "id", "")
-	reconstructedID := streamv3.GetOr(reconstructed, "id", "")
+	originalID := ssql.GetOr(original, "id", "")
+	reconstructedID := ssql.GetOr(reconstructed, "id", "")
 	fmt.Printf("✅ ID: %q → %q (preserved)\n", originalID, reconstructedID)
 
-	originalPriority := streamv3.GetOr(original, "priority_num", int64(0))
-	reconstructedPriority := streamv3.GetOr(reconstructed, "priority_num", float64(0))
+	originalPriority := ssql.GetOr(original, "priority_num", int64(0))
+	reconstructedPriority := ssql.GetOr(reconstructed, "priority_num", float64(0))
 	fmt.Printf("✅ Priority: %v (%T) → %v (%T) (int64→float64, value preserved)\n",
 		originalPriority, originalPriority, reconstructedPriority, reconstructedPriority)
 
 	// Check complex fields exist and have correct structure
-	if _, exists := streamv3.Get[any](reconstructed, "tags"); exists {
+	if _, exists := ssql.Get[any](reconstructed, "tags"); exists {
 		fmt.Println("✅ Tags: iter.Seq[string] → []interface{} (converted to array)")
 	}
 
-	if _, exists := streamv3.Get[any](reconstructed, "scores"); exists {
+	if _, exists := ssql.Get[any](reconstructed, "scores"); exists {
 		fmt.Println("✅ Scores: iter.Seq[int] → []interface{} (converted to array)")
 	}
 
-	if metaMap, ok := streamv3.Get[map[string]interface{}](reconstructed, "metadata"); ok {
+	if metaMap, ok := ssql.Get[map[string]interface{}](reconstructed, "metadata"); ok {
 		if priority, exists := metaMap["priority"]; exists {
 			fmt.Printf("✅ Metadata: Record → map[string]interface{} (nested field 'priority': %v)\n", priority)
 		}
 	}
 
-	if configMap, ok := streamv3.Get[map[string]interface{}](reconstructed, "config"); ok {
+	if configMap, ok := ssql.Get[map[string]interface{}](reconstructed, "config"); ok {
 		if timeout, exists := configMap["timeout"]; exists {
 			fmt.Printf("✅ Config: JSONString → map[string]interface{} (parsed, timeout: %v)\n", timeout)
 		}
@@ -119,7 +119,7 @@ func main() {
 	fmt.Println("   to JSON's type system. This is exactly what we want!")
 }
 
-func printSimpleRecord(record streamv3.Record) {
+func printSimpleRecord(record ssql.Record) {
 	for key, value := range record.All() {
 		if key == "_line_number" {
 			continue // Skip ReadJSON metadata for cleaner output

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"iter"
 	"reflect"
 	"slices"
@@ -19,7 +19,7 @@ func main() {
 	flags := slices.Values([]bool{true, false, true})
 	weights := slices.Values([]float64{1.5, 2.3, 0.8})
 
-	metadata := streamv3.MakeMutableRecord().
+	metadata := ssql.MakeMutableRecord().
 		String("priority", "high").
 		Int("version", 2).
 		Float("confidence", 0.95).
@@ -27,14 +27,14 @@ func main() {
 		Freeze()
 
 	// Create JSONString field
-	configJSON, _ := streamv3.NewJSONString(map[string]any{
+	configJSON, _ := ssql.NewJSONString(map[string]any{
 		"timeout": 30,
 		"retries": 3,
 		"enabled": true,
 	})
 
-	originalRecords := []streamv3.Record{
-		streamv3.MakeMutableRecord().
+	originalRecords := []ssql.Record{
+		ssql.MakeMutableRecord().
 			String("id", "TASK-001").
 			String("title", "Security Update").
 			Int("priority_num", 1).
@@ -47,7 +47,7 @@ func main() {
 			Nested("metadata", metadata).
 			JSONString("config", configJSON).
 			Freeze(),
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "TASK-002").
 			String("title", "Feature Request").
 			Int("priority_num", 2).
@@ -63,10 +63,10 @@ func main() {
 	}
 
 	fmt.Println("\n🔧 Step 1: Stream → JSON file")
-	originalStream := streamv3.From(originalRecords)
+	originalStream := ssql.From(originalRecords)
 	jsonFile := "/tmp/roundtrip_test.json"
 
-	err := streamv3.WriteJSON(originalStream, jsonFile)
+	err := ssql.WriteJSON(originalStream, jsonFile)
 	if err != nil {
 		fmt.Printf("❌ Error writing JSON: %v\n", err)
 		return
@@ -74,13 +74,13 @@ func main() {
 	fmt.Printf("✅ Written to %s\n", jsonFile)
 
 	fmt.Println("\n🔧 Step 2: JSON file → Stream")
-	reconstructedStream, err := streamv3.ReadJSON(jsonFile)
+	reconstructedStream, err := ssql.ReadJSON(jsonFile)
 	if err != nil {
 		fmt.Printf("❌ Error reading JSON: %v\n", err)
 		return
 	}
 
-	var reconstructedRecords []streamv3.Record
+	var reconstructedRecords []ssql.Record
 	for record := range reconstructedStream {
 		reconstructedRecords = append(reconstructedRecords, record)
 	}
@@ -133,12 +133,12 @@ func main() {
 	fmt.Println("  ⚠️  Type information: Lost (JSON limitation), but data integrity maintained")
 }
 
-func printRecord(record streamv3.Record, indent string) {
+func printRecord(record ssql.Record, indent string) {
 	for key, value := range record.All() {
 		switch v := value.(type) {
-		case streamv3.JSONString:
+		case ssql.JSONString:
 			fmt.Printf("%s%s: %s (JSONString)\n", indent, key, v)
-		case streamv3.Record:
+		case ssql.Record:
 			fmt.Printf("%s%s: {Record with %d fields}\n", indent, key, v.Len())
 		case iter.Seq[string]:
 			fmt.Printf("%s%s: [", indent, key)
@@ -190,12 +190,12 @@ func printRecord(record streamv3.Record, indent string) {
 	}
 }
 
-func compareRecords(original, reconstructed streamv3.Record) bool {
+func compareRecords(original, reconstructed ssql.Record) bool {
 	matches := true
 
 	// Check each field in original
 	for key, originalValue := range original.All() {
-		reconstructedValue, exists := streamv3.Get[any](reconstructed, key)
+		reconstructedValue, exists := ssql.Get[any](reconstructed, key)
 		if !exists {
 			fmt.Printf("  ❌ Missing field: %s\n", key)
 			matches = false
@@ -212,7 +212,7 @@ func compareRecords(original, reconstructed streamv3.Record) bool {
 
 	// Check for extra fields in reconstructed (ignore ReadJSON metadata)
 	for key := range reconstructed.All() {
-		if _, exists := streamv3.Get[any](original, key); !exists {
+		if _, exists := ssql.Get[any](original, key); !exists {
 			if key == "_line_number" {
 				fmt.Printf("  ℹ️  %s: Added by ReadJSON (expected)\n", key)
 				// Don't count metadata fields as failures
@@ -228,7 +228,7 @@ func compareRecords(original, reconstructed streamv3.Record) bool {
 
 func compareValues(fieldName string, original, reconstructed any) bool {
 	// Handle JSONString specially
-	if originalJSON, ok := original.(streamv3.JSONString); ok {
+	if originalJSON, ok := original.(ssql.JSONString); ok {
 		// JSONString should be parsed back to its original structure
 		originalParsed, err := originalJSON.Parse()
 		if err != nil {
@@ -246,7 +246,7 @@ func compareValues(fieldName string, original, reconstructed any) bool {
 	}
 
 	// Handle Record types - they should become map[string]any
-	if originalRecord, ok := original.(streamv3.Record); ok {
+	if originalRecord, ok := original.(ssql.Record); ok {
 		reconstructedMap, ok := reconstructed.(map[string]any)
 		if !ok {
 			fmt.Printf("  ❌ %s: Record not converted to map[string]any, got %T\n", fieldName, reconstructed)

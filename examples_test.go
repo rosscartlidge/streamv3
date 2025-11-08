@@ -1,7 +1,7 @@
 //go:build examples
 // +build examples
 
-package streamv3_test
+package ssql_test
 
 import (
 	"os"

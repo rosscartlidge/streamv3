@@ -8,7 +8,7 @@
 
 ## Overview
 
-This prompt enables LLMs to generate correct, idiomatic StreamV3 code from natural language descriptions.
+This prompt enables LLMs to generate correct, idiomatic ssql code from natural language descriptions.
 
 **Test Results:**
 - ✅ 100% API correctness (0 hallucinations across 15 test cases)
@@ -38,10 +38,10 @@ Now generate a Go program that:
 ### For Developers
 
 Use this prompt when you need to:
-- Generate StreamV3 code examples
+- Generate ssql code examples
 - Create data processing pipelines
 - Build prototypes quickly
-- Learn StreamV3 patterns
+- Learn ssql patterns
 
 ---
 
@@ -93,17 +93,17 @@ The prompt explicitly shows wrong APIs that LLMs tend to hallucinate:
 
 ```go
 // ❌ This doesn't exist - LLMs often hallucinate this!
-result := streamv3.GroupByFields(
+result := ssql.GroupByFields(
     []string{"department"},
-    []streamv3.Aggregation{
-        streamv3.Count("count"),
+    []ssql.Aggregation{
+        ssql.Count("count"),
     },
 )
 
 // ✅ This is correct
-grouped := streamv3.GroupByFields("analysis", "department")(data)
-results := streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
-    "employee_count": streamv3.Count(),
+grouped := ssql.GroupByFields("analysis", "department")(data)
+results := ssql.Aggregate("analysis", map[string]ssql.AggregateFunc{
+    "employee_count": ssql.Count(),
 })(grouped)
 ```
 
@@ -113,10 +113,10 @@ Strong guidance ensures readable, idiomatic code:
 
 ```go
 // ✅ ALWAYS use Chain() for 2+ operations
-result := streamv3.Chain(
-    streamv3.GroupByFields("sales", "product"),
-    streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
-        "total": streamv3.Sum("amount"),
+result := ssql.Chain(
+    ssql.GroupByFields("sales", "product"),
+    ssql.Aggregate("sales", map[string]ssql.AggregateFunc{
+        "total": ssql.Sum("amount"),
     }),
 )(data)
 ```
@@ -189,31 +189,31 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
-    sales, err := streamv3.ReadCSV("sales.csv")
+    sales, err := ssql.ReadCSV("sales.csv")
     if err != nil {
         log.Fatalf("Failed to read CSV: %v", err)
     }
 
-    top5 := streamv3.Chain(
-        streamv3.GroupByFields("product_analysis", "product_name"),
-        streamv3.Aggregate("product_analysis", map[string]streamv3.AggregateFunc{
-            "total_revenue": streamv3.Sum("revenue"),
+    top5 := ssql.Chain(
+        ssql.GroupByFields("product_analysis", "product_name"),
+        ssql.Aggregate("product_analysis", map[string]ssql.AggregateFunc{
+            "total_revenue": ssql.Sum("revenue"),
         }),
-        streamv3.SortBy(func(r streamv3.Record) float64 {
-            return -streamv3.GetOr(r, "total_revenue", 0.0)
+        ssql.SortBy(func(r ssql.Record) float64 {
+            return -ssql.GetOr(r, "total_revenue", 0.0)
         }),
-        streamv3.Limit[streamv3.Record](5),
+        ssql.Limit[ssql.Record](5),
     )(sales)
 
     fmt.Println("Top 5 products by revenue:")
     rank := 1
     for product := range top5 {
-        name := streamv3.GetOr(product, "product_name", "")
-        revenue := streamv3.GetOr(product, "total_revenue", 0.0)
+        name := ssql.GetOr(product, "product_name", "")
+        revenue := ssql.GetOr(product, "total_revenue", 0.0)
         fmt.Printf("%d. %s: $%.2f\n", rank, name, revenue)
         rank++
     }

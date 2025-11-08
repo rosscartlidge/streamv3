@@ -1,11 +1,11 @@
-# StreamV3 CLI Migration to completionflags
+# ssql CLI Migration to completionflags
 
 **Status:** Waiting for completionflags v0.2.0 (positional args feature)
 **Date:** 2025-10-28
 
 ## Summary
 
-We successfully prototyped the migration of all 10 StreamV3 CLI commands from gogstools/gs to completionflags. The migration works great, but we're waiting for the positional arguments feature (see `/home/rossc/src/completionflags/docs/POSITIONAL_ARGS_PROPOSAL.md`) to complete it cleanly.
+We successfully prototyped the migration of all 10 ssql CLI commands from gogstools/gs to completionflags. The migration works great, but we're waiting for the positional arguments feature (see `/home/rossc/src/completionflags/docs/POSITIONAL_ARGS_PROPOSAL.md`) to complete it cleanly.
 
 ## Migration Pattern Established
 
@@ -52,7 +52,7 @@ func newReadCSVCommand() *readCSVCommand {
             if generate {
                 return generateReadCSVCode(inputFile)
             }
-            records, err := streamv3.ReadCSV(inputFile)
+            records, err := ssql.ReadCSV(inputFile)
             // ...
         }).
         Build()
@@ -147,7 +147,7 @@ Once implemented, `Flag("FILE")` (no leading `-`) will automatically:
 
 3. Migrate commands one at a time:
    - Start with `read-csv` (simplest)
-   - Test thoroughly: `go build ./cmd/streamv3 && ./streamv3 read-csv -help`
+   - Test thoroughly: `go build ./cmd/ssql && ./ssql read-csv -help`
    - Continue with others
 
 4. Remove gs dependency when done:
@@ -159,8 +159,8 @@ Once implemented, `Flag("FILE")` (no leading `-`) will automatically:
 ## Testing Checklist
 
 For each migrated command:
-- [ ] `streamv3 <cmd> -help` shows proper help
-- [ ] `streamv3 <cmd> -man` generates man page
+- [ ] `ssql <cmd> -help` shows proper help
+- [ ] `ssql <cmd> -man` generates man page
 - [ ] Tab completion works (if shell configured)
 - [ ] All flags work as before
 - [ ] Positional file arguments work
@@ -171,20 +171,20 @@ For each migrated command:
 
 ```bash
 # Basic functionality
-./streamv3 read-csv test.csv
-echo "name,age\nAlice,30" | ./streamv3 read-csv
+./ssql read-csv test.csv
+echo "name,age\nAlice,30" | ./ssql read-csv
 
 # Piping
-./streamv3 read-csv test.csv | ./streamv3 where -match age gt 25 | ./streamv3 select -field name
+./ssql read-csv test.csv | ./ssql where -match age gt 25 | ./ssql select -field name
 
 # Code generation
-./streamv3 read-csv -generate test.csv | ./streamv3 generate-go
+./ssql read-csv -generate test.csv | ./ssql generate-go
 
 # Complex pipeline
-./streamv3 read-csv data.csv | \
-  ./streamv3 where -match status eq active + -match role eq admin | \
-  ./streamv3 group -by department -function count -result n | \
-  ./streamv3 chart -x department -y n -output viz.html
+./ssql read-csv data.csv | \
+  ./ssql where -match status eq active + -match role eq admin | \
+  ./ssql group -by department -function count -result n | \
+  ./ssql chart -x department -y n -output viz.html
 ```
 
 ## Estimated Effort
@@ -205,4 +205,4 @@ echo "name,age\nAlice,30" | ./streamv3 read-csv
 
 - Positional args proposal: `/home/rossc/src/completionflags/docs/POSITIONAL_ARGS_PROPOSAL.md`
 - Completionflags package: `/home/rossc/src/completionflags`
-- Old implementation: `cmd/streamv3/commands/*.go` (current state)
+- Old implementation: `cmd/ssql/commands/*.go` (current state)

@@ -279,7 +279,7 @@ Once SeqFactory is implemented, we'll need to add flattening operations from Str
 ]
 ```
 
-**StreamV3 Implementation** (with SeqFactory):
+**ssql Implementation** (with SeqFactory):
 ```go
 func DotFlatten(separator string, fields ...string) Filter[Record, Record]
 ```
@@ -308,7 +308,7 @@ func DotFlatten(separator string, fields ...string) Filter[Record, Record]
 ]
 ```
 
-**StreamV3 Implementation**:
+**ssql Implementation**:
 ```go
 func CrossFlatten(separator string, fields ...string) Filter[Record, Record]
 ```
@@ -319,7 +319,7 @@ func CrossFlatten(separator string, fields ...string) Filter[Record, Record]
 - **Field-specific**: Can target specific fields for expansion
 - **SeqFactory support**: Works with reusable sequence factories
 
-#### 7.3 Implementation Requirements for StreamV3
+#### 7.3 Implementation Requirements for ssql
 
 **SeqFactory Detection**:
 ```go

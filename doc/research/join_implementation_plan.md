@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement hash join optimization for StreamV3 JOIN operations to improve performance from O(n×m) to O(n+m) for equality-based joins.
+Implement hash join optimization for ssql JOIN operations to improve performance from O(n×m) to O(n+m) for equality-based joins.
 
 **Status:** Design Phase
 **Target Release:** v1.1.0
@@ -486,20 +486,20 @@ func BenchmarkInnerJoin_Hash_10Kx10K(b *testing.B)
 Test with real CSV data:
 ```bash
 # Generate test data
-streamv3 exec -cmd "seq 1 10000" | \
-    streamv3 select -field id + | \
-    streamv3 exec -cmd "echo $((RANDOM % 100))" -field category | \
-    streamv3 write-csv left.csv
+ssql exec -cmd "seq 1 10000" | \
+    ssql select -field id + | \
+    ssql exec -cmd "echo $((RANDOM % 100))" -field category | \
+    ssql write-csv left.csv
 
-streamv3 exec -cmd "seq 1 10000" | \
-    streamv3 select -field id + | \
-    streamv3 exec -cmd "echo Category $((RANDOM % 100))" -field name | \
-    streamv3 write-csv right.csv
+ssql exec -cmd "seq 1 10000" | \
+    ssql select -field id + | \
+    ssql exec -cmd "echo Category $((RANDOM % 100))" -field name | \
+    ssql write-csv right.csv
 
 # Test join performance
-time streamv3 read-csv left.csv | \
-    streamv3 join -right right.csv -on category | \
-    streamv3 write-csv joined.csv
+time ssql read-csv left.csv | \
+    ssql join -right right.csv -on category | \
+    ssql write-csv joined.csv
 
 # Verify correctness (compare with nested loop version)
 ```

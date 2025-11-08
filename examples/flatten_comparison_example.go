@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"iter"
 	"slices"
 	"strings"
@@ -19,7 +19,7 @@ func main() {
 	colors := slices.Values([]string{"red", "blue"})
 	sizes := slices.Values([]string{"small", "large"})
 
-	product := streamv3.MakeMutableRecord().
+	product := ssql.MakeMutableRecord().
 		String("name", "T-Shirt").
 		Float("base_price", 19.99).
 		StringSeq("colors", colors).
@@ -27,11 +27,11 @@ func main() {
 		Freeze()
 
 	fmt.Printf("Input: %s (base price: $%.2f)\n",
-		streamv3.GetOr(product, "name", ""),
-		streamv3.GetOr(product, "base_price", 0.0))
+		ssql.GetOr(product, "name", ""),
+		ssql.GetOr(product, "base_price", 0.0))
 
 	// Show input sequences
-	if colorsSeq, ok := streamv3.Get[iter.Seq[string]](product, "colors"); ok {
+	if colorsSeq, ok := ssql.Get[iter.Seq[string]](product, "colors"); ok {
 		fmt.Print("  Colors: ")
 		for color := range colorsSeq {
 			fmt.Printf("%s ", color)
@@ -39,7 +39,7 @@ func main() {
 		fmt.Println()
 	}
 
-	if sizesSeq, ok := streamv3.Get[iter.Seq[string]](product, "sizes"); ok {
+	if sizesSeq, ok := ssql.Get[iter.Seq[string]](product, "sizes"); ok {
 		fmt.Print("  Sizes: ")
 		for size := range sizesSeq {
 			fmt.Printf("%s ", size)
@@ -48,27 +48,27 @@ func main() {
 	}
 
 	fmt.Println("\n🔹 DotFlatten Result (Dot Product - Pairs corresponding elements):")
-	dotResults := streamv3.DotFlatten(".", "colors", "sizes")(slices.Values([]streamv3.Record{product}))
+	dotResults := ssql.DotFlatten(".", "colors", "sizes")(slices.Values([]ssql.Record{product}))
 
 	count := 1
 	for result := range dotResults {
-		name := streamv3.GetOr(result, "name", "")
-		color := streamv3.GetOr(result, "colors", "")
-		size := streamv3.GetOr(result, "sizes", "")
-		price := streamv3.GetOr(result, "base_price", 0.0)
+		name := ssql.GetOr(result, "name", "")
+		color := ssql.GetOr(result, "colors", "")
+		size := ssql.GetOr(result, "sizes", "")
+		price := ssql.GetOr(result, "base_price", 0.0)
 		fmt.Printf("  %d. %s %s %s - $%.2f\n", count, color, size, name, price)
 		count++
 	}
 
 	fmt.Println("\n🔸 CrossFlatten Result (Cartesian Product - All combinations):")
-	crossResults := streamv3.CrossFlatten(".", "colors", "sizes")(slices.Values([]streamv3.Record{product}))
+	crossResults := ssql.CrossFlatten(".", "colors", "sizes")(slices.Values([]ssql.Record{product}))
 
 	count = 1
 	for result := range crossResults {
-		name := streamv3.GetOr(result, "name", "")
-		color := streamv3.GetOr(result, "colors", "")
-		size := streamv3.GetOr(result, "sizes", "")
-		price := streamv3.GetOr(result, "base_price", 0.0)
+		name := ssql.GetOr(result, "name", "")
+		color := ssql.GetOr(result, "colors", "")
+		size := ssql.GetOr(result, "sizes", "")
+		price := ssql.GetOr(result, "base_price", 0.0)
 		fmt.Printf("  %d. %s %s %s - $%.2f\n", count, color, size, name, price)
 		count++
 	}
@@ -82,7 +82,7 @@ func main() {
 	shortTags := slices.Values([]string{"urgent", "work"})
 	longScores := slices.Values([]int{85, 92, 78, 95}) // Longer sequence
 
-	task := streamv3.MakeMutableRecord().
+	task := ssql.MakeMutableRecord().
 		String("id", "TASK-456").
 		String("assignee", "Alice").
 		StringSeq("tags", shortTags). // 2 elements
@@ -90,11 +90,11 @@ func main() {
 		Freeze()
 
 	fmt.Printf("Input: %s (assignee: %s)\n",
-		streamv3.GetOr(task, "id", ""),
-		streamv3.GetOr(task, "assignee", ""))
+		ssql.GetOr(task, "id", ""),
+		ssql.GetOr(task, "assignee", ""))
 
 	// Show input sequences with lengths
-	if tagsSeq, ok := streamv3.Get[iter.Seq[string]](task, "tags"); ok {
+	if tagsSeq, ok := ssql.Get[iter.Seq[string]](task, "tags"); ok {
 		fmt.Print("  Tags (2 items): ")
 		for tag := range tagsSeq {
 			fmt.Printf("%s ", tag)
@@ -102,7 +102,7 @@ func main() {
 		fmt.Println()
 	}
 
-	if scoresSeq, ok := streamv3.Get[iter.Seq[int]](task, "scores"); ok {
+	if scoresSeq, ok := ssql.Get[iter.Seq[int]](task, "scores"); ok {
 		fmt.Print("  Scores (4 items): ")
 		for score := range scoresSeq {
 			fmt.Printf("%d ", score)
@@ -111,27 +111,27 @@ func main() {
 	}
 
 	fmt.Println("\n🔹 DotFlatten Result (Uses minimum length - discards excess):")
-	dotResults2 := streamv3.DotFlatten(".", "tags", "scores")(slices.Values([]streamv3.Record{task}))
+	dotResults2 := ssql.DotFlatten(".", "tags", "scores")(slices.Values([]ssql.Record{task}))
 
 	count = 1
 	for result := range dotResults2 {
-		id := streamv3.GetOr(result, "id", "")
-		tag := streamv3.GetOr(result, "tags", "")
-		score := streamv3.GetOr(result, "scores", 0)
-		assignee := streamv3.GetOr(result, "assignee", "")
+		id := ssql.GetOr(result, "id", "")
+		tag := ssql.GetOr(result, "tags", "")
+		score := ssql.GetOr(result, "scores", 0)
+		assignee := ssql.GetOr(result, "assignee", "")
 		fmt.Printf("  %d. %s - Tag: %s, Score: %d (assignee: %s)\n", count, id, tag, score, assignee)
 		count++
 	}
 
 	fmt.Println("\n🔸 CrossFlatten Result (All combinations - creates 2×4=8 records):")
-	crossResults2 := streamv3.CrossFlatten(".", "tags", "scores")(slices.Values([]streamv3.Record{task}))
+	crossResults2 := ssql.CrossFlatten(".", "tags", "scores")(slices.Values([]ssql.Record{task}))
 
 	count = 1
 	for result := range crossResults2 {
-		id := streamv3.GetOr(result, "id", "")
-		tag := streamv3.GetOr(result, "tags", "")
-		score := streamv3.GetOr(result, "scores", 0)
-		assignee := streamv3.GetOr(result, "assignee", "")
+		id := ssql.GetOr(result, "id", "")
+		tag := ssql.GetOr(result, "tags", "")
+		score := ssql.GetOr(result, "scores", 0)
+		assignee := ssql.GetOr(result, "assignee", "")
 		fmt.Printf("  %d. %s - Tag: %s, Score: %d (assignee: %s)\n", count, id, tag, score, assignee)
 		count++
 	}
@@ -142,28 +142,28 @@ func main() {
 	fmt.Println("\n📊 Example 3: Nested Records + Sequences")
 	fmt.Println("----------------------------------------")
 
-	userInfo := streamv3.MakeMutableRecord().
+	userInfo := ssql.MakeMutableRecord().
 		String("name", "Bob").
 		String("department", "Engineering").
 		Freeze()
 
 	permissions := slices.Values([]string{"read", "write", "admin"})
 
-	userRecord := streamv3.MakeMutableRecord().
+	userRecord := ssql.MakeMutableRecord().
 		String("user_id", "USR-789").
 		Nested("profile", userInfo).           // Nested record
 		StringSeq("permissions", permissions). // Sequence
 		Freeze()
 
-	fmt.Printf("Input: %s\n", streamv3.GetOr(userRecord, "user_id", ""))
+	fmt.Printf("Input: %s\n", ssql.GetOr(userRecord, "user_id", ""))
 
-	if profile, ok := streamv3.Get[streamv3.Record](userRecord, "profile"); ok {
-		name := streamv3.GetOr(profile, "name", "")
-		dept := streamv3.GetOr(profile, "department", "")
+	if profile, ok := ssql.Get[ssql.Record](userRecord, "profile"); ok {
+		name := ssql.GetOr(profile, "name", "")
+		dept := ssql.GetOr(profile, "department", "")
 		fmt.Printf("  Profile: %s (%s)\n", name, dept)
 	}
 
-	if permSeq, ok := streamv3.Get[iter.Seq[string]](userRecord, "permissions"); ok {
+	if permSeq, ok := ssql.Get[iter.Seq[string]](userRecord, "permissions"); ok {
 		fmt.Print("  Permissions: ")
 		for perm := range permSeq {
 			fmt.Printf("%s ", perm)
@@ -172,7 +172,7 @@ func main() {
 	}
 
 	fmt.Println("\n🔹 DotFlatten Result (Flattens nested record + expands sequence):")
-	dotResults3 := streamv3.DotFlatten(".")(slices.Values([]streamv3.Record{userRecord}))
+	dotResults3 := ssql.DotFlatten(".")(slices.Values([]ssql.Record{userRecord}))
 
 	count = 1
 	for result := range dotResults3 {

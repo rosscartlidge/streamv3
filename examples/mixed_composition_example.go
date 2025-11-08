@@ -2,57 +2,57 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"slices"
 	"strings"
 )
 
 func main() {
 	// Sample sales data
-	sales := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "West").String("product", "Tablet").Float("amount", 600).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "North").String("product", "Tablet").Float("amount", 500).Freeze(),
+	sales := []ssql.Record{
+		ssql.MakeMutableRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Freeze(),
+		ssql.MakeMutableRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Freeze(),
+		ssql.MakeMutableRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Freeze(),
+		ssql.MakeMutableRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Freeze(),
+		ssql.MakeMutableRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Freeze(),
+		ssql.MakeMutableRecord().String("region", "West").String("product", "Tablet").Float("amount", 600).Freeze(),
+		ssql.MakeMutableRecord().String("region", "North").String("product", "Tablet").Float("amount", 500).Freeze(),
 	}
 
 	fmt.Println("🔥 Functional Composition: Chained Operations")
 	fmt.Println("===============================================\n")
 
 	// Step 1: Apply preprocessing filters
-	chained := streamv3.Chain(
-		streamv3.Where(func(r streamv3.Record) bool {
-			amount := streamv3.GetOr(r, "amount", 0.0)
+	chained := ssql.Chain(
+		ssql.Where(func(r ssql.Record) bool {
+			amount := ssql.GetOr(r, "amount", 0.0)
 			return amount >= 600 // Filter >= $600
 		}),
-		streamv3.Where(func(r streamv3.Record) bool {
-			product := streamv3.GetOr(r, "product", "")
+		ssql.Where(func(r ssql.Record) bool {
+			product := ssql.GetOr(r, "product", "")
 			return product != "Tablet" // Exclude tablets
 		}),
 	)(slices.Values(sales))
 
 	// Apply limit separately since it has different type signature
-	filtered := streamv3.Limit[streamv3.Record](10)(chained)
+	filtered := ssql.Limit[ssql.Record](10)(chained)
 
 	// Step 2: Apply grouping operation
-	groups := streamv3.GroupByFields("sales_data", "region")(filtered)
+	groups := ssql.GroupByFields("sales_data", "region")(filtered)
 
 	// Final aggregation step
-	results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
-		"total_revenue": streamv3.Sum("amount"),
-		"avg_deal":      streamv3.Avg("amount"),
-		"count":         streamv3.Count(),
+	results := ssql.Aggregate("sales_data", map[string]ssql.AggregateFunc{
+		"total_revenue": ssql.Sum("amount"),
+		"avg_deal":      ssql.Avg("amount"),
+		"count":         ssql.Count(),
 	})(groups)
 
 	fmt.Println("High-value non-tablet sales by region:")
 	for result := range results {
-		region := streamv3.GetOr(result, "region", "Unknown")
-		totalRevenue := streamv3.GetOr(result, "total_revenue", 0.0)
-		avgDeal := streamv3.GetOr(result, "avg_deal", 0.0)
-		count := streamv3.GetOr(result, "count", int64(0))
+		region := ssql.GetOr(result, "region", "Unknown")
+		totalRevenue := ssql.GetOr(result, "total_revenue", 0.0)
+		avgDeal := ssql.GetOr(result, "avg_deal", 0.0)
+		count := ssql.GetOr(result, "count", int64(0))
 		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n", region, totalRevenue, avgDeal, count)
 	}
 
@@ -69,24 +69,24 @@ func main() {
 	fmt.Println("Same result using step-by-step function calls:")
 
 	// Step by step functional composition
-	filtered2 := streamv3.Where(func(r streamv3.Record) bool {
-		amount := streamv3.GetOr(r, "amount", 0.0)
-		product := streamv3.GetOr(r, "product", "")
+	filtered2 := ssql.Where(func(r ssql.Record) bool {
+		amount := ssql.GetOr(r, "amount", 0.0)
+		product := ssql.GetOr(r, "product", "")
 		return amount >= 600 && product != "Tablet"
 	})(slices.Values(sales))
 
-	grouped2 := streamv3.GroupByFields("sales_data", "region")(filtered2)
+	grouped2 := ssql.GroupByFields("sales_data", "region")(filtered2)
 
-	functionalResults := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
-		"total_revenue": streamv3.Sum("amount"),
-		"avg_deal":      streamv3.Avg("amount"),
-		"count":         streamv3.Count(),
+	functionalResults := ssql.Aggregate("sales_data", map[string]ssql.AggregateFunc{
+		"total_revenue": ssql.Sum("amount"),
+		"avg_deal":      ssql.Avg("amount"),
+		"count":         ssql.Count(),
 	})(grouped2)
 	for result := range functionalResults {
-		region := streamv3.GetOr(result, "region", "Unknown")
-		totalRevenue := streamv3.GetOr(result, "total_revenue", 0.0)
-		avgDeal := streamv3.GetOr(result, "avg_deal", 0.0)
-		count := streamv3.GetOr(result, "count", int64(0))
+		region := ssql.GetOr(result, "region", "Unknown")
+		totalRevenue := ssql.GetOr(result, "total_revenue", 0.0)
+		avgDeal := ssql.GetOr(result, "avg_deal", 0.0)
+		count := ssql.GetOr(result, "count", int64(0))
 		fmt.Printf("  %s: $%.0f revenue, $%.0f avg (%d sales)\n", region, totalRevenue, avgDeal, count)
 	}
 }

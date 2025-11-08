@@ -39,7 +39,7 @@
 ### ✅ What Worked Perfectly
 
 1. **API Correctness: 100%**
-   - ✅ All correct import paths (`github.com/rosscartlidge/streamv3`)
+   - ✅ All correct import paths (`github.com/rosscartlidge/ssql`)
    - ✅ Separate GroupByFields + Aggregate (never combined)
    - ✅ Parameterless Count() syntax (field name as map key)
    - ✅ Matching namespaces between GroupBy and Aggregate

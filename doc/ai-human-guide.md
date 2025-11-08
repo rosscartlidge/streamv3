@@ -1,15 +1,15 @@
-# Using AI to Generate StreamV3 Code - Human Guide
+# Using AI to Generate ssql Code - Human Guide
 
-*Complete guide for humans on getting the best StreamV3 code from AI assistants*
+*Complete guide for humans on getting the best ssql code from AI assistants*
 
 ---
 
 ## 🎯 Overview
 
-This guide teaches you how to effectively use Large Language Models (Claude, ChatGPT, Gemini, etc.) to generate high-quality StreamV3 code from natural language descriptions.
+This guide teaches you how to effectively use Large Language Models (Claude, ChatGPT, Gemini, etc.) to generate high-quality ssql code from natural language descriptions.
 
 **What You'll Learn:**
-- Setting up your LLM for StreamV3 code generation
+- Setting up your LLM for ssql code generation
 - Writing effective requests
 - Verifying and iterating on generated code
 - Using interactive CLI tools for maximum productivity
@@ -38,7 +38,7 @@ Paste the prompt as your first message in:
 group by region, and show total sales per region"
 ```
 
-The LLM will generate clean, working Go code that follows StreamV3 best practices.
+The LLM will generate clean, working Go code that follows ssql best practices.
 
 ---
 
@@ -55,32 +55,32 @@ For the most powerful experience, use LLM CLI tools that can **run and iterate o
 npm install -g @anthropic-ai/claude-code
 ```
 
-**Setup for StreamV3 (Option 1: Quick)**:
+**Setup for ssql (Option 1: Quick)**:
 ```bash
 cd my-streamv3-project
 claude-code
 
 # First message: Copy and paste the entire contents of
-# doc/ai-code-generation.md from the StreamV3 repository
+# doc/ai-code-generation.md from the ssql repository
 ```
 
-**Setup for StreamV3 (Option 2: Persistent - Recommended)**:
+**Setup for ssql (Option 2: Persistent - Recommended)**:
 ```bash
 # In your project directory
 mkdir -p .claude
 
 # Create project-specific CLAUDE.md
 cat > .claude/CLAUDE.md << 'EOF'
-# StreamV3 Project
+# ssql Project
 
-This project uses StreamV3 for stream processing.
+This project uses ssql for stream processing.
 
-## StreamV3 Reference
+## ssql Reference
 
 For complete API documentation, use:
 ```bash
-go doc github.com/rosscartlidge/streamv3
-go doc github.com/rosscartlidge/streamv3.FunctionName
+go doc github.com/rosscartlidge/ssql
+go doc github.com/rosscartlidge/ssql.FunctionName
 ```
 
 ## Quick Rules
@@ -101,24 +101,24 @@ record["name"] = "Alice"
 value := record["age"]
 
 // ✅ CORRECT - Use builder and accessors
-record := streamv3.MakeMutableRecord().
+record := ssql.MakeMutableRecord().
     String("name", "Alice").
     Int("age", int64(30)).
     Freeze()
 
-name := streamv3.GetOr(record, "name", "")
-age, exists := streamv3.Get[int64](record, "age")
+name := ssql.GetOr(record, "name", "")
+age, exists := ssql.Get[int64](record, "age")
 ```
 
 This applies to ALL external code (user code, LLM-generated code, examples).
 
 ## Important Patterns
 
-- Read CSV: `data, err := streamv3.ReadCSV("file.csv"); if err != nil { log.Fatal(err) }`
-- Filter: `streamv3.Where(func(r Record) bool { return condition })(data)`
-- Group: `streamv3.GroupByFields("groupName", "field1", "field2")(data)`
-- Aggregate: `streamv3.Aggregate("groupName", map[string]AggregateFunc{...})(grouped)`
-- Chart: `streamv3.QuickChart(data, "x", "y", "output.html")`
+- Read CSV: `data, err := ssql.ReadCSV("file.csv"); if err != nil { log.Fatal(err) }`
+- Filter: `ssql.Where(func(r Record) bool { return condition })(data)`
+- Group: `ssql.GroupByFields("groupName", "field1", "field2")(data)`
+- Aggregate: `ssql.Aggregate("groupName", map[string]AggregateFunc{...})(grouped)`
+- Chart: `ssql.QuickChart(data, "x", "y", "output.html")`
 EOF
 
 # Start Claude Code - it will read .claude/CLAUDE.md automatically
@@ -156,7 +156,7 @@ Claude Code:
 - ✅ File awareness (reads your actual data)
 - ✅ Runs code (executes and tests)
 - ✅ Context aware (remembers project structure)
-- ✅ StreamV3 knowledge (via CLAUDE.md)
+- ✅ ssql knowledge (via CLAUDE.md)
 
 ### Other CLI Tools
 
@@ -177,7 +177,7 @@ aider
 **GitHub Copilot CLI**:
 ```bash
 gh extension install github/gh-copilot
-gh copilot suggest "create streamv3 pipeline to analyze sales"
+gh copilot suggest "create ssql pipeline to analyze sales"
 ```
 
 ### CLI vs Web LLMs
@@ -260,11 +260,11 @@ When you receive generated code, check:
 - [ ] Handles errors from file operations
 - [ ] Uses descriptive variable names
 
-#### StreamV3 API Check
+#### ssql API Check
 - [ ] Uses SQL-style names (`Select`, `Where`, `Limit`)
 - [ ] NOT using wrong names (`Map`, `Filter`, `Take`)
 - [ ] Uses `MakeMutableRecord().Freeze()` for record creation
-- [ ] Uses `streamv3.GetOr()` for safe record access
+- [ ] Uses `ssql.GetOr()` for safe record access
 - [ ] Includes group names in `GroupByFields()` and `Aggregate()`
 
 #### Logic Check
@@ -283,19 +283,19 @@ When you receive generated code, check:
 **❌ API Mistakes**:
 ```go
 // Wrong - old/incorrect API
-result := streamv3.Map(fn)(data)      // Should be Select
-result := streamv3.Filter(fn)(data)   // Should be Where
-result := streamv3.Take(10)(data)     // Should be Limit
-record := streamv3.NewRecord().Build() // Should be MakeMutableRecord().Freeze()
+result := ssql.Map(fn)(data)      // Should be Select
+result := ssql.Filter(fn)(data)   // Should be Where
+result := ssql.Take(10)(data)     // Should be Limit
+record := ssql.NewRecord().Build() // Should be MakeMutableRecord().Freeze()
 ```
 
 **❌ Missing Error Handling**:
 ```go
 // Wrong - no error check
-data := streamv3.ReadCSV("file.csv")
+data := ssql.ReadCSV("file.csv")
 
 // Correct - always check errors
-data, err := streamv3.ReadCSV("file.csv")
+data, err := ssql.ReadCSV("file.csv")
 if err != nil {
     log.Fatalf("Failed to read CSV: %v", err)
 }
@@ -304,10 +304,10 @@ if err != nil {
 **❌ Wrong Types for CSV Data**:
 ```go
 // Wrong - CSV parses "25" as int64, not string
-age := streamv3.GetOr(record, "age", "")
+age := ssql.GetOr(record, "age", "")
 
 // Correct - use int64 for numeric CSV values
-age := streamv3.GetOr(record, "age", int64(0))
+age := ssql.GetOr(record, "age", int64(0))
 ```
 
 ---
@@ -364,7 +364,7 @@ LLM: [generates enhanced code]
 
 **Solution**:
 ```
-"Please update this code to use the current StreamV3 API:
+"Please update this code to use the current ssql API:
 Select instead of Map, Where instead of Filter, Limit instead of Take"
 ```
 
@@ -420,13 +420,13 @@ and float64 for decimal fields with GetOr()"
 
 ```go
 // Read and filter data
-data, err := streamv3.ReadCSV("sales.csv")
+data, err := ssql.ReadCSV("sales.csv")
 if err != nil {
     log.Fatal(err)
 }
 
-highValueSales := streamv3.Where(func(r streamv3.Record) bool {
-    amount := streamv3.GetOr(r, "amount", 0.0)
+highValueSales := ssql.Where(func(r ssql.Record) bool {
+    amount := ssql.GetOr(r, "amount", 0.0)
     return amount > 1000
 })(data)
 ```
@@ -589,7 +589,7 @@ find [patterns]"
 "Can you use more descriptive variable names?"
 "Break this into simpler steps with intermediate variables"
 "Add comments explaining the aggregation logic"
-"Use the current StreamV3 API (Select not Map, Where not Filter)"
+"Use the current ssql API (Select not Map, Where not Filter)"
 "Include the missing imports"
 "Use MakeMutableRecord().Freeze() for record creation"
 "Make the code easier to read and verify"
@@ -620,7 +620,7 @@ find [patterns]"
 
 ### Learning More
 
-- **[StreamV3 Getting Started](codelab-intro.md)** - Learn StreamV3 fundamentals
+- **[ssql Getting Started](codelab-intro.md)** - Learn ssql fundamentals
 - **[API Reference](api-reference.md)** - Complete function documentation
 - **[Advanced Tutorial](advanced-tutorial.md)** - Complex patterns and optimization
 
@@ -645,4 +645,4 @@ Happy stream processing! 🚀
 
 ---
 
-*StreamV3: Where natural language meets production-ready data processing* ✨
+*ssql: Where natural language meets production-ready data processing* ✨

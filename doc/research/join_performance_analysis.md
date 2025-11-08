@@ -440,4 +440,4 @@ The current nested loop JOIN implementation is correct but inefficient for large
 4. Create benchmark suite
 5. Update documentation
 
-This optimization is critical for production use of StreamV3 with real-world datasets.
+This optimization is critical for production use of ssql with real-world datasets.

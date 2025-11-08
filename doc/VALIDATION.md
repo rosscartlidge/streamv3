@@ -1,4 +1,4 @@
-# StreamV3 Documentation Validation System
+# ssql Documentation Validation System
 
 This document explains the 3-level documentation validation system that ensures code, examples, and documentation stay in sync.
 
@@ -45,7 +45,7 @@ make install-hooks
 
 **Example Output**:
 ```
-StreamV3 Documentation Validation
+ssql Documentation Validation
 ======================================
 
 1. Checking Documentation Files
@@ -99,7 +99,7 @@ make doc-test
 
 **Example Output**:
 ```
-StreamV3 Documentation Testing (Level 2)
+ssql Documentation Testing (Level 2)
 ==============================================
 
 Running Level 1 Checks...
@@ -154,7 +154,7 @@ make release
 
 **Example Output**:
 ```
-StreamV3 Documentation Verification (Level 3)
+ssql Documentation Verification (Level 3)
 =================================================
 
 Running Level 2 Tests...
@@ -238,7 +238,7 @@ git push origin v0.6.0
 
 **Level 1 catches**:
 - ❌ Using `NewRecord().Build()` instead of `MakeMutableRecord().Freeze()`
-- ❌ Using `streamv3.Map()` instead of `streamv3.Select()`
+- ❌ Using `ssql.Map()` instead of `ssql.Select()`
 - ❌ Broken links to moved files
 - ❌ Examples that don't compile
 - ❌ Missing error handling in CSV/JSON reads

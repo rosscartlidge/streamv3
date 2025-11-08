@@ -40,7 +40,7 @@ All 5 test cases have working reference implementations:
 
 The `scripts/validate-ai-patterns.sh` script checks for:
 
-1. ✅ Correct import path (`github.com/rosscartlidge/streamv3`)
+1. ✅ Correct import path (`github.com/rosscartlidge/ssql`)
 2. ✅ No wrong import paths (detects common errors)
 3. ✅ SQL-style API usage (Where not Filter)
 4. ✅ Error handling for ReadCSV
@@ -61,7 +61,7 @@ The AI prompt (`doc/ai-code-generation.md`) excels at:
 1. **Clear Import Rules** (lines 30-48)
    - Explicitly states "ONLY import packages that are actually used"
    - Provides examples of when each import is needed
-   - ⚠️ **Potential Issue**: Uses `github.com/rosscartlidge/streamv3` in examples
+   - ⚠️ **Potential Issue**: Uses `github.com/rosscartlidge/ssql` in examples
      - This may confuse LLMs trained on public packages
      - Consider adding a note that this is the correct path
 
@@ -121,7 +121,7 @@ The validation script successfully detects these errors:
 ### 1. Wrong Import Path
 ```go
 ❌ "github.com/rocketlaunchr/streamv3"
-✅ "github.com/rosscartlidge/streamv3"
+✅ "github.com/rosscartlidge/ssql"
 ```
 
 ### 2. Wrong GroupByFields API

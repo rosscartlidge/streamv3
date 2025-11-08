@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -43,9 +43,9 @@ func testIntegratedStrategies() {
 	fmt.Println("Combining all strategies for robust real-time processing:")
 
 	// Create infinite IoT data generator
-	iotDataGenerator := func(yield func(streamv3.Record) bool) {
+	iotDataGenerator := func(yield func(ssql.Record) bool) {
 		for i := 1; ; i++ { // Infinite stream
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("sensor_id", fmt.Sprintf("SENSOR-%03d", (i%10)+1)).
 				Float("temperature", 20.0+float64(i%50)*0.5).
 				Float("humidity", 45.0+float64(i%30)*1.2).
@@ -65,18 +65,18 @@ func testIntegratedStrategies() {
 
 	fmt.Println("\n🌊 Step 1: Apply Early Termination (Take 20 readings)")
 	// Strategy 4: Early Termination - Limit infinite stream
-	limitedStream := streamv3.Limit[streamv3.Record](20)(iotDataGenerator)
+	limitedStream := ssql.Limit[ssql.Record](20)(iotDataGenerator)
 
 	fmt.Println("🚀 Step 2: Apply LazyTee (Split into 3 processing pipelines)")
 	// Strategy 2: LazyTee - Split stream for parallel processing
-	splitStreams := streamv3.LazyTee(limitedStream, 3)
+	splitStreams := ssql.LazyTee(limitedStream, 3)
 
 	// Pipeline 1: Windowing + Aggregations for temperature monitoring
 	go func() {
 		fmt.Println("  📊 Pipeline 1: Temperature analysis with windowing...")
 
 		// Strategy 1: Windowing - Process in chunks of 5
-		windowedStream := streamv3.CountWindow[streamv3.Record](5)(splitStreams[0])
+		windowedStream := ssql.CountWindow[ssql.Record](5)(splitStreams[0])
 
 		for window := range windowedStream {
 			if len(window) > 0 {
@@ -85,8 +85,8 @@ func testIntegratedStrategies() {
 				count := len(window)
 
 				for _, record := range window {
-					tempSum += streamv3.GetOr(record, "temperature", 0.0)
-					humiditySum += streamv3.GetOr(record, "humidity", 0.0)
+					tempSum += ssql.GetOr(record, "temperature", 0.0)
+					humiditySum += ssql.GetOr(record, "humidity", 0.0)
 				}
 
 				avgTemp := tempSum / float64(count)
@@ -103,12 +103,12 @@ func testIntegratedStrategies() {
 		fmt.Println("  ⚡ Pipeline 2: Real-time anomaly detection...")
 
 		// Strategy 3: Running statistics for anomaly detection
-		runningAvgStream := streamv3.RunningAverage("temperature", 5)(splitStreams[1])
+		runningAvgStream := ssql.RunningAverage("temperature", 5)(splitStreams[1])
 
 		for record := range runningAvgStream {
-			currentTemp := streamv3.GetOr(record, "temperature", 0.0)
-			movingAvg := streamv3.GetOr(record, "moving_avg", 0.0)
-			sensorId := streamv3.GetOr(record, "sensor_id", "unknown")
+			currentTemp := ssql.GetOr(record, "temperature", 0.0)
+			movingAvg := ssql.GetOr(record, "moving_avg", 0.0)
+			sensorId := ssql.GetOr(record, "sensor_id", "unknown")
 
 			// Simple anomaly detection
 			if movingAvg > 0 && (currentTemp > movingAvg+5 || currentTemp < movingAvg-5) {
@@ -126,15 +126,15 @@ func testIntegratedStrategies() {
 		fmt.Println("  🔍 Pipeline 3: Status monitoring...")
 
 		// Strategy 4: TakeUntil - Stop if ERROR status detected
-		monitoringStream := streamv3.TakeUntil(func(record streamv3.Record) bool {
-			status := streamv3.GetOr(record, "status", "unknown")
+		monitoringStream := ssql.TakeUntil(func(record ssql.Record) bool {
+			status := ssql.GetOr(record, "status", "unknown")
 			return status == "ERROR"
 		})(splitStreams[2])
 
 		for record := range monitoringStream {
-			sensorId := streamv3.GetOr(record, "sensor_id", "unknown")
-			status := streamv3.GetOr(record, "status", "unknown")
-			batchId := streamv3.GetOr(record, "batch_id", 0)
+			sensorId := ssql.GetOr(record, "sensor_id", "unknown")
+			status := ssql.GetOr(record, "status", "unknown")
+			batchId := ssql.GetOr(record, "batch_id", 0)
 
 			fmt.Printf("    📡 %s [Batch %d]: %s\n", sensorId, batchId, status)
 		}
@@ -151,10 +151,10 @@ func testWindowingStrategy() {
 	fmt.Println("Processing streaming data in time-based windows...")
 
 	// Create time-series generator
-	timeSeriesGenerator := func(yield func(streamv3.Record) bool) {
+	timeSeriesGenerator := func(yield func(ssql.Record) bool) {
 		baseTime := time.Now()
 		for i := 0; i < 15; i++ {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("metric_id", fmt.Sprintf("M%03d", i+1)).
 				Float("value", float64(100+i*5)).
 				SetAny("timestamp", baseTime.Add(time.Duration(i*30)*time.Second)).
@@ -166,14 +166,14 @@ func testWindowingStrategy() {
 	}
 
 	// Apply 2-minute time windows
-	timeWindowOp := streamv3.TimeWindow[streamv3.Record](2*time.Minute, "timestamp")
+	timeWindowOp := ssql.TimeWindow[ssql.Record](2*time.Minute, "timestamp")
 	windowedStream := timeWindowOp(timeSeriesGenerator)
 
 	for window := range windowedStream {
 		fmt.Printf("  📊 Time Window: %d metrics\n", len(window))
 		if len(window) > 0 {
-			if t1, ok := streamv3.Get[time.Time](window[0], "timestamp"); ok {
-				if t2, ok := streamv3.Get[time.Time](window[len(window)-1], "timestamp"); ok {
+			if t1, ok := ssql.Get[time.Time](window[0], "timestamp"); ok {
+				if t2, ok := ssql.Get[time.Time](window[len(window)-1], "timestamp"); ok {
 					fmt.Printf("    ⏰ From %s to %s\n", t1.Format("15:04:05"), t2.Format("15:04:05"))
 				}
 			}
@@ -185,9 +185,9 @@ func testLazyTeeStrategy() {
 	fmt.Println("Broadcasting stream to multiple consumers...")
 
 	// Create data generator
-	dataGenerator := func(yield func(streamv3.Record) bool) {
+	dataGenerator := func(yield func(ssql.Record) bool) {
 		for i := 1; i <= 10; i++ {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				Int("id", int64(i)).
 				Int("value", int64(i*10)).
 				String("type", getDataType(i)).
@@ -199,14 +199,14 @@ func testLazyTeeStrategy() {
 	}
 
 	// Split into 2 streams
-	streams := streamv3.LazyTee(dataGenerator, 2)
+	streams := ssql.LazyTee(dataGenerator, 2)
 
 	// Consumer 1: Count records
 	go func() {
 		count := 0
 		for record := range streams[0] {
 			count++
-			id := streamv3.GetOr(record, "id", 0)
+			id := ssql.GetOr(record, "id", 0)
 			fmt.Printf("  📊 Consumer 1 - Record %d (total: %d)\n", id, count)
 		}
 	}()
@@ -215,9 +215,9 @@ func testLazyTeeStrategy() {
 	go func() {
 		sum := 0
 		for record := range streams[1] {
-			value := streamv3.GetOr(record, "value", 0)
+			value := ssql.GetOr(record, "value", 0)
 			sum += value
-			id := streamv3.GetOr(record, "id", 0)
+			id := ssql.GetOr(record, "id", 0)
 			fmt.Printf("  💰 Consumer 2 - Record %d, Running sum: %d\n", id, sum)
 		}
 	}()
@@ -229,11 +229,11 @@ func testStreamingAggregationsStrategy() {
 	fmt.Println("Real-time aggregations on streaming data...")
 
 	// Create metrics generator
-	metricsGenerator := func(yield func(streamv3.Record) bool) {
+	metricsGenerator := func(yield func(ssql.Record) bool) {
 		metrics := []float64{85.5, 92.1, 78.3, 95.7, 88.9, 91.2, 87.6, 93.4}
 
 		for i, metric := range metrics {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("metric_id", fmt.Sprintf("SYS%03d", i+1)).
 				Float("cpu_load", metric).
 				SetAny("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
@@ -245,14 +245,14 @@ func testStreamingAggregationsStrategy() {
 	}
 
 	// Apply running average with window of 3
-	runningAvgOp := streamv3.RunningAverage("cpu_load", 3)
+	runningAvgOp := ssql.RunningAverage("cpu_load", 3)
 	aggregatedStream := runningAvgOp(metricsGenerator)
 
 	for record := range aggregatedStream {
-		metricId := streamv3.GetOr(record, "metric_id", "unknown")
-		cpuLoad := streamv3.GetOr(record, "cpu_load", 0.0)
-		movingAvg := streamv3.GetOr(record, "moving_avg", 0.0)
-		windowSize := streamv3.GetOr(record, "window_size", int64(0))
+		metricId := ssql.GetOr(record, "metric_id", "unknown")
+		cpuLoad := ssql.GetOr(record, "cpu_load", 0.0)
+		movingAvg := ssql.GetOr(record, "moving_avg", 0.0)
+		windowSize := ssql.GetOr(record, "window_size", int64(0))
 
 		fmt.Printf("  📈 %s: %.1f%% CPU (3-point avg: %.1f%%, window: %d)\n",
 			metricId, cpuLoad, movingAvg, windowSize)
@@ -263,9 +263,9 @@ func testEarlyTerminationStrategy() {
 	fmt.Println("Controlled termination of infinite streams...")
 
 	// Create potentially infinite generator
-	potentiallyInfiniteGenerator := func(yield func(streamv3.Record) bool) {
+	potentiallyInfiniteGenerator := func(yield func(ssql.Record) bool) {
 		for i := 1; i <= 1000; i++ { // Large but finite for demo
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("request_id", fmt.Sprintf("REQ%04d", i)).
 				Float("response_time", float64(50+i%100)).
 				Int("status_code", int64(getStatusCode(i))).
@@ -278,8 +278,8 @@ func testEarlyTerminationStrategy() {
 
 	// Demonstrate TakeWhile - process while response time < 100ms
 	fmt.Println("  🎯 TakeWhile: Process while response time < 100ms")
-	takeWhileOp := streamv3.TakeWhile(func(record streamv3.Record) bool {
-		responseTime := streamv3.GetOr(record, "response_time", 0.0)
+	takeWhileOp := ssql.TakeWhile(func(record ssql.Record) bool {
+		responseTime := ssql.GetOr(record, "response_time", 0.0)
 		return responseTime < 100.0
 	})
 
@@ -288,9 +288,9 @@ func testEarlyTerminationStrategy() {
 
 	for record := range filteredStream {
 		count++
-		requestId := streamv3.GetOr(record, "request_id", "unknown")
-		responseTime := streamv3.GetOr(record, "response_time", 0.0)
-		statusCode := streamv3.GetOr(record, "status_code", 0)
+		requestId := ssql.GetOr(record, "request_id", "unknown")
+		responseTime := ssql.GetOr(record, "response_time", 0.0)
+		statusCode := ssql.GetOr(record, "status_code", 0)
 
 		fmt.Printf("    ⚡ %s: %.0fms (status: %d)\n", requestId, responseTime, statusCode)
 	}

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -42,63 +42,63 @@ func demonstrateMixedPipeline() {
 	fmt.Println("Processing transaction data with mixed error handling...")
 
 	// Start with normal data
-	transactions := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("id", "TXN001").String("amount_str", "125.50").String("category", "electronics").Freeze(),
-		streamv3.MakeMutableRecord().String("id", "TXN002").String("amount_str", "invalid").String("category", "books").Freeze(),
-		streamv3.MakeMutableRecord().String("id", "TXN003").String("amount_str", "89.99").String("category", "clothing").Freeze(),
-		streamv3.MakeMutableRecord().String("id", "TXN004").String("amount_str", "250.00").String("category", "electronics").Freeze(),
-		streamv3.MakeMutableRecord().String("id", "TXN005").String("amount_str", "45.bad").String("category", "food").Freeze(),
-		streamv3.MakeMutableRecord().String("id", "TXN006").String("amount_str", "180.25").String("category", "electronics").Freeze(),
+	transactions := []ssql.Record{
+		ssql.MakeMutableRecord().String("id", "TXN001").String("amount_str", "125.50").String("category", "electronics").Freeze(),
+		ssql.MakeMutableRecord().String("id", "TXN002").String("amount_str", "invalid").String("category", "books").Freeze(),
+		ssql.MakeMutableRecord().String("id", "TXN003").String("amount_str", "89.99").String("category", "clothing").Freeze(),
+		ssql.MakeMutableRecord().String("id", "TXN004").String("amount_str", "250.00").String("category", "electronics").Freeze(),
+		ssql.MakeMutableRecord().String("id", "TXN005").String("amount_str", "45.bad").String("category", "food").Freeze(),
+		ssql.MakeMutableRecord().String("id", "TXN006").String("amount_str", "180.25").String("category", "electronics").Freeze(),
 	}
 
 	// Start with normal iterator
-	stream := streamv3.From(transactions)
+	stream := ssql.From(transactions)
 
 	// Apply normal filter - remove empty IDs
-	filtered := streamv3.Where(func(r streamv3.Record) bool {
-		return streamv3.GetOr(r, "id", "") != ""
+	filtered := ssql.Where(func(r ssql.Record) bool {
+		return ssql.GetOr(r, "id", "") != ""
 	})(stream)
 
 	// Convert to Safe for error-prone parsing
-	safeStream := streamv3.Safe(filtered)
+	safeStream := ssql.Safe(filtered)
 
 	// Use Safe filter for parsing amounts
-	parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
-		amountStr := streamv3.GetOr(r, "amount_str", "")
+	parsed := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
+		amountStr := ssql.GetOr(r, "amount_str", "")
 		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
-			return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid amount '%s' in record %s",
-				amountStr, streamv3.GetOr(r, "id", "unknown"))
+			return ssql.MakeMutableRecord().Freeze(), fmt.Errorf("invalid amount '%s' in record %s",
+				amountStr, ssql.GetOr(r, "id", "unknown"))
 		}
 
-		return streamv3.MakeMutableRecord().
-			String("id", streamv3.GetOr(r, "id", "")).
+		return ssql.MakeMutableRecord().
+			String("id", ssql.GetOr(r, "id", "")).
 			Float("amount", amount).
-			String("category", streamv3.GetOr(r, "category", "")).
+			String("category", ssql.GetOr(r, "category", "")).
 			Freeze(), nil
 	})(safeStream)
 
 	// Convert back to normal, ignoring errors
-	cleanData := streamv3.IgnoreErrors(parsed)
+	cleanData := ssql.IgnoreErrors(parsed)
 
 	// Continue with normal filters
-	final := streamv3.Chain(
-		streamv3.Where(func(r streamv3.Record) bool {
-			amount := streamv3.GetOr(r, "amount", 0.0)
+	final := ssql.Chain(
+		ssql.Where(func(r ssql.Record) bool {
+			amount := ssql.GetOr(r, "amount", 0.0)
 			return amount > 100.0
 		}),
-		streamv3.SortBy(func(r streamv3.Record) float64 {
+		ssql.SortBy(func(r ssql.Record) float64 {
 			// Return negative to sort in descending order
-			return -streamv3.GetOr(r, "amount", 0.0)
+			return -ssql.GetOr(r, "amount", 0.0)
 		}),
 	)(cleanData)
 
 	// Display results
 	fmt.Println("✅ Successfully processed transactions (amount > $100):")
 	for record := range final {
-		id := streamv3.GetOr(record, "id", "unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
-		category := streamv3.GetOr(record, "category", "unknown")
+		id := ssql.GetOr(record, "id", "unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
+		category := ssql.GetOr(record, "category", "unknown")
 		fmt.Printf("  • %s: $%.2f (%s)\n", id, amount, category)
 	}
 	fmt.Println("  ℹ️  Note: Records with invalid amounts were silently skipped")
@@ -125,25 +125,25 @@ Frank,abc,frank@example.com`
 	defer os.Remove(tmpFile)
 
 	// Read CSV with Safe version
-	csvStream := streamv3.ReadCSVSafe(tmpFile)
+	csvStream := ssql.ReadCSVSafe(tmpFile)
 
 	// Validate records with Safe filter
-	validated := streamv3.WhereSafe(func(r streamv3.Record) (bool, error) {
+	validated := ssql.WhereSafe(func(r ssql.Record) (bool, error) {
 		// Note: CSV parsing auto-converts numeric strings to int64/float64
 		// So "25" becomes int64(25). We need to handle both cases.
 
 		// Try to get age as int64 first (already parsed by CSV reader)
-		age, ageOk := streamv3.Get[int64](r, "age")
+		age, ageOk := ssql.Get[int64](r, "age")
 		if !ageOk {
 			return false, fmt.Errorf("invalid or missing age for %s",
-				streamv3.GetOr(r, "name", "unknown"))
+				ssql.GetOr(r, "name", "unknown"))
 		}
 
 		// Check if email exists
-		email := streamv3.GetOr(r, "email", "")
+		email := ssql.GetOr(r, "email", "")
 		if email == "" {
 			return false, fmt.Errorf("missing email for %s",
-				streamv3.GetOr(r, "name", "unknown"))
+				ssql.GetOr(r, "name", "unknown"))
 		}
 
 		// Only keep adults
@@ -151,21 +151,21 @@ Frank,abc,frank@example.com`
 	})(csvStream)
 
 	// Convert to normal for fast processing
-	normalStream := streamv3.IgnoreErrors(validated)
+	normalStream := ssql.IgnoreErrors(validated)
 
 	// Process with normal filters
-	final := streamv3.Chain(
-		streamv3.SortBy(func(r streamv3.Record) string {
-			return streamv3.GetOr(r, "name", "")
+	final := ssql.Chain(
+		ssql.SortBy(func(r ssql.Record) string {
+			return ssql.GetOr(r, "name", "")
 		}),
 	)(normalStream)
 
 	// Display results
 	fmt.Println("✅ Valid records (age ≥ 18, valid data):")
 	for record := range final {
-		name := streamv3.GetOr(record, "name", "unknown")
-		age := streamv3.GetOr(record, "age", int64(0))
-		email := streamv3.GetOr(record, "email", "unknown")
+		name := ssql.GetOr(record, "name", "unknown")
+		age := ssql.GetOr(record, "age", int64(0))
+		email := ssql.GetOr(record, "email", "unknown")
 		fmt.Printf("  • %s (age %d): %s\n", name, age, email)
 	}
 	fmt.Println("  ℹ️  Note: Invalid records were filtered out during validation")
@@ -229,32 +229,32 @@ func processFailFast(filename string) (err error) {
 	}()
 
 	// Read CSV with Safe version
-	csvStream := streamv3.ReadCSVSafe(filename)
+	csvStream := ssql.ReadCSVSafe(filename)
 
 	// Validate and parse with Safe filter
-	parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+	parsed := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
 		// Note: CSV parsing auto-converts "1250.50" to float64(1250.50)
-		balance, balanceOk := streamv3.Get[float64](r, "balance")
+		balance, balanceOk := ssql.Get[float64](r, "balance")
 		if !balanceOk {
-			return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid balance in account %s",
-				streamv3.GetOr(r, "account", "unknown"))
+			return ssql.MakeMutableRecord().Freeze(), fmt.Errorf("invalid balance in account %s",
+				ssql.GetOr(r, "account", "unknown"))
 		}
 
-		return streamv3.MakeMutableRecord().
-			String("account", streamv3.GetOr(r, "account", "")).
+		return ssql.MakeMutableRecord().
+			String("account", ssql.GetOr(r, "account", "")).
 			Float("balance", balance).
-			String("status", streamv3.GetOr(r, "status", "")).
+			String("status", ssql.GetOr(r, "status", "")).
 			Freeze(), nil
 	})(csvStream)
 
 	// Convert to Unsafe - will panic on any error
-	unsafeStream := streamv3.Unsafe(parsed)
+	unsafeStream := ssql.Unsafe(parsed)
 
 	// Process all records - will panic on first error
 	count := 0
 	for record := range unsafeStream {
-		account := streamv3.GetOr(record, "account", "unknown")
-		balance := streamv3.GetOr(record, "balance", 0.0)
+		account := ssql.GetOr(record, "account", "unknown")
+		balance := ssql.GetOr(record, "balance", 0.0)
 		fmt.Printf("  ✓ Processed %s: $%.2f\n", account, balance)
 		count++
 	}
@@ -293,32 +293,32 @@ Webcam,89.99,18`,
 	}
 
 	// Process all sources with best-effort
-	var allProducts []streamv3.Record
+	var allProducts []ssql.Record
 
 	for path, _ := range sources {
 		filename := strings.TrimPrefix(path, "/tmp/streamv3_")
 		fmt.Printf("\n📂 Processing %s...\n", filename)
 
 		// Read CSV with Safe version
-		csvStream := streamv3.ReadCSVSafe(path)
+		csvStream := ssql.ReadCSVSafe(path)
 
 		// Parse prices with Safe filter
-		parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+		parsed := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
 			// Note: CSV parsing auto-converts "999.99" to float64(999.99) and "15" to int64(15)
-			price, priceOk := streamv3.Get[float64](r, "price")
+			price, priceOk := ssql.Get[float64](r, "price")
 			if !priceOk {
-				return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid price for %s",
-					streamv3.GetOr(r, "product", "unknown"))
+				return ssql.MakeMutableRecord().Freeze(), fmt.Errorf("invalid price for %s",
+					ssql.GetOr(r, "product", "unknown"))
 			}
 
-			stock, stockOk := streamv3.Get[int64](r, "stock")
+			stock, stockOk := ssql.Get[int64](r, "stock")
 			if !stockOk {
-				return streamv3.MakeMutableRecord().Freeze(), fmt.Errorf("invalid stock for %s",
-					streamv3.GetOr(r, "product", "unknown"))
+				return ssql.MakeMutableRecord().Freeze(), fmt.Errorf("invalid stock for %s",
+					ssql.GetOr(r, "product", "unknown"))
 			}
 
-			return streamv3.MakeMutableRecord().
-				String("product", streamv3.GetOr(r, "product", "")).
+			return ssql.MakeMutableRecord().
+				String("product", ssql.GetOr(r, "product", "")).
 				Float("price", price).
 				Int("stock", stock).
 				String("source", filename).
@@ -326,14 +326,14 @@ Webcam,89.99,18`,
 		})(csvStream)
 
 		// Use IgnoreErrors to collect valid records, skip invalid ones
-		validRecords := streamv3.IgnoreErrors(parsed)
+		validRecords := ssql.IgnoreErrors(parsed)
 
 		validCount := 0
 		for record := range validRecords {
 			allProducts = append(allProducts, record)
-			product := streamv3.GetOr(record, "product", "unknown")
-			price := streamv3.GetOr(record, "price", 0.0)
-			stock := streamv3.GetOr(record, "stock", int64(0))
+			product := ssql.GetOr(record, "product", "unknown")
+			price := ssql.GetOr(record, "price", 0.0)
+			stock := ssql.GetOr(record, "stock", int64(0))
 			fmt.Printf("  ✓ %s: $%.2f (stock: %d)\n", product, price, stock)
 			validCount++
 		}
@@ -347,8 +347,8 @@ Webcam,89.99,18`,
 	// Calculate total inventory value
 	totalValue := 0.0
 	for _, record := range allProducts {
-		price := streamv3.GetOr(record, "price", 0.0)
-		stock := streamv3.GetOr(record, "stock", int64(0))
+		price := ssql.GetOr(record, "price", 0.0)
+		stock := ssql.GetOr(record, "stock", int64(0))
 		totalValue += price * float64(stock)
 	}
 	fmt.Printf("  • Total inventory value: $%.2f\n", totalValue)

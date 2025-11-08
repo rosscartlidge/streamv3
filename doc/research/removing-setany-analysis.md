@@ -10,12 +10,12 @@
 
 ## Current Usage
 
-### 1. JSONL Reader (`cmd/streamv3/lib/jsonl.go:42, 139`)
+### 1. JSONL Reader (`cmd/ssql/lib/jsonl.go:42, 139`)
 
 **Current Code:**
 ```go
-func ReadJSONL(input io.Reader) iter.Seq[streamv3.Record] {
-    return func(yield func(streamv3.Record) bool) {
+func ReadJSONL(input io.Reader) iter.Seq[ssql.Record] {
+    return func(yield func(ssql.Record) bool) {
         scanner := bufio.NewScanner(input)
         for scanner.Scan() {
             var data map[string]interface{}
@@ -23,7 +23,7 @@ func ReadJSONL(input io.Reader) iter.Seq[streamv3.Record] {
                 continue
             }
 
-            record := streamv3.MakeMutableRecord()
+            record := ssql.MakeMutableRecord()
             for k, v := range data {
                 record = record.SetAny(k, convertJSONValue(v))  // ← Uses SetAny
             }
@@ -49,7 +49,7 @@ func convertJSONValue(v interface{}) interface{} {
     case []interface{}:
         return val  // ← INVALID: []interface{} is not a Value type
     case map[string]interface{}:
-        record := streamv3.MakeMutableRecord()
+        record := ssql.MakeMutableRecord()
         for k, subv := range val {
             record = record.SetAny(k, convertJSONValue(subv))  // ← Uses SetAny
         }
@@ -70,7 +70,7 @@ func convertJSONValue(v interface{}) interface{} {
 Create a new function that uses typed setters:
 
 ```go
-func setValueFromJSON(record streamv3.MutableRecord, key string, v interface{}) streamv3.MutableRecord {
+func setValueFromJSON(record ssql.MutableRecord, key string, v interface{}) ssql.MutableRecord {
     switch val := v.(type) {
     case float64:
         // JSON numbers are always float64
@@ -109,11 +109,11 @@ func setValueFromJSON(record streamv3.MutableRecord, key string, v interface{}) 
 
     case map[string]interface{}:
         // Nested object - convert to Record recursively
-        nested := streamv3.MakeMutableRecord()
+        nested := ssql.MakeMutableRecord()
         for k, subv := range val {
             nested = setValueFromJSON(nested, k, subv)
         }
-        return streamv3.Set(record, key, nested.Freeze())
+        return ssql.Set(record, key, nested.Freeze())
 
     default:
         // Unknown type - convert to string
@@ -122,8 +122,8 @@ func setValueFromJSON(record streamv3.MutableRecord, key string, v interface{}) 
 }
 
 // Updated ReadJSONL
-func ReadJSONL(input io.Reader) iter.Seq[streamv3.Record] {
-    return func(yield func(streamv3.Record) bool) {
+func ReadJSONL(input io.Reader) iter.Seq[ssql.Record] {
+    return func(yield func(ssql.Record) bool) {
         scanner := bufio.NewScanner(input)
         for scanner.Scan() {
             var data map[string]interface{}
@@ -131,7 +131,7 @@ func ReadJSONL(input io.Reader) iter.Seq[streamv3.Record] {
                 continue
             }
 
-            record := streamv3.MakeMutableRecord()
+            record := ssql.MakeMutableRecord()
             for k, v := range data {
                 record = setValueFromJSON(record, k, v)  // ← No SetAny
             }
@@ -149,19 +149,19 @@ func ReadJSONL(input io.Reader) iter.Seq[streamv3.Record] {
 - What to do with arrays? (skip, stringify, JSON-encode?)
 
 **Files to Change:**
-- `cmd/streamv3/lib/jsonl.go` (lines 42, 139)
+- `cmd/ssql/lib/jsonl.go` (lines 42, 139)
 
 ---
 
-### 2. Select Command (`cmd/streamv3/main.go:650`)
+### 2. Select Command (`cmd/ssql/main.go:650`)
 
 **Current Code:**
 ```go
 // Build selector function
-selector := func(r streamv3.Record) streamv3.Record {
-    result := streamv3.MakeMutableRecord()
+selector := func(r ssql.Record) ssql.Record {
+    result := ssql.MakeMutableRecord()
     for origField, newField := range fieldMap {
-        if val, exists := streamv3.Get[any](r, origField); exists {
+        if val, exists := ssql.Get[any](r, origField); exists {
             result = result.SetAny(newField, val)  // ← Uses SetAny
         }
     }
@@ -177,10 +177,10 @@ Copying fields of unknown type from one record to another.
 Option A: Use type assertion to determine type and call appropriate setter:
 
 ```go
-selector := func(r streamv3.Record) streamv3.Record {
-    result := streamv3.MakeMutableRecord()
+selector := func(r ssql.Record) ssql.Record {
+    result := ssql.MakeMutableRecord()
     for origField, newField := range fieldMap {
-        if val, exists := streamv3.Get[any](r, origField); exists {
+        if val, exists := ssql.Get[any](r, origField); exists {
             result = setTypedValue(result, newField, val)
         }
     }
@@ -188,7 +188,7 @@ selector := func(r streamv3.Record) streamv3.Record {
 }
 
 // Helper function
-func setTypedValue(record streamv3.MutableRecord, key string, val any) streamv3.MutableRecord {
+func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableRecord {
     switch v := val.(type) {
     case int64:
         return record.Int(key, v)
@@ -199,9 +199,9 @@ func setTypedValue(record streamv3.MutableRecord, key string, val any) streamv3.
     case string:
         return record.String(key, v)
     case time.Time:
-        return streamv3.Set(record, key, v)
-    case streamv3.Record:
-        return streamv3.Set(record, key, v)
+        return ssql.Set(record, key, v)
+    case ssql.Record:
+        return ssql.Set(record, key, v)
     default:
         // Handle sequences or unknown types
         // For now, convert to string as fallback
@@ -210,15 +210,15 @@ func setTypedValue(record streamv3.MutableRecord, key string, val any) streamv3.
 }
 ```
 
-Option B: Use `streamv3.Set[any]` with the `Value` constraint (if that compiles):
+Option B: Use `ssql.Set[any]` with the `Value` constraint (if that compiles):
 
 ```go
-selector := func(r streamv3.Record) streamv3.Record {
-    result := streamv3.MakeMutableRecord()
+selector := func(r ssql.Record) ssql.Record {
+    result := ssql.MakeMutableRecord()
     for origField, newField := range fieldMap {
-        if val, exists := streamv3.Get[any](r, origField); exists {
+        if val, exists := ssql.Get[any](r, origField); exists {
             // This may not work if val is not guaranteed to be Value type
-            result = streamv3.Set(result, newField, val)
+            result = ssql.Set(result, newField, val)
         }
     }
     return result.Freeze()
@@ -226,11 +226,11 @@ selector := func(r streamv3.Record) streamv3.Record {
 ```
 
 **Files to Change:**
-- `cmd/streamv3/main.go` (line 650)
+- `cmd/ssql/main.go` (line 650)
 
 ---
 
-### 3. Select Command Code Generation (`cmd/streamv3/commands/select.go:85, 156, 161`)
+### 3. Select Command Code Generation (`cmd/ssql/commands/select.go:85, 156, 161`)
 
 **Current Code:**
 ```go
@@ -250,9 +250,9 @@ Generate code with type switch:
 
 ```go
 // Generated code should look like:
-result := streamv3.MakeMutableRecord()
+result := ssql.MakeMutableRecord()
 for origField, newField := range map[string]string{"age": "age", "name": "full_name"} {
-    if val, exists := streamv3.Get[any](r, origField); exists {
+    if val, exists := ssql.Get[any](r, origField); exists {
         switch v := val.(type) {
         case int64:
             result = result.Int(newField, v)
@@ -263,9 +263,9 @@ for origField, newField := range map[string]string{"age": "age", "name": "full_n
         case string:
             result = result.String(newField, v)
         case time.Time:
-            result = streamv3.Set(result, newField, v)
-        case streamv3.Record:
-            result = streamv3.Set(result, newField, v)
+            result = ssql.Set(result, newField, v)
+        case ssql.Record:
+            result = ssql.Set(result, newField, v)
         default:
             result = result.String(newField, fmt.Sprintf("%v", v))
         }
@@ -277,7 +277,7 @@ Or use a helper function (cleaner):
 
 ```go
 // Add helper to generated code:
-func setTypedValue(record streamv3.MutableRecord, key string, val any) streamv3.MutableRecord {
+func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableRecord {
     switch v := val.(type) {
     case int64:
         return record.Int(key, v)
@@ -288,9 +288,9 @@ func setTypedValue(record streamv3.MutableRecord, key string, val any) streamv3.
     case string:
         return record.String(key, v)
     case time.Time:
-        return streamv3.Set(record, key, v)
-    case streamv3.Record:
-        return streamv3.Set(record, key, v)
+        return ssql.Set(record, key, v)
+    case ssql.Record:
+        return ssql.Set(record, key, v)
     default:
         return record.String(key, fmt.Sprintf("%v", v))
     }
@@ -298,14 +298,14 @@ func setTypedValue(record streamv3.MutableRecord, key string, val any) streamv3.
 
 // Then use it:
 for origField, newField := range fieldMap {
-    if val, exists := streamv3.Get[any](r, origField); exists {
+    if val, exists := ssql.Get[any](r, origField); exists {
         result = setTypedValue(result, newField, val)
     }
 }
 ```
 
 **Files to Change:**
-- `cmd/streamv3/commands/select.go` (lines 85, 156, 161)
+- `cmd/ssql/commands/select.go` (lines 85, 156, 161)
 
 ---
 
@@ -369,8 +369,8 @@ Need to update:
 ## Implementation Plan
 
 ### Phase 1: Add Helper Functions (Non-Breaking)
-1. Add `setTypedValue()` helper to `cmd/streamv3/helpers.go`
-2. Add `setValueFromJSON()` helper to `cmd/streamv3/lib/jsonl.go`
+1. Add `setTypedValue()` helper to `cmd/ssql/helpers.go`
+2. Add `setValueFromJSON()` helper to `cmd/ssql/lib/jsonl.go`
 3. Test that they work correctly
 
 ### Phase 2: Refactor Internal Usage (Non-Breaking)
@@ -384,7 +384,7 @@ Need to update:
 1. Add deprecation comment to `SetAny`:
    ```go
    // SetAny is deprecated and will be removed in v2.0.0.
-   // Use typed setters (Int, Float, Bool, String) or streamv3.Set[V Value]() instead.
+   // Use typed setters (Int, Float, Bool, String) or ssql.Set[V Value]() instead.
    // For dynamic types, use a type switch to determine the appropriate setter.
    func (m MutableRecord) SetAny(field string, value any) MutableRecord {
    ```

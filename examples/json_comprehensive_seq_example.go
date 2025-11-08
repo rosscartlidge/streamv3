@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"iter"
 	"slices"
 )
@@ -17,7 +17,7 @@ func main() {
 	floatValues := slices.Values([]float64{1.5, 2.3, 3.7})
 	boolFlags := slices.Values([]bool{true, false, true})
 
-	record := streamv3.MakeMutableRecord().
+	record := ssql.MakeMutableRecord().
 		String("id", "MIXED-001").
 		String("title", "Complex Task").
 		StringSeq("string_tags", stringTags).
@@ -27,10 +27,10 @@ func main() {
 		Freeze()
 
 	fmt.Println("📊 Record with multiple iter.Seq types:")
-	fmt.Printf("  ID: %s\n", streamv3.GetOr(record, "id", ""))
-	fmt.Printf("  Title: %s\n", streamv3.GetOr(record, "title", ""))
+	fmt.Printf("  ID: %s\n", ssql.GetOr(record, "id", ""))
+	fmt.Printf("  Title: %s\n", ssql.GetOr(record, "title", ""))
 
-	if seq, ok := streamv3.Get[iter.Seq[string]](record, "string_tags"); ok {
+	if seq, ok := ssql.Get[iter.Seq[string]](record, "string_tags"); ok {
 		fmt.Print("  String Tags: ")
 		for val := range seq {
 			fmt.Printf("%s ", val)
@@ -38,7 +38,7 @@ func main() {
 		fmt.Println()
 	}
 
-	if seq, ok := streamv3.Get[iter.Seq[int]](record, "int_scores"); ok {
+	if seq, ok := ssql.Get[iter.Seq[int]](record, "int_scores"); ok {
 		fmt.Print("  Int Scores: ")
 		for val := range seq {
 			fmt.Printf("%d ", val)
@@ -46,7 +46,7 @@ func main() {
 		fmt.Println()
 	}
 
-	if seq, ok := streamv3.Get[iter.Seq[float64]](record, "float_values"); ok {
+	if seq, ok := ssql.Get[iter.Seq[float64]](record, "float_values"); ok {
 		fmt.Print("  Float Values: ")
 		for val := range seq {
 			fmt.Printf("%.1f ", val)
@@ -54,7 +54,7 @@ func main() {
 		fmt.Println()
 	}
 
-	if seq, ok := streamv3.Get[iter.Seq[bool]](record, "bool_flags"); ok {
+	if seq, ok := ssql.Get[iter.Seq[bool]](record, "bool_flags"); ok {
 		fmt.Print("  Bool Flags: ")
 		for val := range seq {
 			fmt.Printf("%t ", val)
@@ -64,10 +64,10 @@ func main() {
 
 	fmt.Println("\n🔧 Testing WriteJSON with all iter.Seq types:")
 
-	stream := streamv3.From([]streamv3.Record{record})
+	stream := ssql.From([]ssql.Record{record})
 	filename := "/tmp/comprehensive_seq_test.json"
 
-	err := streamv3.WriteJSON(stream, filename)
+	err := ssql.WriteJSON(stream, filename)
 	if err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 		return

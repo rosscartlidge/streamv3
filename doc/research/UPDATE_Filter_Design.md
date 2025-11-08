@@ -2,11 +2,11 @@
 
 ## Overview
 
-This document describes the design for adding SQL-style UPDATE operations to StreamV3. The UPDATE filter will allow modifying record fields within pipelines while maintaining type safety through the `Value` constraint.
+This document describes the design for adding SQL-style UPDATE operations to ssql. The UPDATE filter will allow modifying record fields within pipelines while maintaining type safety through the `Value` constraint.
 
 ## Motivation
 
-StreamV3 currently has SQL-style operations for querying and transforming data:
+ssql currently has SQL-style operations for querying and transforming data:
 - `Where` - Filter records (SQL WHERE)
 - `Select` - Project/transform fields (SQL SELECT)
 - `GroupByFields` + `Aggregate` - Aggregation (SQL GROUP BY)
@@ -18,8 +18,8 @@ However, there's no equivalent to SQL's `UPDATE ... SET ...` for modifying recor
 
 ```go
 // Current way to update a field - verbose and unclear intent
-updated := streamv3.Select(func(r streamv3.Record) streamv3.Record {
-    mut := streamv3.MakeMutableRecord()
+updated := ssql.Select(func(r ssql.Record) ssql.Record {
+    mut := ssql.MakeMutableRecord()
     for k, v := range r.All() {
         mut.fields[k] = v  // Copy all fields
     }
@@ -41,19 +41,19 @@ updated := streamv3.Select(func(r streamv3.Record) streamv3.Record {
 // iter.Seq[T], JSONString) can be stored in records.
 //
 // Example:
-//   updates := map[string]func(streamv3.Record) float64{
-//       "total": func(r streamv3.Record) float64 {
-//           price := streamv3.GetOr(r, "price", float64(0))
-//           qty := streamv3.GetOr(r, "quantity", int64(0))
+//   updates := map[string]func(ssql.Record) float64{
+//       "total": func(r ssql.Record) float64 {
+//           price := ssql.GetOr(r, "price", float64(0))
+//           qty := ssql.GetOr(r, "quantity", int64(0))
 //           return price * float64(qty)
 //       },
-//       "tax": func(r streamv3.Record) float64 {
-//           total := streamv3.GetOr(r, "total", float64(0))
+//       "tax": func(r ssql.Record) float64 {
+//           total := ssql.GetOr(r, "total", float64(0))
 //           return total * 0.08
 //       },
 //   }
 //
-//   pipeline := streamv3.Pipe(records, streamv3.Update(updates))
+//   pipeline := ssql.Pipe(records, ssql.Update(updates))
 func Update[V Value](updates map[string]func(Record) V) Filter[Record, Record]
 ```
 
@@ -88,14 +88,14 @@ func UpdateTime(field string, fn func(Record) time.Time) Filter[Record, Record]
 **Example usage:**
 ```go
 // Update status field to constant value
-pipeline := streamv3.UpdateString("status", func(r streamv3.Record) string {
+pipeline := ssql.UpdateString("status", func(r ssql.Record) string {
     return "processed"
 })
 
 // Update total based on other fields
-pipeline := streamv3.UpdateFloat("total", func(r streamv3.Record) float64 {
-    price := streamv3.GetOr(r, "price", float64(0))
-    qty := streamv3.GetOr(r, "quantity", int64(0))
+pipeline := ssql.UpdateFloat("total", func(r ssql.Record) float64 {
+    price := ssql.GetOr(r, "price", float64(0))
+    qty := ssql.GetOr(r, "quantity", int64(0))
     return price * float64(qty)
 })
 ```
@@ -109,23 +109,23 @@ For setting fields to constant values (most common case):
 // Similar to SQL: UPDATE ... SET field = value
 //
 // Example:
-//   pipeline := streamv3.SetField("status", "active")
+//   pipeline := ssql.SetField("status", "active")
 func SetField[V Value](field string, value V) Filter[Record, Record]
 ```
 
 **Example usage:**
 ```go
 // Set status to constant
-pipeline := streamv3.SetField("status", "active")
+pipeline := ssql.SetField("status", "active")
 
 // Set count to constant
-pipeline := streamv3.SetField("count", int64(0))
+pipeline := ssql.SetField("count", int64(0))
 
 // Chain multiple constant updates
-pipeline := streamv3.Pipe(
+pipeline := ssql.Pipe(
     records,
-    streamv3.SetField("status", "active"),
-    streamv3.SetField("updated_at", time.Now()),
+    ssql.SetField("status", "active"),
+    ssql.SetField("updated_at", time.Now()),
 )
 ```
 
@@ -141,13 +141,13 @@ For updates with predicates (SQL WHERE clause):
 // Records not matching pass through unchanged.
 //
 // Example:
-//   pipeline := streamv3.UpdateWhere(
-//       func(r streamv3.Record) bool {
-//           status := streamv3.GetOr(r, "status", "")
+//   pipeline := ssql.UpdateWhere(
+//       func(r ssql.Record) bool {
+//           status := ssql.GetOr(r, "status", "")
 //           return status == "pending"
 //       },
-//       map[string]func(streamv3.Record) string{
-//           "status": func(r streamv3.Record) string { return "processed" },
+//       map[string]func(ssql.Record) string{
+//           "status": func(r ssql.Record) string { return "processed" },
 //       },
 //   )
 func UpdateWhere[V Value](
@@ -159,12 +159,12 @@ func UpdateWhere[V Value](
 **Example usage:**
 ```go
 // Update status only for pending records
-pipeline := streamv3.UpdateWhere(
-    func(r streamv3.Record) bool {
-        return streamv3.GetOr(r, "status", "") == "pending"
+pipeline := ssql.UpdateWhere(
+    func(r ssql.Record) bool {
+        return ssql.GetOr(r, "status", "") == "pending"
     },
-    map[string]func(streamv3.Record) string{
-        "status": func(r streamv3.Record) string { return "processed" },
+    map[string]func(ssql.Record) string{
+        "status": func(r ssql.Record) string { return "processed" },
     },
 )
 ```
@@ -185,9 +185,9 @@ func SetFieldWhere[V Value](
 **Example usage:**
 ```go
 // Set status to "expired" only for old records
-pipeline := streamv3.SetFieldWhere(
-    func(r streamv3.Record) bool {
-        created := streamv3.GetOr(r, "created_at", time.Time{})
+pipeline := ssql.SetFieldWhere(
+    func(r ssql.Record) bool {
+        created := ssql.GetOr(r, "created_at", time.Time{})
         return time.Since(created) > 30*24*time.Hour
     },
     "status",
@@ -261,27 +261,27 @@ If you need to update fields with different types, you have two options:
 
 **Option 1: Use `any` with the generic Update (runtime check):**
 ```go
-updates := map[string]func(streamv3.Record) any{
-    "status": func(r streamv3.Record) any { return "active" },
-    "count": func(r streamv3.Record) any { return int64(42) },
-    "rate": func(r streamv3.Record) any { return float64(0.5) },
+updates := map[string]func(ssql.Record) any{
+    "status": func(r ssql.Record) any { return "active" },
+    "count": func(r ssql.Record) any { return int64(42) },
+    "rate": func(r ssql.Record) any { return float64(0.5) },
 }
-pipeline := streamv3.Update(updates)
+pipeline := ssql.Update(updates)
 ```
 
 Note: While `any` satisfies the `Value` constraint through the underlying types, the responsibility is on the developer to ensure returned values are valid. The type system can't verify this at compile time.
 
 **Option 2: Chain multiple typed updates (recommended for type safety):**
 ```go
-pipeline := streamv3.Pipe(
+pipeline := ssql.Pipe(
     records,
-    streamv3.UpdateString("status", func(r streamv3.Record) string {
+    ssql.UpdateString("status", func(r ssql.Record) string {
         return "active"
     }),
-    streamv3.UpdateInt("count", func(r streamv3.Record) int64 {
+    ssql.UpdateInt("count", func(r ssql.Record) int64 {
         return int64(42)
     }),
-    streamv3.UpdateFloat("rate", func(r streamv3.Record) float64 {
+    ssql.UpdateFloat("rate", func(r ssql.Record) float64 {
         return float64(0.5)
     }),
 )
@@ -295,13 +295,13 @@ This approach is more verbose but provides compile-time type safety for each fie
 
 ```go
 // Calculate total from price * quantity
-records := streamv3.ReadCSV("orders.csv")
+records := ssql.ReadCSV("orders.csv")
 
-withTotal := streamv3.Pipe(
+withTotal := ssql.Pipe(
     records,
-    streamv3.UpdateFloat("total", func(r streamv3.Record) float64 {
-        price := streamv3.GetOr(r, "price", float64(0))
-        qty := streamv3.GetOr(r, "quantity", int64(0))
+    ssql.UpdateFloat("total", func(r ssql.Record) float64 {
+        price := ssql.GetOr(r, "price", float64(0))
+        qty := ssql.GetOr(r, "quantity", int64(0))
         return price * float64(qty)
     }),
 )
@@ -311,10 +311,10 @@ withTotal := streamv3.Pipe(
 
 ```go
 // Convert status to uppercase
-normalized := streamv3.Pipe(
+normalized := ssql.Pipe(
     records,
-    streamv3.UpdateString("status", func(r streamv3.Record) string {
-        status := streamv3.GetOr(r, "status", "")
+    ssql.UpdateString("status", func(r ssql.Record) string {
+        status := ssql.GetOr(r, "status", "")
         return strings.ToUpper(status)
     }),
 )
@@ -324,15 +324,15 @@ normalized := streamv3.Pipe(
 
 ```go
 // Add both tax and grand_total
-withTaxAndTotal := streamv3.Pipe(
+withTaxAndTotal := ssql.Pipe(
     records,
-    streamv3.UpdateFloat("tax", func(r streamv3.Record) float64 {
-        total := streamv3.GetOr(r, "total", float64(0))
+    ssql.UpdateFloat("tax", func(r ssql.Record) float64 {
+        total := ssql.GetOr(r, "total", float64(0))
         return total * 0.08
     }),
-    streamv3.UpdateFloat("grand_total", func(r streamv3.Record) float64 {
-        total := streamv3.GetOr(r, "total", float64(0))
-        tax := streamv3.GetOr(r, "tax", float64(0))
+    ssql.UpdateFloat("grand_total", func(r ssql.Record) float64 {
+        total := ssql.GetOr(r, "total", float64(0))
+        tax := ssql.GetOr(r, "tax", float64(0))
         return total + tax
     }),
 )
@@ -342,11 +342,11 @@ withTaxAndTotal := streamv3.Pipe(
 
 ```go
 // Mark orders as "overdue" if created more than 30 days ago
-withStatus := streamv3.Pipe(
+withStatus := ssql.Pipe(
     records,
-    streamv3.SetFieldWhere(
-        func(r streamv3.Record) bool {
-            created := streamv3.GetOr(r, "created_at", time.Time{})
+    ssql.SetFieldWhere(
+        func(r ssql.Record) bool {
+            created := ssql.GetOr(r, "created_at", time.Time{})
             return time.Since(created) > 30*24*time.Hour
         },
         "status",
@@ -359,10 +359,10 @@ withStatus := streamv3.Pipe(
 
 ```go
 // Add "high_value" flag for orders over $1000
-withFlags := streamv3.Pipe(
+withFlags := ssql.Pipe(
     records,
-    streamv3.UpdateBool("high_value", func(r streamv3.Record) bool {
-        total := streamv3.GetOr(r, "total", float64(0))
+    ssql.UpdateBool("high_value", func(r ssql.Record) bool {
+        total := ssql.GetOr(r, "total", float64(0))
         return total > 1000.0
     }),
 )
@@ -370,19 +370,19 @@ withFlags := streamv3.Pipe(
 
 ## CLI Integration
 
-Add `streamv3 update` command for simple field updates:
+Add `ssql update` command for simple field updates:
 
 ```bash
 # Set constant value
-streamv3 read-csv orders.csv | streamv3 update -set status active
+ssql read-csv orders.csv | ssql update -set status active
 
 # Conditional update
-streamv3 read-csv orders.csv | \
-  streamv3 update -set status processed -where status eq pending
+ssql read-csv orders.csv | \
+  ssql update -set status processed -where status eq pending
 
 # Multiple updates
-streamv3 read-csv orders.csv | \
-  streamv3 update -set status active -set updated_at "2025-01-01"
+ssql read-csv orders.csv | \
+  ssql update -set status active -set updated_at "2025-01-01"
 ```
 
 The CLI command will be limited to constant value updates. For computed field updates, users should use the Go API or code generation.
@@ -393,15 +393,15 @@ The `update` command should support the `-generate` flag:
 
 ```bash
 export STREAMV3_GENERATE_GO=1
-streamv3 read-csv data.csv | \
-  streamv3 update -set status active | \
-  streamv3 generate-go > program.go
+ssql read-csv data.csv | \
+  ssql update -set status active | \
+  ssql generate-go > program.go
 ```
 
 This generates:
 ```go
-records := streamv3.ReadCSV("data.csv")
-updated := streamv3.SetField("status", "active")(records)
+records := ssql.ReadCSV("data.csv")
+updated := ssql.SetField("status", "active")(records)
 ```
 
 ## Testing Strategy
@@ -437,7 +437,7 @@ updated := streamv3.SetField("status", "active")(records)
 - Examples combining Update with Where, Select, GroupBy
 - Examples showing both library API and CLI usage
 
-### CLI Tests (cmd/streamv3/*_test.go)
+### CLI Tests (cmd/ssql/*_test.go)
 
 - Test basic `-set` flag
 - Test conditional updates with `-where`
@@ -476,24 +476,24 @@ This is a new feature with no breaking changes:
 // NOT CHOSEN: Would break immutability guarantees
 UpdateInPlace(updates map[string]func(Record))  // Mutates records
 ```
-**Rejected because:** StreamV3 emphasizes immutability. All operations create new records.
+**Rejected because:** ssql emphasizes immutability. All operations create new records.
 
 ### Alternative 2: Non-generic Update with `any`
 ```go
 // NOT CHOSEN: Would lose compile-time type safety
 Update(updates map[string]func(Record) any)
 ```
-**Rejected because:** The Value constraint is a core design principle of StreamV3 (see CLAUDE.md "Canonical Numeric Types"). Losing compile-time type checking would be a regression.
+**Rejected because:** The Value constraint is a core design principle of ssql (see CLAUDE.md "Canonical Numeric Types"). Losing compile-time type checking would be a regression.
 
 ### Alternative 3: Builder Pattern
 ```go
 // NOT CHOSEN: Would be verbose for simple cases
-streamv3.NewUpdater().
+ssql.NewUpdater().
     SetField("status", "active").
     SetField("count", int64(42)).
     Build()
 ```
-**Rejected because:** Doesn't fit the Filter-based functional composition style used throughout StreamV3. The map-based approach is more concise and fits better with Pipe().
+**Rejected because:** Doesn't fit the Filter-based functional composition style used throughout ssql. The map-based approach is more concise and fits better with Pipe().
 
 ## Open Questions
 
@@ -518,7 +518,7 @@ streamv3.NewUpdater().
 - [ ] Implement `SetFieldWhere[V Value]`
 - [ ] Add unit tests in operations_test.go
 - [ ] Add integration examples in example_test.go
-- [ ] Add CLI `update` command in cmd/streamv3/main.go
+- [ ] Add CLI `update` command in cmd/ssql/main.go
 - [ ] Add code generation support to `update` command
 - [ ] Add CLI tests for `update` command
 - [ ] Update CLAUDE.md documentation

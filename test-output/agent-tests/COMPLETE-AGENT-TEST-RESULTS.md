@@ -220,7 +220,7 @@ result := streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
 })(grouped)
 
 // ✅ CORRECT - Import path
-import "github.com/rosscartlidge/streamv3"
+import "github.com/rosscartlidge/ssql"
 
 // ✅ CORRECT - Count syntax
 "employee_count": streamv3.Count()  // Field name is map key

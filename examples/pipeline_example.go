@@ -2,47 +2,47 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"slices"
 )
 
 func main() {
 	// Sample sales data
-	sales := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Freeze(),
-		streamv3.MakeMutableRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Freeze(),
+	sales := []ssql.Record{
+		ssql.MakeMutableRecord().String("region", "North").String("product", "Laptop").Float("amount", 1200).Freeze(),
+		ssql.MakeMutableRecord().String("region", "South").String("product", "Phone").Float("amount", 800).Freeze(),
+		ssql.MakeMutableRecord().String("region", "North").String("product", "Phone").Float("amount", 900).Freeze(),
+		ssql.MakeMutableRecord().String("region", "East").String("product", "Laptop").Float("amount", 1100).Freeze(),
+		ssql.MakeMutableRecord().String("region", "South").String("product", "Laptop").Float("amount", 1300).Freeze(),
 	}
 
 	fmt.Println("📊 StreamV2-Style Pipeline: From → Where → GroupBy → Sum")
 	fmt.Println("==========================================================\n")
 
 	// Try StreamV2-style functional composition
-	filterStep := streamv3.Where(func(r streamv3.Record) bool {
-		amount := streamv3.GetOr(r, "amount", 0.0)
+	filterStep := ssql.Where(func(r ssql.Record) bool {
+		amount := ssql.GetOr(r, "amount", 0.0)
 		return amount >= 1000
 	})
-	groupStep := streamv3.GroupByFields("sales_data", "region")
+	groupStep := ssql.GroupByFields("sales_data", "region")
 
 	// Apply steps manually
 	filtered := filterStep(slices.Values(sales))
 	groups := groupStep(filtered)
 
 	// Apply aggregation
-	aggregationStep := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
-		"total_sales": streamv3.Sum("amount"),
-		"count":       streamv3.Count(),
+	aggregationStep := ssql.Aggregate("sales_data", map[string]ssql.AggregateFunc{
+		"total_sales": ssql.Sum("amount"),
+		"count":       ssql.Count(),
 	})
 
 	totals := aggregationStep(groups)
 
 	fmt.Println("High-value sales (>= $1000) by region:")
 	for result := range totals {
-		region := streamv3.GetOr(result, "region", "Unknown")
-		totalSales := streamv3.GetOr(result, "total_sales", 0.0)
-		count := streamv3.GetOr(result, "count", int64(0))
+		region := ssql.GetOr(result, "region", "Unknown")
+		totalSales := ssql.GetOr(result, "total_sales", 0.0)
+		count := ssql.GetOr(result, "count", int64(0))
 		fmt.Printf("  %s: $%.0f (%d sales)\n", region, totalSales, count)
 	}
 

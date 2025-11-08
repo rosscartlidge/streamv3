@@ -18,8 +18,8 @@ Convert `JoinPredicate` from a function type to an interface to enable clean has
 type JoinPredicate func(left, right Record) bool
 
 // Usage
-pred := streamv3.OnFields("id")
-joined := streamv3.InnerJoin(orders, pred)(customers)
+pred := ssql.OnFields("id")
+joined := ssql.InnerJoin(orders, pred)(customers)
 ```
 
 **Problems:**
@@ -199,12 +199,12 @@ func innerJoinNested(
 
 ```go
 // OnFields - returns function
-pred := streamv3.OnFields("customer_id")
-joined := streamv3.InnerJoin(orders, pred)(customers)
+pred := ssql.OnFields("customer_id")
+joined := ssql.InnerJoin(orders, pred)(customers)
 
 // OnCondition - returns function
-pred := streamv3.OnCondition(func(left, right streamv3.Record) bool {
-    return streamv3.GetOr(left, "amount", 0.0) > 100.0
+pred := ssql.OnCondition(func(left, right ssql.Record) bool {
+    return ssql.GetOr(left, "amount", 0.0) > 100.0
 })
 ```
 
@@ -212,12 +212,12 @@ pred := streamv3.OnCondition(func(left, right streamv3.Record) bool {
 
 ```go
 // OnFields - returns interface (SAME USAGE!)
-pred := streamv3.OnFields("customer_id")
-joined := streamv3.InnerJoin(orders, pred)(customers)
+pred := ssql.OnFields("customer_id")
+joined := ssql.InnerJoin(orders, pred)(customers)
 
 // OnCondition - returns interface (SAME USAGE!)
-pred := streamv3.OnCondition(func(left, right streamv3.Record) bool {
-    return streamv3.GetOr(left, "amount", 0.0) > 100.0
+pred := ssql.OnCondition(func(left, right ssql.Record) bool {
+    return ssql.GetOr(left, "amount", 0.0) > 100.0
 })
 ```
 
@@ -233,7 +233,7 @@ pred := streamv3.OnCondition(func(left, right streamv3.Record) bool {
 **Before:**
 ```go
 // Direct function - BREAKS
-var customPred streamv3.JoinPredicate = func(left, right streamv3.Record) bool {
+var customPred ssql.JoinPredicate = func(left, right ssql.Record) bool {
     return left["id"] == right["id"]
 }
 ```
@@ -241,8 +241,8 @@ var customPred streamv3.JoinPredicate = func(left, right streamv3.Record) bool {
 **After:**
 ```go
 // Must use OnCondition wrapper
-customPred := streamv3.OnCondition(func(left, right streamv3.Record) bool {
-    return streamv3.GetOr(left, "id", "") == streamv3.GetOr(right, "id", "")
+customPred := ssql.OnCondition(func(left, right ssql.Record) bool {
+    return ssql.GetOr(left, "id", "") == ssql.GetOr(right, "id", "")
 })
 ```
 
@@ -383,7 +383,7 @@ pred := OnCondition(func(l, r Record) bool {
 **👍 STRONGLY RECOMMEND Interface Approach**
 
 Reasons:
-- StreamV3 is still pre-1.0, breaking changes are acceptable
+- ssql is still pre-1.0, breaking changes are acceptable
 - Much cleaner, more maintainable code
 - Better foundation for future optimizations
 - 99% of users won't notice the change

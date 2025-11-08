@@ -1,11 +1,11 @@
-# StreamV3 Advanced Tutorial
+# ssql Advanced Tutorial
 
 *Master complex stream processing, real-time analytics, and production-ready patterns*
 
 ## Table of Contents
 
 ### Documentation Navigation
-- **[Getting Started Guide](codelab-intro.md)** - Learn StreamV3 basics step-by-step
+- **[Getting Started Guide](codelab-intro.md)** - Learn ssql basics step-by-step
 - **[API Reference](api-reference.md)** - Complete function reference and examples
 
 ### Advanced Topics
@@ -60,7 +60,7 @@ This tutorial assumes you've completed the [Getting Started Guide](codelab-intro
 
 ### Multi-Level Grouping
 
-Process sales data across multiple dimensions using StreamV3's SQL-style operations:
+Process sales data across multiple dimensions using ssql's SQL-style operations:
 
 ```go
 package main
@@ -68,7 +68,7 @@ package main
 import (
     "fmt"
     "time"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -76,15 +76,15 @@ func main() {
     salesData := generateSalesData()
 
     // Step 1: Group by region and product
-    grouped := streamv3.GroupByFields("sales_data", "region", "product")(salesData)
+    grouped := ssql.GroupByFields("sales_data", "region", "product")(salesData)
 
     // Step 2: Apply multiple aggregations
-    results := streamv3.Aggregate("sales_data", map[string]streamv3.AggregateFunc{
-        "total_revenue": streamv3.Sum("revenue"),
-        "avg_deal_size": streamv3.Avg("deal_size"),
-        "max_sale":      streamv3.Max[float64]("revenue"),
-        "sale_count":    streamv3.Count(),
-        "all_customers": streamv3.Collect("customer"),
+    results := ssql.Aggregate("sales_data", map[string]ssql.AggregateFunc{
+        "total_revenue": ssql.Sum("revenue"),
+        "avg_deal_size": ssql.Avg("deal_size"),
+        "max_sale":      ssql.Max[float64]("revenue"),
+        "sale_count":    ssql.Count(),
+        "all_customers": ssql.Collect("customer"),
     })(grouped)
 
     fmt.Println("Sales Analysis by Region and Product:")
@@ -99,14 +99,14 @@ func main() {
     }
 }
 
-func generateSalesData() []streamv3.Record {
+func generateSalesData() []ssql.Record {
     regions := []string{"North", "South", "East", "West"}
     products := []string{"Laptop", "Phone", "Tablet"}
     customers := []string{"Alice", "Bob", "Carol", "David", "Eve"}
 
-    var data []streamv3.Record
+    var data []ssql.Record
     for i := 0; i < 100; i++ {
-        record := streamv3.MakeMutableRecord().
+        record := ssql.MakeMutableRecord().
             String("region", regions[i%len(regions)]).
             String("product", products[i%len(products)]).
             String("customer", customers[i%len(customers)]).
@@ -133,7 +133,7 @@ import (
     "fmt"
     "slices"
     "time"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -141,14 +141,14 @@ func main() {
     data := generateTimeSeriesData()
 
     // Apply rolling window analytics
-    enriched := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+    enriched := ssql.Select(func(r ssql.Record) ssql.Record {
         // This is a simplified example - real implementation would maintain state
         return r
     })(slices.Values(data))
 
     // Use running aggregations for real-time analysis
-    withRunningStats := streamv3.RunningAverage("value", 5)(enriched)
-    withRunningSum := streamv3.RunningSum("value")(withRunningStats)
+    withRunningStats := ssql.RunningAverage("value", 5)(enriched)
+    withRunningSum := ssql.RunningSum("value")(withRunningStats)
 
     fmt.Println("Time Series Analysis with Rolling Windows:")
     count := 0
@@ -157,10 +157,10 @@ func main() {
             break
         }
 
-        timestamp := streamv3.GetOr(record, "timestamp", "")
-        value := streamv3.GetOr(record, "value", 0.0)
-        avg := streamv3.GetOr(record, "running_avg", 0.0)
-        sum := streamv3.GetOr(record, "running_sum", 0.0)
+        timestamp := ssql.GetOr(record, "timestamp", "")
+        value := ssql.GetOr(record, "value", 0.0)
+        avg := ssql.GetOr(record, "running_avg", 0.0)
+        sum := ssql.GetOr(record, "running_sum", 0.0)
 
         fmt.Printf("  %s: %.2f (avg: %.2f, sum: %.2f)\n",
             timestamp, value, avg, sum)
@@ -168,10 +168,10 @@ func main() {
     }
 }
 
-func generateTimeSeriesData() []streamv3.Record {
-    var data []streamv3.Record
+func generateTimeSeriesData() []ssql.Record {
+    var data []ssql.Record
     for i := 0; i < 50; i++ {
-        record := streamv3.MakeMutableRecord().
+        record := ssql.MakeMutableRecord().
             Time("timestamp", time.Now().Add(-time.Duration(i)*time.Hour)).
             Float("value", 100 + float64(i%10)*5).
             String("sensor", fmt.Sprintf("sensor_%d", i%3)).
@@ -193,22 +193,22 @@ import (
     "fmt"
     "math"
     "slices"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     data := generateNumericData()
 
     // Calculate statistical metrics using aggregations
-    grouped := streamv3.GroupByFields("stats", "category")(slices.Values(data))
+    grouped := ssql.GroupByFields("stats", "category")(slices.Values(data))
 
-    stats := streamv3.Aggregate("stats", map[string]streamv3.AggregateFunc{
-        "count":   streamv3.Count(),
-        "sum":     streamv3.Sum("value"),
-        "avg":     streamv3.Avg("value"),
-        "min":     streamv3.Min[float64]("value"),
-        "max":     streamv3.Max[float64]("value"),
-        "values":  streamv3.Collect("value"),
+    stats := ssql.Aggregate("stats", map[string]ssql.AggregateFunc{
+        "count":   ssql.Count(),
+        "sum":     ssql.Sum("value"),
+        "avg":     ssql.Avg("value"),
+        "min":     ssql.Min[float64]("value"),
+        "max":     ssql.Max[float64]("value"),
+        "values":  ssql.Collect("value"),
     })(grouped)
 
     fmt.Println("Statistical Analysis by Category:")
@@ -234,12 +234,12 @@ func main() {
     }
 }
 
-func generateNumericData() []streamv3.Record {
+func generateNumericData() []ssql.Record {
     categories := []string{"A", "B", "C"}
-    var data []streamv3.Record
+    var data []ssql.Record
 
     for i := 0; i < 30; i++ {
-        record := streamv3.MakeMutableRecord().
+        record := ssql.MakeMutableRecord().
             String("category", categories[i%len(categories)]).
             Float("value", 50 + float64(i)*1.5 + float64(i%5)*10).
             Build()
@@ -265,35 +265,35 @@ package main
 import (
     "fmt"
     "slices"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Create user and order datasets
-    users := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("user_id", "1").String("name", "Alice").String("city", "NYC").Freeze(),
-        streamv3.MakeMutableRecord().String("user_id", "2").String("name", "Bob").String("city", "LA").Freeze(),
-        streamv3.MakeMutableRecord().String("user_id", "3").String("name", "Carol").String("city", "Chicago").Freeze(),
+    users := []ssql.Record{
+        ssql.MakeMutableRecord().String("user_id", "1").String("name", "Alice").String("city", "NYC").Freeze(),
+        ssql.MakeMutableRecord().String("user_id", "2").String("name", "Bob").String("city", "LA").Freeze(),
+        ssql.MakeMutableRecord().String("user_id", "3").String("name", "Carol").String("city", "Chicago").Freeze(),
     }
 
-    orders := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("user_id", "1").Float("amount", 100).String("product", "Laptop").Freeze(),
-        streamv3.MakeMutableRecord().String("user_id", "2").Float("amount", 50).String("product", "Mouse").Freeze(),
-        streamv3.MakeMutableRecord().String("user_id", "1").Float("amount", 200).String("product", "Monitor").Freeze(),
+    orders := []ssql.Record{
+        ssql.MakeMutableRecord().String("user_id", "1").Float("amount", 100).String("product", "Laptop").Freeze(),
+        ssql.MakeMutableRecord().String("user_id", "2").Float("amount", 50).String("product", "Mouse").Freeze(),
+        ssql.MakeMutableRecord().String("user_id", "1").Float("amount", 200).String("product", "Monitor").Freeze(),
     }
 
     // Perform inner join on user_id
-    joined := streamv3.InnerJoin(
+    joined := ssql.InnerJoin(
         slices.Values(orders),
-        streamv3.OnFields("user_id"),
+        ssql.OnFields("user_id"),
     )(slices.Values(users))
 
     fmt.Println("User Orders (Inner Join):")
     for record := range joined {
-        name := streamv3.GetOr(record, "name", "Unknown")
-        product := streamv3.GetOr(record, "product", "Unknown")
-        amount := streamv3.GetOr(record, "amount", 0.0)
-        city := streamv3.GetOr(record, "city", "Unknown")
+        name := ssql.GetOr(record, "name", "Unknown")
+        product := ssql.GetOr(record, "product", "Unknown")
+        amount := ssql.GetOr(record, "amount", 0.0)
+        city := ssql.GetOr(record, "city", "Unknown")
 
         fmt.Printf("  %s (%s): %s - $%.0f\n", name, city, product, amount)
     }
@@ -306,27 +306,27 @@ Handle missing data gracefully:
 
 ```go
 func demonstrateLeftJoin() {
-    users := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("user_id", "1").String("name", "Alice").Freeze(),
-        streamv3.MakeMutableRecord().String("user_id", "2").String("name", "Bob").Freeze(),
-        streamv3.MakeMutableRecord().String("user_id", "3").String("name", "Carol").Freeze(),
+    users := []ssql.Record{
+        ssql.MakeMutableRecord().String("user_id", "1").String("name", "Alice").Freeze(),
+        ssql.MakeMutableRecord().String("user_id", "2").String("name", "Bob").Freeze(),
+        ssql.MakeMutableRecord().String("user_id", "3").String("name", "Carol").Freeze(),
     }
 
-    orders := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("user_id", "1").Float("amount", 100).Freeze(),
+    orders := []ssql.Record{
+        ssql.MakeMutableRecord().String("user_id", "1").Float("amount", 100).Freeze(),
         // Note: No orders for user 2 and 3
     }
 
     // Left join preserves all users, even those without orders
-    leftJoined := streamv3.LeftJoin(
+    leftJoined := ssql.LeftJoin(
         slices.Values(orders),
-        streamv3.OnFields("user_id"),
+        ssql.OnFields("user_id"),
     )(slices.Values(users))
 
     fmt.Println("All Users with Orders (Left Join):")
     for record := range leftJoined {
-        name := streamv3.GetOr(record, "name", "Unknown")
-        amount := streamv3.GetOr(record, "amount", 0.0) // Defaults to 0 for users without orders
+        name := ssql.GetOr(record, "name", "Unknown")
+        amount := ssql.GetOr(record, "amount", 0.0) // Defaults to 0 for users without orders
 
         if amount > 0 {
             fmt.Printf("  %s: $%.0f\n", name, amount)
@@ -343,23 +343,23 @@ Use custom predicates for sophisticated joins:
 
 ```go
 func demonstrateComplexJoin() {
-    products := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("product_id", "1").String("category", "Electronics").Float("price", 100).Freeze(),
-        streamv3.MakeMutableRecord().String("product_id", "2").String("category", "Electronics").Float("price", 200).Freeze(),
-        streamv3.MakeMutableRecord().String("product_id", "3").String("category", "Books").Float("price", 20).Freeze(),
+    products := []ssql.Record{
+        ssql.MakeMutableRecord().String("product_id", "1").String("category", "Electronics").Float("price", 100).Freeze(),
+        ssql.MakeMutableRecord().String("product_id", "2").String("category", "Electronics").Float("price", 200).Freeze(),
+        ssql.MakeMutableRecord().String("product_id", "3").String("category", "Books").Float("price", 20).Freeze(),
     }
 
-    sales := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("product_id", "1").Int("quantity", 5).String("region", "North").Freeze(),
-        streamv3.MakeMutableRecord().String("product_id", "2").Int("quantity", 3).String("region", "South").Freeze(),
+    sales := []ssql.Record{
+        ssql.MakeMutableRecord().String("product_id", "1").Int("quantity", 5).String("region", "North").Freeze(),
+        ssql.MakeMutableRecord().String("product_id", "2").Int("quantity", 3).String("region", "South").Freeze(),
     }
 
     // Custom join condition: match products with sales and calculate revenue
-    customJoined := streamv3.InnerJoin(
+    customJoined := ssql.InnerJoin(
         slices.Values(sales),
-        streamv3.OnCondition(func(product, sale streamv3.Record) bool {
+        ssql.OnCondition(func(product, sale ssql.Record) bool {
             // Custom logic: only join electronics products
-            category := streamv3.GetOr(product, "category", "")
+            category := ssql.GetOr(product, "category", "")
             return category == "Electronics" &&
                    product["product_id"] == sale["product_id"]
         }),
@@ -368,9 +368,9 @@ func demonstrateComplexJoin() {
     fmt.Println("Electronics Sales Analysis:")
     for record := range customJoined {
         productId := record["product_id"]
-        price := streamv3.GetOr(record, "price", 0.0)
-        quantity := streamv3.GetOr(record, "quantity", int64(0))
-        region := streamv3.GetOr(record, "region", "Unknown")
+        price := ssql.GetOr(record, "price", 0.0)
+        quantity := ssql.GetOr(record, "quantity", int64(0))
+        region := ssql.GetOr(record, "region", "Unknown")
         revenue := price * float64(quantity)
 
         fmt.Printf("  Product %s in %s: $%.0f (qty: %d)\n",
@@ -395,14 +395,14 @@ package main
 import (
     "fmt"
     "time"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Simulate infinite sensor data stream
-    sensorStream := func(yield func(streamv3.Record) bool) {
+    sensorStream := func(yield func(ssql.Record) bool) {
         for i := 0; ; i++ {
-            record := streamv3.MakeMutableRecord().
+            record := ssql.MakeMutableRecord().
                 String("sensor_id", fmt.Sprintf("sensor_%d", i%3)).
                 Float("temperature", 20 + float64(i%20)).
                 Float("humidity", 40 + float64(i%30)).
@@ -417,11 +417,11 @@ func main() {
     }
 
     // Process with early termination
-    limited := streamv3.Limit[streamv3.Record](50)(sensorStream)
+    limited := ssql.Limit[ssql.Record](50)(sensorStream)
 
     // Apply real-time processing
-    processed := streamv3.Select(func(r streamv3.Record) streamv3.Record {
-        temp := streamv3.GetOr(r, "temperature", 0.0)
+    processed := ssql.Select(func(r ssql.Record) ssql.Record {
+        temp := ssql.GetOr(r, "temperature", 0.0)
 
         // Add alert status
         var status string
@@ -433,20 +433,20 @@ func main() {
             status = "NORMAL"
         }
 
-        return streamv3.SetField(r, "status", status)
+        return ssql.SetField(r, "status", status)
     })(limited)
 
     // Filter alerts
-    alerts := streamv3.Where(func(r streamv3.Record) bool {
-        status := streamv3.GetOr(r, "status", "")
+    alerts := ssql.Where(func(r ssql.Record) bool {
+        status := ssql.GetOr(r, "status", "")
         return status != "NORMAL"
     })(processed)
 
     fmt.Println("Real-time Sensor Monitoring (Alerts Only):")
     for alert := range alerts {
-        sensorId := streamv3.GetOr(alert, "sensor_id", "")
-        temp := streamv3.GetOr(alert, "temperature", 0.0)
-        status := streamv3.GetOr(alert, "status", "")
+        sensorId := ssql.GetOr(alert, "sensor_id", "")
+        temp := ssql.GetOr(alert, "temperature", 0.0)
+        status := ssql.GetOr(alert, "status", "")
 
         fmt.Printf("  ALERT %s: %.1f°C (%s)\n", sensorId, temp, status)
     }
@@ -460,9 +460,9 @@ Use timeouts and conditions to control infinite processing:
 ```go
 func demonstrateInfiniteStreamHandling() {
     // Create infinite data generator
-    infiniteData := func(yield func(streamv3.Record) bool) {
+    infiniteData := func(yield func(ssql.Record) bool) {
         for i := 0; ; i++ {
-            record := streamv3.MakeMutableRecord().
+            record := ssql.MakeMutableRecord().
                 String("event_id", fmt.Sprintf("event_%d", i)).
                 Float("value", float64(i)).
                 Time("timestamp", time.Now()).
@@ -476,16 +476,16 @@ func demonstrateInfiniteStreamHandling() {
     }
 
     // Method 1: Time-based termination
-    timedStream := streamv3.Timeout[streamv3.Record](2 * time.Second)(infiniteData)
+    timedStream := ssql.Timeout[ssql.Record](2 * time.Second)(infiniteData)
 
     // Method 2: Condition-based termination
-    conditionalStream := streamv3.TakeWhile(func(r streamv3.Record) bool {
-        value := streamv3.GetOr(r, "value", 0.0)
+    conditionalStream := ssql.TakeWhile(func(r ssql.Record) bool {
+        value := ssql.GetOr(r, "value", 0.0)
         return value < 100 // Stop when value reaches 100
     })(infiniteData)
 
     // Method 3: Count-based termination
-    countLimited := streamv3.Limit[streamv3.Record](20)(infiniteData)
+    countLimited := ssql.Limit[ssql.Record](20)(infiniteData)
 
     fmt.Println("Processing infinite streams:")
 
@@ -496,7 +496,7 @@ func demonstrateInfiniteStreamHandling() {
     for record := range timedStream {
         count++
         if count <= 5 { // Show first 5
-            eventId := streamv3.GetOr(record, "event_id", "")
+            eventId := ssql.GetOr(record, "event_id", "")
             fmt.Printf("    %s\n", eventId)
         }
     }
@@ -511,36 +511,36 @@ Implement reactive patterns for event streams:
 ```go
 func demonstrateEventDrivenProcessing() {
     // Simulate event stream
-    events := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("type", "user_login").String("user", "alice").Time("time", time.Now()).Freeze(),
-        streamv3.MakeMutableRecord().String("type", "purchase").String("user", "alice").Float("amount", 100).Freeze(),
-        streamv3.MakeMutableRecord().String("type", "user_login").String("user", "bob").Time("time", time.Now()).Freeze(),
-        streamv3.MakeMutableRecord().String("type", "error").String("service", "payment").String("message", "timeout").Freeze(),
-        streamv3.MakeMutableRecord().String("type", "purchase").String("user", "bob").Float("amount", 50).Freeze(),
+    events := []ssql.Record{
+        ssql.MakeMutableRecord().String("type", "user_login").String("user", "alice").Time("time", time.Now()).Freeze(),
+        ssql.MakeMutableRecord().String("type", "purchase").String("user", "alice").Float("amount", 100).Freeze(),
+        ssql.MakeMutableRecord().String("type", "user_login").String("user", "bob").Time("time", time.Now()).Freeze(),
+        ssql.MakeMutableRecord().String("type", "error").String("service", "payment").String("message", "timeout").Freeze(),
+        ssql.MakeMutableRecord().String("type", "purchase").String("user", "bob").Float("amount", 50).Freeze(),
     }
 
     // Process different event types
-    purchases := streamv3.Where(func(r streamv3.Record) bool {
-        return streamv3.GetOr(r, "type", "") == "purchase"
+    purchases := ssql.Where(func(r ssql.Record) bool {
+        return ssql.GetOr(r, "type", "") == "purchase"
     })(slices.Values(events))
 
-    errors := streamv3.Where(func(r streamv3.Record) bool {
-        return streamv3.GetOr(r, "type", "") == "error"
+    errors := ssql.Where(func(r ssql.Record) bool {
+        return ssql.GetOr(r, "type", "") == "error"
     })(slices.Values(events))
 
     fmt.Println("Event-Driven Processing:")
 
     fmt.Println("  Purchases:")
     for purchase := range purchases {
-        user := streamv3.GetOr(purchase, "user", "")
-        amount := streamv3.GetOr(purchase, "amount", 0.0)
+        user := ssql.GetOr(purchase, "user", "")
+        amount := ssql.GetOr(purchase, "amount", 0.0)
         fmt.Printf("    %s purchased $%.0f\n", user, amount)
     }
 
     fmt.Println("  Errors:")
     for error := range errors {
-        service := streamv3.GetOr(error, "service", "")
-        message := streamv3.GetOr(error, "message", "")
+        service := ssql.GetOr(error, "service", "")
+        message := ssql.GetOr(error, "message", "")
         fmt.Printf("    %s error: %s\n", service, message)
     }
 }
@@ -563,14 +563,14 @@ import (
     "fmt"
     "time"
     "slices"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func demonstrateCountWindows() {
     // Simulate infinite sensor readings
-    sensorData := func(yield func(streamv3.Record) bool) {
+    sensorData := func(yield func(ssql.Record) bool) {
         for i := 0; ; i++ {
-            record := streamv3.MakeMutableRecord().
+            record := ssql.MakeMutableRecord().
                 String("sensor_id", fmt.Sprintf("temp_sensor_%d", i%3)).
                 Float("temperature", 20 + float64(i%15) + (float64(i)*0.1)).
                 Time("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
@@ -583,8 +583,8 @@ func demonstrateCountWindows() {
     }
 
     // Process in batches of 10 readings
-    windowed := streamv3.CountWindow[streamv3.Record](10)(
-        streamv3.Limit[streamv3.Record](50)(sensorData), // Limit for demo
+    windowed := ssql.CountWindow[ssql.Record](10)(
+        ssql.Limit[ssql.Record](50)(sensorData), // Limit for demo
     )
 
     fmt.Println("Count-Based Window Analysis (batches of 10):")
@@ -600,7 +600,7 @@ func demonstrateCountWindows() {
         max = -1000 // Initialize to low value
 
         for _, record := range batch {
-            temp := streamv3.GetOr(record, "temperature", 0.0)
+            temp := ssql.GetOr(record, "temperature", 0.0)
             sum += temp
             if temp < min {
                 min = temp
@@ -625,7 +625,7 @@ Group data by time intervals for temporal analysis:
 ```go
 func demonstrateTimeWindows() {
     // Create timestamped financial data
-    priceStream := func(yield func(streamv3.Record) bool) {
+    priceStream := func(yield func(ssql.Record) bool) {
         baseTime := time.Now()
         basePrice := 100.0
 
@@ -633,7 +633,7 @@ func demonstrateTimeWindows() {
             // Simulate price fluctuations
             price := basePrice + (float64(i%10)-5)*2 + float64(i)*0.1
 
-            record := streamv3.MakeMutableRecord().
+            record := ssql.MakeMutableRecord().
                 String("symbol", "AAPL").
                 Float("price", price).
                 Time("timestamp", baseTime.Add(time.Duration(i)*time.Second)).
@@ -646,7 +646,7 @@ func demonstrateTimeWindows() {
     }
 
     // Group into 10-second windows
-    timeWindowed := streamv3.TimeWindow[streamv3.Record](
+    timeWindowed := ssql.TimeWindow[ssql.Record](
         10*time.Second,
         "timestamp",
     )(priceStream)
@@ -661,7 +661,7 @@ func demonstrateTimeWindows() {
         // Calculate OHLC (Open, High, Low, Close) for each window
         var prices []float64
         for _, record := range window {
-            price := streamv3.GetOr(record, "price", 0.0)
+            price := ssql.GetOr(record, "price", 0.0)
             prices = append(prices, price)
         }
 
@@ -686,12 +686,12 @@ Use sliding windows for smooth, overlapping analysis:
 ```go
 func demonstrateSlidingWindows() {
     // Generate continuous data stream
-    dataStream := func(yield func(streamv3.Record) bool) {
+    dataStream := func(yield func(ssql.Record) bool) {
         for i := 0; i < 20; i++ {
             // Simulate network latency measurements
             latency := 50 + float64(i%8) + float64(i)*0.5
 
-            record := streamv3.MakeMutableRecord().
+            record := ssql.MakeMutableRecord().
                 String("server", fmt.Sprintf("srv_%d", i%3)).
                 Float("latency_ms", latency).
                 Int("sequence", i).
@@ -705,7 +705,7 @@ func demonstrateSlidingWindows() {
     }
 
     // Create sliding window: size=5, step=2
-    sliding := streamv3.SlidingCountWindow[streamv3.Record](5, 2)(dataStream)
+    sliding := ssql.SlidingCountWindow[ssql.Record](5, 2)(dataStream)
 
     fmt.Println("Sliding Window Analysis (window=5, step=2):")
     windowNum := 1
@@ -719,8 +719,8 @@ func demonstrateSlidingWindows() {
         var sequences []int
 
         for _, record := range window {
-            latency := streamv3.GetOr(record, "latency_ms", 0.0)
-            seq := streamv3.GetOr(record, "sequence", 0)
+            latency := ssql.GetOr(record, "latency_ms", 0.0)
+            seq := ssql.GetOr(record, "sequence", 0)
             totalLatency += latency
             sequences = append(sequences, seq)
         }
@@ -740,7 +740,7 @@ Combine windowing with aggregation for continuous insights:
 ```go
 func demonstrateWindowedAggregation() {
     // Simulate IoT sensor network
-    iotStream := func(yield func(streamv3.Record) bool) {
+    iotStream := func(yield func(ssql.Record) bool) {
         sensors := []string{"temp_01", "temp_02", "temp_03", "humidity_01", "humidity_02"}
 
         for i := 0; i < 100; i++ {
@@ -756,7 +756,7 @@ func demonstrateWindowedAggregation() {
                 unit = "%"
             }
 
-            record := streamv3.MakeMutableRecord().
+            record := ssql.MakeMutableRecord().
                 String("sensor_id", sensorId).
                 String("metric_type", sensorId[:4]).
                 Float("value", value).
@@ -771,7 +771,7 @@ func demonstrateWindowedAggregation() {
     }
 
     // Window by count and group by metric type
-    windowed := streamv3.CountWindow[streamv3.Record](15)(iotStream)
+    windowed := ssql.CountWindow[ssql.Record](15)(iotStream)
 
     fmt.Println("Real-Time IoT Analytics (15-reading windows):")
     windowNum := 1
@@ -782,15 +782,15 @@ func demonstrateWindowedAggregation() {
 
         // Group by metric type within each window
         windowStream := slices.Values(window)
-        grouped := streamv3.GroupByFields("sensors", "metric_type")(windowStream)
+        grouped := ssql.GroupByFields("sensors", "metric_type")(windowStream)
 
         fmt.Printf("  Window %d Analysis:\n", windowNum)
 
         for groupRecord := range grouped {
             // Extract grouped data
-            groupKey := streamv3.GetOr(groupRecord, "GroupKey", "")
-            groupValue := streamv3.GetOr(groupRecord, "GroupValue", "")
-            sensors, _ := streamv3.Get[[]streamv3.Record](groupRecord, "sensors")
+            groupKey := ssql.GetOr(groupRecord, "GroupKey", "")
+            groupValue := ssql.GetOr(groupRecord, "GroupValue", "")
+            sensors, _ := ssql.Get[[]ssql.Record](groupRecord, "sensors")
 
             if len(sensors) == 0 {
                 continue
@@ -802,9 +802,9 @@ func demonstrateWindowedAggregation() {
             unit := ""
 
             for _, sensor := range sensors {
-                value := streamv3.GetOr(sensor, "value", 0.0)
-                sensorId := streamv3.GetOr(sensor, "sensor_id", "")
-                sensorUnit := streamv3.GetOr(sensor, "unit", "")
+                value := ssql.GetOr(sensor, "value", 0.0)
+                sensorId := ssql.GetOr(sensor, "sensor_id", "")
+                sensorUnit := ssql.GetOr(sensor, "unit", "")
 
                 values = append(values, value)
                 sensorCount[sensorId]++
@@ -838,30 +838,30 @@ Handle irregular data streams with session-based windowing:
 ```go
 func demonstrateSessionWindows() {
     // Simulate user activity with gaps
-    userEvents := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("user", "alice").String("action", "login").Time("time", time.Now()).Freeze(),
-        streamv3.MakeMutableRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(30*time.Second)).Freeze(),
-        streamv3.MakeMutableRecord().String("user", "alice").String("action", "purchase").Time("time", time.Now().Add(45*time.Second)).Freeze(),
+    userEvents := []ssql.Record{
+        ssql.MakeMutableRecord().String("user", "alice").String("action", "login").Time("time", time.Now()).Freeze(),
+        ssql.MakeMutableRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(30*time.Second)).Freeze(),
+        ssql.MakeMutableRecord().String("user", "alice").String("action", "purchase").Time("time", time.Now().Add(45*time.Second)).Freeze(),
         // Gap of 10 minutes - new session
-        streamv3.MakeMutableRecord().String("user", "alice").String("action", "login").Time("time", time.Now().Add(10*time.Minute)).Freeze(),
-        streamv3.MakeMutableRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(10*time.Minute+20*time.Second)).Freeze(),
+        ssql.MakeMutableRecord().String("user", "alice").String("action", "login").Time("time", time.Now().Add(10*time.Minute)).Freeze(),
+        ssql.MakeMutableRecord().String("user", "alice").String("action", "browse").Time("time", time.Now().Add(10*time.Minute+20*time.Second)).Freeze(),
     }
 
     // Group events into sessions using time-based timeout
     sessionTimeout := 5 * time.Minute
-    sessions := streamv3.TimeBasedTimeout("time", sessionTimeout)(slices.Values(userEvents))
+    sessions := ssql.TimeBasedTimeout("time", sessionTimeout)(slices.Values(userEvents))
 
     fmt.Println("Session-Based Window Analysis:")
     sessionNum := 1
-    var currentSession []streamv3.Record
+    var currentSession []ssql.Record
 
     for event := range sessions {
         currentSession = append(currentSession, event)
 
         // Check if this might be the end of a session
         // (In a real implementation, you'd have more sophisticated session detection)
-        user := streamv3.GetOr(event, "user", "")
-        action := streamv3.GetOr(event, "action", "")
+        user := ssql.GetOr(event, "user", "")
+        action := ssql.GetOr(event, "action", "")
 
         fmt.Printf("  Session %d - %s: %s\n", sessionNum, user, action)
 
@@ -894,7 +894,7 @@ import (
     "fmt"
     "math/rand"
     "time"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -912,8 +912,8 @@ func main() {
     fmt.Println("  • regional_comparison.html - Geographic analysis")
 }
 
-func createSalesDashboard(data []streamv3.Record) {
-    config := streamv3.DefaultChartConfig()
+func createSalesDashboard(data []ssql.Record) {
+    config := ssql.DefaultChartConfig()
     config.Title = "Sales Overview Dashboard"
     config.ChartType = "bar"
     config.Width = 1400
@@ -921,8 +921,8 @@ func createSalesDashboard(data []streamv3.Record) {
     config.Theme = "light"
     config.ColorScheme = "vibrant"
 
-    err := streamv3.InteractiveChart(
-        streamv3.From(data),
+    err := ssql.InteractiveChart(
+        ssql.From(data),
         "sales_overview.html",
         config,
     )
@@ -931,16 +931,16 @@ func createSalesDashboard(data []streamv3.Record) {
     }
 }
 
-func createTrendAnalysis(data []streamv3.Record) {
-    config := streamv3.DefaultChartConfig()
+func createTrendAnalysis(data []ssql.Record) {
+    config := ssql.DefaultChartConfig()
     config.Title = "Sales Trends Over Time"
     config.ChartType = "line"
     config.Theme = "dark"
     config.EnableZoom = true
     config.ShowDataLabels = true
 
-    err := streamv3.TimeSeriesChart(
-        streamv3.From(data),
+    err := ssql.TimeSeriesChart(
+        ssql.From(data),
         "date",
         []string{"revenue", "units_sold"},
         "trends_analysis.html",
@@ -951,14 +951,14 @@ func createTrendAnalysis(data []streamv3.Record) {
     }
 }
 
-func createRegionalComparison(data []streamv3.Record) {
-    config := streamv3.DefaultChartConfig()
+func createRegionalComparison(data []ssql.Record) {
+    config := ssql.DefaultChartConfig()
     config.Title = "Regional Performance Comparison"
     config.ChartType = "scatter"
     config.ColorScheme = "pastel"
 
-    err := streamv3.InteractiveChart(
-        streamv3.From(data),
+    err := ssql.InteractiveChart(
+        ssql.From(data),
         "regional_comparison.html",
         config,
     )
@@ -967,13 +967,13 @@ func createRegionalComparison(data []streamv3.Record) {
     }
 }
 
-func generateBusinessData() []streamv3.Record {
+func generateBusinessData() []ssql.Record {
     regions := []string{"North", "South", "East", "West"}
     products := []string{"Software", "Hardware", "Services"}
 
-    var data []streamv3.Record
+    var data []ssql.Record
     for i := 0; i < 200; i++ {
-        record := streamv3.MakeMutableRecord().
+        record := ssql.MakeMutableRecord().
             String("region", regions[rand.Intn(len(regions))]).
             String("product", products[rand.Intn(len(products))]).
             Float("revenue", 10000 + rand.Float64()*90000).
@@ -997,7 +997,7 @@ func createAdvancedTimeSeriesChart() {
     timeSeriesData := generateTimeSeriesData()
 
     // Create comprehensive time series configuration
-    config := streamv3.DefaultChartConfig()
+    config := ssql.DefaultChartConfig()
     config.Title = "Multi-Metric Time Series Analysis"
     config.Width = 1600
     config.Height = 800
@@ -1011,8 +1011,8 @@ func createAdvancedTimeSeriesChart() {
     config.ShowDataLabels = false
     config.EnableAnimations = true
 
-    err := streamv3.TimeSeriesChart(
-        streamv3.From(timeSeriesData),
+    err := ssql.TimeSeriesChart(
+        ssql.From(timeSeriesData),
         "timestamp",
         []string{"cpu_usage", "memory_usage", "network_io", "disk_io"},
         "system_metrics_timeline.html",
@@ -1041,7 +1041,7 @@ func demonstrateCustomCharts() {
     data := generateSampleData()
 
     // Highly customized chart configuration
-    config := streamv3.DefaultChartConfig()
+    config := ssql.DefaultChartConfig()
     config.Title = "Custom Business Intelligence Dashboard"
     config.Width = 1800
     config.Height = 1000
@@ -1070,7 +1070,7 @@ func demonstrateCustomCharts() {
         .tooltip { background: rgba(0,0,0,0.9); color: white; }
     `
 
-    err := streamv3.InteractiveChart(streamv3.From(data), "custom_dashboard.html", config)
+    err := ssql.InteractiveChart(ssql.From(data), "custom_dashboard.html", config)
     if err != nil {
         fmt.Printf("Error creating custom chart: %v\n", err)
         return
@@ -1096,7 +1096,7 @@ package main
 import (
     "fmt"
     "iter"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -1106,28 +1106,28 @@ func main() {
 func demonstrateMemoryEfficientProcessing() {
     // Process large CSV files efficiently (panics if file doesn't exist)
     // In production, you'd wrap this in a defer/recover for graceful degradation
-    data := streamv3.ReadCSV("large_dataset.csv")
+    data := ssql.ReadCSV("large_dataset.csv")
 
     // Chain operations without materializing intermediate results
-    pipeline := func(stream iter.Seq[streamv3.Record]) iter.Seq[streamv3.Record] {
+    pipeline := func(stream iter.Seq[ssql.Record]) iter.Seq[ssql.Record] {
         // Filter early to reduce data volume
-        filtered := streamv3.Where(func(r streamv3.Record) bool {
-            value := streamv3.GetOr(r, "amount", 0.0)
+        filtered := ssql.Where(func(r ssql.Record) bool {
+            value := ssql.GetOr(r, "amount", 0.0)
             return value > 1000
         })(stream)
 
         // Transform only what's needed
-        transformed := streamv3.Select(func(r streamv3.Record) streamv3.Record {
-            amount := streamv3.GetOr(r, "amount", 0.0)
-            return streamv3.SetField(r, "category", categorizeAmount(amount))
+        transformed := ssql.Select(func(r ssql.Record) ssql.Record {
+            amount := ssql.GetOr(r, "amount", 0.0)
+            return ssql.SetField(r, "category", categorizeAmount(amount))
         })(filtered)
 
         // Limit results to control memory usage
-        return streamv3.Limit[streamv3.Record](1000)(transformed)
+        return ssql.Limit[ssql.Record](1000)(transformed)
     }
 
     // Process in chunks using windows
-    windowed := streamv3.CountWindow[streamv3.Record](100)(pipeline(data))
+    windowed := ssql.CountWindow[ssql.Record](100)(pipeline(data))
 
     fmt.Println("Memory-efficient processing with windows:")
     windowCount := 0
@@ -1168,9 +1168,9 @@ func demonstrateLazyEvaluation() {
     }
 
     // Chain multiple lazy operations
-    evens := streamv3.Where(func(x int) bool { return x%2 == 0 })(largeSequence)
-    squares := streamv3.Select(func(x int) int { return x * x })(evens)
-    limited := streamv3.Limit[int](10)(squares)
+    evens := ssql.Where(func(x int) bool { return x%2 == 0 })(largeSequence)
+    squares := ssql.Select(func(x int) int { return x * x })(evens)
+    limited := ssql.Limit[int](10)(squares)
 
     fmt.Println("Lazy evaluation - only first 10 even squares:")
     for value := range limited {
@@ -1189,7 +1189,7 @@ func demonstrateParallelProcessing() {
     data := generateLargeDataset()
 
     // Split stream for parallel processing
-    streams := streamv3.Tee(slices.Values(data), 3)
+    streams := ssql.Tee(slices.Values(data), 3)
 
     // Process different aspects in parallel
     go processForAnalytics(streams[0])
@@ -1200,10 +1200,10 @@ func demonstrateParallelProcessing() {
     time.Sleep(2 * time.Second) // Wait for demo completion
 }
 
-func processForAnalytics(stream iter.Seq[streamv3.Record]) {
+func processForAnalytics(stream iter.Seq[ssql.Record]) {
     // Analytics-specific processing
-    filtered := streamv3.Where(func(r streamv3.Record) bool {
-        return streamv3.GetOr(r, "type", "") == "analytics"
+    filtered := ssql.Where(func(r ssql.Record) bool {
+        return ssql.GetOr(r, "type", "") == "analytics"
     })(stream)
 
     count := 0
@@ -1213,7 +1213,7 @@ func processForAnalytics(stream iter.Seq[streamv3.Record]) {
     fmt.Printf("  Analytics processing completed: %d records\n", count)
 }
 
-func processForReporting(stream iter.Seq[streamv3.Record]) {
+func processForReporting(stream iter.Seq[ssql.Record]) {
     // Reporting-specific processing
     count := 0
     for range stream {
@@ -1226,7 +1226,7 @@ func processForReporting(stream iter.Seq[streamv3.Record]) {
     fmt.Printf("  Reporting processing completed: %d records\n", count)
 }
 
-func processForArchiving(stream iter.Seq[streamv3.Record]) {
+func processForArchiving(stream iter.Seq[ssql.Record]) {
     // Archiving-specific processing
     count := 0
     for range stream {
@@ -1257,7 +1257,7 @@ import (
     "strconv"
     "strings"
     "time"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -1269,7 +1269,7 @@ func demonstrateRobustProcessing() {
     rawData := []string{"123", "456", "invalid", "789", "", "101"}
 
     // Safe processing with error handling
-    safeResults := streamv3.SelectSafe(func(s string) (int, error) {
+    safeResults := ssql.SelectSafe(func(s string) (int, error) {
         if s == "" {
             return 0, fmt.Errorf("empty string")
         }
@@ -1302,29 +1302,29 @@ Build resilient processing pipelines:
 ```go
 func demonstrateFaultTolerantPipeline() {
     // Simulate unreliable data source
-    unreliableData := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("id", "1").String("value", "100").Freeze(),
-        streamv3.MakeMutableRecord().String("id", "2").String("value", "invalid").Freeze(),
-        streamv3.MakeMutableRecord().String("id", "3").String("value", "300").Freeze(),
-        streamv3.MakeMutableRecord().Freeze(), // Missing fields
+    unreliableData := []ssql.Record{
+        ssql.MakeMutableRecord().String("id", "1").String("value", "100").Freeze(),
+        ssql.MakeMutableRecord().String("id", "2").String("value", "invalid").Freeze(),
+        ssql.MakeMutableRecord().String("id", "3").String("value", "300").Freeze(),
+        ssql.MakeMutableRecord().Freeze(), // Missing fields
     }
 
     // Fault-tolerant processing
-    processed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+    processed := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
         // Validate required fields
-        id := streamv3.GetOr(r, "id", "")
+        id := ssql.GetOr(r, "id", "")
         if id == "" {
-            return streamv3.Record{}, fmt.Errorf("missing id field")
+            return ssql.Record{}, fmt.Errorf("missing id field")
         }
 
-        valueStr := streamv3.GetOr(r, "value", "")
+        valueStr := ssql.GetOr(r, "value", "")
         value, err := strconv.ParseFloat(valueStr, 64)
         if err != nil {
-            return streamv3.Record{}, fmt.Errorf("invalid value: %s", valueStr)
+            return ssql.Record{}, fmt.Errorf("invalid value: %s", valueStr)
         }
 
         // Create validated record
-        result := streamv3.MakeMutableRecord().
+        result := ssql.MakeMutableRecord().
             String("id", id).
             Float("value", value).
             String("status", "processed").
@@ -1340,8 +1340,8 @@ func demonstrateFaultTolerantPipeline() {
             continue
         }
 
-        id := streamv3.GetOr(record, "id", "")
-        value := streamv3.GetOr(record, "value", 0.0)
+        id := ssql.GetOr(record, "id", "")
+        value := ssql.GetOr(record, "value", 0.0)
         fmt.Printf("  SUCCESS: %s = %.0f\n", id, value)
     }
 }
@@ -1354,40 +1354,40 @@ Implement comprehensive data validation:
 ```go
 func demonstrateDataValidation() {
     // Sample data with validation issues
-    customerData := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("email", "alice@example.com").Int("age", 30).Float("score", 95.5).Freeze(),
-        streamv3.MakeMutableRecord().String("email", "invalid-email").Int("age", -5).Float("score", 150.0).Freeze(),
-        streamv3.MakeMutableRecord().String("email", "bob@example.com").Int("age", 25).Float("score", 87.2).Freeze(),
+    customerData := []ssql.Record{
+        ssql.MakeMutableRecord().String("email", "alice@example.com").Int("age", 30).Float("score", 95.5).Freeze(),
+        ssql.MakeMutableRecord().String("email", "invalid-email").Int("age", -5).Float("score", 150.0).Freeze(),
+        ssql.MakeMutableRecord().String("email", "bob@example.com").Int("age", 25).Float("score", 87.2).Freeze(),
     }
 
     // Validation pipeline
-    validated := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+    validated := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
         var errors []string
 
         // Email validation
-        email := streamv3.GetOr(r, "email", "")
+        email := ssql.GetOr(r, "email", "")
         if !isValidEmail(email) {
             errors = append(errors, "invalid email")
         }
 
         // Age validation
-        age := streamv3.GetOr(r, "age", int64(0))
+        age := ssql.GetOr(r, "age", int64(0))
         if age < 0 || age > 150 {
             errors = append(errors, "invalid age")
         }
 
         // Score validation
-        score := streamv3.GetOr(r, "score", 0.0)
+        score := ssql.GetOr(r, "score", 0.0)
         if score < 0 || score > 100 {
             errors = append(errors, "invalid score")
         }
 
         if len(errors) > 0 {
-            return streamv3.Record{}, fmt.Errorf("validation failed: %v", errors)
+            return ssql.Record{}, fmt.Errorf("validation failed: %v", errors)
         }
 
         // Add validation timestamp
-        result := streamv3.SetField(r, "validated_at", time.Now())
+        result := ssql.SetField(r, "validated_at", time.Now())
         return result, nil
     })(slices.Values(customerData))
 
@@ -1398,9 +1398,9 @@ func demonstrateDataValidation() {
             continue
         }
 
-        email := streamv3.GetOr(record, "email", "")
-        age := streamv3.GetOr(record, "age", int64(0))
-        score := streamv3.GetOr(record, "score", 0.0)
+        email := ssql.GetOr(record, "email", "")
+        age := ssql.GetOr(record, "age", int64(0))
+        score := ssql.GetOr(record, "score", 0.0)
         fmt.Printf("  VALID: %s (age: %d, score: %.1f)\n", email, age, score)
     }
 }
@@ -1415,7 +1415,7 @@ func isValidEmail(email string) bool {
 
 ### Mixing Safe and Unsafe Filters
 
-StreamV3 provides three conversion utilities to seamlessly bridge between error-aware (`iter.Seq2[T, error]`) and simple (`iter.Seq[T]`) iterators:
+ssql provides three conversion utilities to seamlessly bridge between error-aware (`iter.Seq2[T, error]`) and simple (`iter.Seq[T]`) iterators:
 
 #### Conversion Utilities
 
@@ -1437,50 +1437,50 @@ Use `Safe()` to enter error-aware processing and `IgnoreErrors()` to exit gracef
 ```go
 func demonstrateMixedPipeline() {
     // Start with normal data
-    transactions := streamv3.From([]streamv3.Record{
-        streamv3.MakeMutableRecord().String("id", "TX001").String("amount_str", "100.50").Freeze(),
-        streamv3.MakeMutableRecord().String("id", "TX002").String("amount_str", "invalid").Freeze(),
-        streamv3.MakeMutableRecord().String("id", "TX003").String("amount_str", "250.75").Freeze(),
+    transactions := ssql.From([]ssql.Record{
+        ssql.MakeMutableRecord().String("id", "TX001").String("amount_str", "100.50").Freeze(),
+        ssql.MakeMutableRecord().String("id", "TX002").String("amount_str", "invalid").Freeze(),
+        ssql.MakeMutableRecord().String("id", "TX003").String("amount_str", "250.75").Freeze(),
     })
 
     // Apply normal filter
-    filtered := streamv3.Where(func(r streamv3.Record) bool {
-        return streamv3.GetOr(r, "id", "") != ""
+    filtered := ssql.Where(func(r ssql.Record) bool {
+        return ssql.GetOr(r, "id", "") != ""
     })(transactions)
 
     // Convert to Safe for error-prone parsing
-    safeStream := streamv3.Safe(filtered)
+    safeStream := ssql.Safe(filtered)
 
     // Use Safe filter for parsing
-    parsed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
-        amountStr := streamv3.GetOr(r, "amount_str", "")
+    parsed := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
+        amountStr := ssql.GetOr(r, "amount_str", "")
         amount, err := strconv.ParseFloat(amountStr, 64)
         if err != nil {
-            return streamv3.Record{}, fmt.Errorf("invalid amount: %s", amountStr)
+            return ssql.Record{}, fmt.Errorf("invalid amount: %s", amountStr)
         }
 
-        return streamv3.MakeMutableRecord().
-            String("id", streamv3.GetOr(r, "id", "")).
+        return ssql.MakeMutableRecord().
+            String("id", ssql.GetOr(r, "id", "")).
             Float("amount", amount).
             Build(), nil
     })(safeStream)
 
     // Convert back to normal, ignoring errors
-    cleanData := streamv3.IgnoreErrors(parsed)
+    cleanData := ssql.IgnoreErrors(parsed)
 
     // Continue with normal filters
-    final := streamv3.Chain(
-        streamv3.Where(func(r streamv3.Record) bool {
-            amount := streamv3.GetOr(r, "amount", 0.0)
+    final := ssql.Chain(
+        ssql.Where(func(r ssql.Record) bool {
+            amount := ssql.GetOr(r, "amount", 0.0)
             return amount > 100.0
         }),
-        streamv3.Limit[streamv3.Record](10),
+        ssql.Limit[ssql.Record](10),
     )(cleanData)
 
     fmt.Println("Mixed pipeline results:")
     for record := range final {
-        id := streamv3.GetOr(record, "id", "")
-        amount := streamv3.GetOr(record, "amount", 0.0)
+        id := ssql.GetOr(record, "id", "")
+        amount := ssql.GetOr(record, "amount", 0.0)
         fmt.Printf("  %s: $%.2f\n", id, amount)
     }
 }
@@ -1493,11 +1493,11 @@ Read data with error handling, then process confidently:
 ```go
 func demonstrateIOProcessing() {
     // Read CSV with error awareness
-    safeData := streamv3.ReadCSVSafe("transactions.csv")
+    safeData := ssql.ReadCSVSafe("transactions.csv")
 
     // Validate data with Safe filter
-    validated := streamv3.WhereSafe(func(r streamv3.Record) (bool, error) {
-        amount := streamv3.GetOr(r, "amount", 0.0)
+    validated := ssql.WhereSafe(func(r ssql.Record) (bool, error) {
+        amount := ssql.GetOr(r, "amount", 0.0)
         if amount < 0 {
             return false, fmt.Errorf("negative amount: %.2f", amount)
         }
@@ -1505,24 +1505,24 @@ func demonstrateIOProcessing() {
     })(safeData)
 
     // Convert to normal - we're confident after validation
-    cleanData := streamv3.IgnoreErrors(validated)
+    cleanData := ssql.IgnoreErrors(validated)
 
     // Process with normal filters (faster, no error checking)
-    processed := streamv3.Chain(
-        streamv3.Select(func(r streamv3.Record) streamv3.Record {
-            amount := streamv3.GetOr(r, "amount", 0.0)
+    processed := ssql.Chain(
+        ssql.Select(func(r ssql.Record) ssql.Record {
+            amount := ssql.GetOr(r, "amount", 0.0)
             return r.Set("tax", amount*0.08)
         }),
-        streamv3.Where(func(r streamv3.Record) bool {
-            return streamv3.GetOr(r, "tax", 0.0) > 10.0
+        ssql.Where(func(r ssql.Record) bool {
+            return ssql.GetOr(r, "tax", 0.0) > 10.0
         }),
     )(cleanData)
 
     count := 0
     for record := range processed {
         count++
-        amount := streamv3.GetOr(record, "amount", 0.0)
-        tax := streamv3.GetOr(record, "tax", 0.0)
+        amount := ssql.GetOr(record, "amount", 0.0)
+        tax := ssql.GetOr(record, "tax", 0.0)
         fmt.Printf("  Amount: $%.2f, Tax: $%.2f\n", amount, tax)
     }
     fmt.Printf("Processed %d valid transactions\n", count)
@@ -1536,34 +1536,34 @@ Use `Unsafe()` when errors should halt processing:
 ```go
 func demonstrateFailFast() {
     // Read data with error awareness
-    safeData := streamv3.ReadCSVSafe("critical_data.csv")
+    safeData := ssql.ReadCSVSafe("critical_data.csv")
 
     // Validate strictly
-    validated := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+    validated := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
         // Strict validation - any error is critical
-        id := streamv3.GetOr(r, "id", "")
+        id := ssql.GetOr(r, "id", "")
         if id == "" {
-            return streamv3.Record{}, fmt.Errorf("missing required field: id")
+            return ssql.Record{}, fmt.Errorf("missing required field: id")
         }
 
-        amount := streamv3.GetOr(r, "amount", 0.0)
+        amount := ssql.GetOr(r, "amount", 0.0)
         if amount <= 0 {
-            return streamv3.Record{}, fmt.Errorf("invalid amount: %.2f", amount)
+            return ssql.Record{}, fmt.Errorf("invalid amount: %.2f", amount)
         }
 
         return r, nil
     })(safeData)
 
     // Convert to Unsafe - panic on any error (fail-fast)
-    criticalData := streamv3.Unsafe(validated)
+    criticalData := ssql.Unsafe(validated)
 
     // Process normally - we know data is valid or we've panicked
-    final := streamv3.Limit[streamv3.Record](100)(criticalData)
+    final := ssql.Limit[ssql.Record](100)(criticalData)
 
     fmt.Println("Critical data processing (fail-fast mode):")
     for record := range final {
-        id := streamv3.GetOr(record, "id", "")
-        amount := streamv3.GetOr(record, "amount", 0.0)
+        id := ssql.GetOr(record, "id", "")
+        amount := ssql.GetOr(record, "amount", 0.0)
         fmt.Printf("  %s: $%.2f\n", id, amount)
     }
 }
@@ -1578,26 +1578,26 @@ func demonstrateBestEffort() {
     // Multiple data sources with varying quality
     sources := []string{"data1.csv", "data2.csv", "data3.csv"}
 
-    var allRecords []streamv3.Record
+    var allRecords []ssql.Record
 
     for _, source := range sources {
         // Read with error handling
-        safeData := streamv3.ReadCSVSafe(source)
+        safeData := ssql.ReadCSVSafe(source)
 
         // Parse and validate - may have errors
-        processed := streamv3.SelectSafe(func(r streamv3.Record) (streamv3.Record, error) {
+        processed := ssql.SelectSafe(func(r ssql.Record) (ssql.Record, error) {
             // Attempt to parse and enrich
-            value := streamv3.GetOr(r, "value", "")
+            value := ssql.GetOr(r, "value", "")
             parsed, err := strconv.ParseFloat(value, 64)
             if err != nil {
-                return streamv3.Record{}, fmt.Errorf("parse error: %v", err)
+                return ssql.Record{}, fmt.Errorf("parse error: %v", err)
             }
 
             return r.Set("parsed_value", parsed), nil
         })(safeData)
 
         // Ignore errors - process what we can
-        validData := streamv3.IgnoreErrors(processed)
+        validData := ssql.IgnoreErrors(processed)
 
         // Collect valid records
         for record := range validData {
@@ -1647,7 +1647,7 @@ import (
     "encoding/json"
     "fmt"
     "os"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 type Config struct {
@@ -1758,19 +1758,19 @@ func demonstrateMonitoring() {
     // Sample data processing with metrics
     data := generateSampleData()
 
-    processed := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+    processed := ssql.Select(func(r ssql.Record) ssql.Record {
         metrics.RecordsProcessed++
 
         // Simulate processing work
         time.Sleep(1 * time.Millisecond)
 
         // Add processing metadata
-        result := streamv3.SetField(r, "processed_at", time.Now())
+        result := ssql.SetField(r, "processed_at", time.Now())
         return result
     })(slices.Values(data))
 
     // Collect results and update metrics
-    var results []streamv3.Record
+    var results []ssql.Record
     for record := range processed {
         results = append(results, record)
     }
@@ -1797,26 +1797,26 @@ import (
     "fmt"
     "slices"
     "testing"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func TestStreamProcessing(t *testing.T) {
     // Test data
-    input := []streamv3.Record{
-        streamv3.MakeMutableRecord().String("category", "A").Float("value", 100).Freeze(),
-        streamv3.MakeMutableRecord().String("category", "B").Float("value", 200).Freeze(),
-        streamv3.MakeMutableRecord().String("category", "A").Float("value", 150).Freeze(),
+    input := []ssql.Record{
+        ssql.MakeMutableRecord().String("category", "A").Float("value", 100).Freeze(),
+        ssql.MakeMutableRecord().String("category", "B").Float("value", 200).Freeze(),
+        ssql.MakeMutableRecord().String("category", "A").Float("value", 150).Freeze(),
     }
 
     // Test pipeline
-    grouped := streamv3.GroupByFields("test_data", "category")(slices.Values(input))
-    results := streamv3.Aggregate("test_data", map[string]streamv3.AggregateFunc{
-        "total": streamv3.Sum("value"),
-        "count": streamv3.Count(),
+    grouped := ssql.GroupByFields("test_data", "category")(slices.Values(input))
+    results := ssql.Aggregate("test_data", map[string]ssql.AggregateFunc{
+        "total": ssql.Sum("value"),
+        "count": ssql.Count(),
     })(grouped)
 
     // Collect and verify results
-    var collected []streamv3.Record
+    var collected []ssql.Record
     for result := range results {
         collected = append(collected, result)
     }
@@ -1845,9 +1845,9 @@ func TestStreamProcessing(t *testing.T) {
 
 func BenchmarkStreamProcessing(b *testing.B) {
     // Generate test data
-    data := make([]streamv3.Record, 1000)
+    data := make([]ssql.Record, 1000)
     for i := 0; i < 1000; i++ {
-        data[i] = streamv3.MakeMutableRecord().
+        data[i] = ssql.MakeMutableRecord().
             String("id", fmt.Sprintf("item_%d", i)).
             Float("value", float64(i)).
             Build()
@@ -1857,8 +1857,8 @@ func BenchmarkStreamProcessing(b *testing.B) {
 
     for i := 0; i < b.N; i++ {
         // Benchmark processing pipeline
-        filtered := streamv3.Where(func(r streamv3.Record) bool {
-            value := streamv3.GetOr(r, "value", 0.0)
+        filtered := ssql.Where(func(r ssql.Record) bool {
+            value := ssql.GetOr(r, "value", 0.0)
             return value > 500
         })(slices.Values(data))
 
@@ -1875,7 +1875,7 @@ func BenchmarkStreamProcessing(b *testing.B) {
 
 ## What's Next?
 
-Congratulations! You've mastered advanced StreamV3 patterns. Here's how to continue your journey:
+Congratulations! You've mastered advanced ssql patterns. Here's how to continue your journey:
 
 ### Production Readiness Checklist
 - [ ] **Error Handling**: Implement comprehensive error recovery
@@ -1917,7 +1917,7 @@ Congratulations! You've mastered advanced StreamV3 patterns. Here's how to conti
 
 ### Contributing Back
 
-Consider contributing to StreamV3:
+Consider contributing to ssql:
 - Share your production patterns and use cases
 - Contribute examples for common scenarios
 - Report performance optimization opportunities
@@ -1925,4 +1925,4 @@ Consider contributing to StreamV3:
 
 ---
 
-*You're now ready to build production-grade stream processing applications with StreamV3. Start with a real dataset and gradually apply these advanced patterns!*
+*You're now ready to build production-grade stream processing applications with ssql. Start with a real dataset and gradually apply these advanced patterns!*

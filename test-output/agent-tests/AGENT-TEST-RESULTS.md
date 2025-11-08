@@ -19,7 +19,7 @@ are in each department.
 
 **Validation:** All 8 checks passed
 ```
-✓ Correct import path (github.com/rosscartlidge/streamv3)
+✓ Correct import path (github.com/rosscartlidge/ssql)
 ✓ No wrong imports
 ✓ SQL-style API usage (Where, not Filter)
 ✓ Error handling present
@@ -44,7 +44,7 @@ Department: Marketing       | Employee Count: 1
 
 1. **Correct Import Path**
    ```go
-   import "github.com/rosscartlidge/streamv3"  // ✅ Not rocketlaunchr!
+   import "github.com/rosscartlidge/ssql"  // ✅ Not rocketlaunchr!
    ```
 
 2. **Separate GroupBy + Aggregate** (NOT the hallucinated combined API!)
@@ -118,7 +118,7 @@ result := streamv3.GroupByFields(
 ### What v2 (with anti-patterns) Generated:
 
 ```go
-✅ import "github.com/rosscartlidge/streamv3"  // Correct!
+✅ import "github.com/rosscartlidge/ssql"  // Correct!
 
 ✅ // Correct two-step API
 grouped := streamv3.GroupByFields("analysis", "department")(data)

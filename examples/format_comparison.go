@@ -6,7 +6,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"time"
 )
 
@@ -16,8 +16,8 @@ func main() {
 
 	// Create test data that represents realistic pipeline data
 	// (after JSON round-trip, iter.Seq becomes []interface{})
-	testData := []streamv3.Record{
-		streamv3.MakeMutableRecord().
+	testData := []ssql.Record{
+		ssql.MakeMutableRecord().
 			String("id", "PRODUCT-001").
 			String("name", "iPhone 15 Pro Max").
 			String("category", "electronics").
@@ -27,7 +27,7 @@ func main() {
 			SetAny("tags", []interface{}{"electronics", "mobile", "premium"}).
 			Int("_line_number", int64(0)).
 			Freeze(),
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "PRODUCT-002").
 			String("name", "MacBook Pro 16-inch").
 			String("category", "computers").
@@ -92,29 +92,29 @@ func main() {
 	fmt.Println("\n🚀 Suggested Implementation:")
 	fmt.Println("============================")
 	fmt.Println("Add format flag to I/O functions:")
-	fmt.Println("  streamv3.WriteToWriter(stream, writer, streamv3.FormatJSON)     // Default")
-	fmt.Println("  streamv3.WriteToWriter(stream, writer, streamv3.FormatGob)      // Go-only")
-	fmt.Println("  streamv3.WriteToWriter(stream, writer, streamv3.FormatCompressed) // Gzipped JSON")
-	fmt.Println("  streamv3.WriteToWriter(stream, writer, streamv3.FormatBinary)   // Custom binary")
+	fmt.Println("  ssql.WriteToWriter(stream, writer, ssql.FormatJSON)     // Default")
+	fmt.Println("  ssql.WriteToWriter(stream, writer, ssql.FormatGob)      // Go-only")
+	fmt.Println("  ssql.WriteToWriter(stream, writer, ssql.FormatCompressed) // Gzipped JSON")
+	fmt.Println("  ssql.WriteToWriter(stream, writer, ssql.FormatBinary)   // Custom binary")
 }
 
-func testJSON(data []streamv3.Record) (int, time.Duration) {
+func testJSON(data []ssql.Record) (int, time.Duration) {
 	start := time.Now()
 
 	var buf bytes.Buffer
-	stream := streamv3.From(data)
-	streamv3.WriteJSONToWriter(stream, &buf)
+	stream := ssql.From(data)
+	ssql.WriteJSONToWriter(stream, &buf)
 
 	duration := time.Since(start)
 	return buf.Len(), duration
 }
 
-func testCompressedJSON(data []streamv3.Record) (int, time.Duration) {
+func testCompressedJSON(data []ssql.Record) (int, time.Duration) {
 	start := time.Now()
 
 	var jsonBuf bytes.Buffer
-	stream := streamv3.From(data)
-	streamv3.WriteJSONToWriter(stream, &jsonBuf)
+	stream := ssql.From(data)
+	ssql.WriteJSONToWriter(stream, &jsonBuf)
 
 	var gzipBuf bytes.Buffer
 	gzipWriter := gzip.NewWriter(&gzipBuf)
@@ -125,7 +125,7 @@ func testCompressedJSON(data []streamv3.Record) (int, time.Duration) {
 	return gzipBuf.Len(), duration
 }
 
-func testGob(data []streamv3.Record) (int, time.Duration) {
+func testGob(data []ssql.Record) (int, time.Duration) {
 	start := time.Now()
 
 	var buf bytes.Buffer
@@ -152,7 +152,7 @@ func testGob(data []streamv3.Record) (int, time.Duration) {
 	return buf.Len(), duration
 }
 
-func testSimpleBinary(data []streamv3.Record) (int, time.Duration) {
+func testSimpleBinary(data []ssql.Record) (int, time.Duration) {
 	start := time.Now()
 
 	var buf bytes.Buffer

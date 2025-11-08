@@ -305,13 +305,13 @@ go test -bench=InnerJoin -benchmem
 ### Integration Test
 ```bash
 # Create test data
-streamv3 exec -cmd "seq 1 1000" | streamv3 write-csv left.csv
-streamv3 exec -cmd "seq 1 1000" | streamv3 write-csv right.csv
+ssql exec -cmd "seq 1 1000" | ssql write-csv left.csv
+ssql exec -cmd "seq 1 1000" | ssql write-csv right.csv
 
 # Test join (should be fast with hash join)
-time streamv3 read-csv left.csv | \
-  streamv3 join -right right.csv -on id | \
-  streamv3 write-csv output.csv
+time ssql read-csv left.csv | \
+  ssql join -right right.csv -on id | \
+  ssql write-csv output.csv
 ```
 
 ---

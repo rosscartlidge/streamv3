@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -60,7 +60,7 @@ func main() {
 // createSalesDashboard demonstrates business analytics visualization
 func createSalesDashboard(outputDir string) {
 	// Generate realistic sales data
-	salesData := []streamv3.Record{}
+	salesData := []ssql.Record{}
 
 	regions := []string{"North America", "Europe", "Asia Pacific", "Latin America"}
 	products := []string{"Software Licenses", "Consulting", "Support", "Training"}
@@ -81,7 +81,7 @@ func createSalesDashboard(outputDir string) {
 				sales := baseAmount * seasonality * growth * noise
 				profit := sales * (0.15 + rand.Float64()*0.15) // 15-30% profit margin
 
-				record := streamv3.MakeMutableRecord().
+				record := ssql.MakeMutableRecord().
 					String("date", date.Format("2006-01-02")).
 					String("region", region).
 					String("product", product).
@@ -97,9 +97,9 @@ func createSalesDashboard(outputDir string) {
 	}
 
 	// Create interactive dashboard
-	data := streamv3.From(salesData)
+	data := ssql.From(salesData)
 
-	config := streamv3.DefaultChartConfig()
+	config := ssql.DefaultChartConfig()
 	config.Title = "📊 Sales Performance Dashboard - Interactive Analytics"
 	config.ChartType = "line"
 	config.EnableCalculations = true
@@ -109,14 +109,14 @@ func createSalesDashboard(outputDir string) {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := streamv3.InteractiveChart(data, outputDir+"/sales_dashboard.html", config); err != nil {
+	if err := ssql.InteractiveChart(data, outputDir+"/sales_dashboard.html", config); err != nil {
 		log.Fatalf("Error creating sales dashboard: %v", err)
 	}
 }
 
 // createSystemMetrics demonstrates time series monitoring
 func createSystemMetrics(outputDir string) {
-	metricsData := []streamv3.Record{}
+	metricsData := []ssql.Record{}
 
 	startTime := time.Now().Add(-2 * time.Hour)
 
@@ -141,7 +141,7 @@ func createSystemMetrics(outputDir string) {
 			memoryUsage = math.Min(100, memoryUsage+20)
 		}
 
-		record := streamv3.MakeMutableRecord().
+		record := ssql.MakeMutableRecord().
 			String("timestamp", timestamp.Format("2006-01-02 15:04:05")).
 			Float("cpu_usage", cpuUsage).
 			Float("memory_usage", memoryUsage).
@@ -155,9 +155,9 @@ func createSystemMetrics(outputDir string) {
 		metricsData = append(metricsData, record)
 	}
 
-	data := streamv3.From(metricsData)
+	data := ssql.From(metricsData)
 
-	config := streamv3.DefaultChartConfig()
+	config := ssql.DefaultChartConfig()
 	config.Title = "🖥️ System Metrics - Real-time Monitoring Dashboard"
 	config.ChartType = "line"
 	config.XAxisType = "time"
@@ -167,7 +167,7 @@ func createSystemMetrics(outputDir string) {
 	config.Width = 1400
 	config.Height = 700
 
-	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, outputDir+"/system_metrics.html", config); err != nil {
+	if err := ssql.TimeSeriesChart(data, "timestamp", []string{"cpu_usage", "memory_usage", "disk_io"}, outputDir+"/system_metrics.html", config); err != nil {
 		log.Fatalf("Error creating system metrics: %v", err)
 	}
 }
@@ -175,7 +175,7 @@ func createSystemMetrics(outputDir string) {
 // createProcessAnalysis demonstrates command output visualization
 func createProcessAnalysis(outputDir string) {
 	// Simulate ps command output
-	processData := []streamv3.Record{}
+	processData := []ssql.Record{}
 
 	users := []string{"root", "postgres", "nginx", "app", "monitoring"}
 	commands := []string{
@@ -207,7 +207,7 @@ func createProcessAnalysis(outputDir string) {
 			memSize = int64(memUsage * 1024)
 		}
 
-		record := streamv3.MakeMutableRecord().
+		record := ssql.MakeMutableRecord().
 			Int("PID", int64(1000+i)).
 			String("USER", user).
 			Float("CPU", cpuUsage).
@@ -221,9 +221,9 @@ func createProcessAnalysis(outputDir string) {
 		processData = append(processData, record)
 	}
 
-	data := streamv3.From(processData)
+	data := ssql.From(processData)
 
-	config := streamv3.DefaultChartConfig()
+	config := ssql.DefaultChartConfig()
 	config.Title = "🖥️ Process Analysis - CPU & Memory Usage"
 	config.ChartType = "scatter"
 	config.EnableInteractive = true
@@ -231,14 +231,14 @@ func createProcessAnalysis(outputDir string) {
 	config.Width = 1300
 	config.Height = 600
 
-	if err := streamv3.InteractiveChart(data, outputDir+"/process_analysis.html", config); err != nil {
+	if err := ssql.InteractiveChart(data, outputDir+"/process_analysis.html", config); err != nil {
 		log.Fatalf("Error creating process analysis: %v", err)
 	}
 }
 
 // createNetworkAnalysis demonstrates network traffic visualization
 func createNetworkAnalysis(outputDir string) {
-	networkData := []streamv3.Record{}
+	networkData := []ssql.Record{}
 
 	protocols := []string{"TCP", "UDP", "ICMP"}
 	ports := []int{22, 80, 443, 3306, 5432, 6379, 8080, 9090}
@@ -276,7 +276,7 @@ func createNetworkAnalysis(outputDir string) {
 				bytesOut := baseTraffic * 0.6 * (0.8 + rand.Float64()*0.4)
 				connections := int64(1 + rand.Intn(50))
 
-				record := streamv3.MakeMutableRecord().
+				record := ssql.MakeMutableRecord().
 					String("timestamp", timestamp.Format("2006-01-02 15:04:05")).
 					String("protocol", protocol).
 					Int("port", int64(port)).
@@ -292,9 +292,9 @@ func createNetworkAnalysis(outputDir string) {
 		}
 	}
 
-	data := streamv3.From(networkData)
+	data := ssql.From(networkData)
 
-	config := streamv3.DefaultChartConfig()
+	config := ssql.DefaultChartConfig()
 	config.Title = "🌐 Network Traffic Analysis - Bytes & Connections"
 	config.ChartType = "line"
 	config.XAxisType = "time"
@@ -305,7 +305,7 @@ func createNetworkAnalysis(outputDir string) {
 	config.Width = 1400
 	config.Height = 650
 
-	if err := streamv3.TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, outputDir+"/network_analysis.html", config); err != nil {
+	if err := ssql.TimeSeriesChart(data, "timestamp", []string{"bytes_in", "bytes_out", "connections"}, outputDir+"/network_analysis.html", config); err != nil {
 		log.Fatalf("Error creating network analysis: %v", err)
 	}
 }
@@ -313,19 +313,19 @@ func createNetworkAnalysis(outputDir string) {
 // createQuickExample demonstrates the simple API
 func createQuickExample(outputDir string) {
 	// Simple monthly revenue data
-	revenueData := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("month", "Jan 2024").Float("revenue", 120000).Int("customers", 450).Float("avg_deal", 2667).Freeze(),
-		streamv3.MakeMutableRecord().String("month", "Feb 2024").Float("revenue", 135000).Int("customers", 480).Float("avg_deal", 2813).Freeze(),
-		streamv3.MakeMutableRecord().String("month", "Mar 2024").Float("revenue", 118000).Int("customers", 425).Float("avg_deal", 2776).Freeze(),
-		streamv3.MakeMutableRecord().String("month", "Apr 2024").Float("revenue", 142000).Int("customers", 510).Float("avg_deal", 2784).Freeze(),
-		streamv3.MakeMutableRecord().String("month", "May 2024").Float("revenue", 156000).Int("customers", 545).Float("avg_deal", 2862).Freeze(),
-		streamv3.MakeMutableRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Freeze(),
+	revenueData := []ssql.Record{
+		ssql.MakeMutableRecord().String("month", "Jan 2024").Float("revenue", 120000).Int("customers", 450).Float("avg_deal", 2667).Freeze(),
+		ssql.MakeMutableRecord().String("month", "Feb 2024").Float("revenue", 135000).Int("customers", 480).Float("avg_deal", 2813).Freeze(),
+		ssql.MakeMutableRecord().String("month", "Mar 2024").Float("revenue", 118000).Int("customers", 425).Float("avg_deal", 2776).Freeze(),
+		ssql.MakeMutableRecord().String("month", "Apr 2024").Float("revenue", 142000).Int("customers", 510).Float("avg_deal", 2784).Freeze(),
+		ssql.MakeMutableRecord().String("month", "May 2024").Float("revenue", 156000).Int("customers", 545).Float("avg_deal", 2862).Freeze(),
+		ssql.MakeMutableRecord().String("month", "Jun 2024").Float("revenue", 148000).Int("customers", 520).Float("avg_deal", 2846).Freeze(),
 	}
 
-	data := streamv3.From(revenueData)
+	data := ssql.From(revenueData)
 
 	// Use the simple QuickChart API
-	if err := streamv3.QuickChart(data, "month", "revenue", outputDir+"/quick_example.html"); err != nil {
+	if err := ssql.QuickChart(data, "month", "revenue", outputDir+"/quick_example.html"); err != nil {
 		log.Fatalf("Error creating quick example: %v", err)
 	}
 }

@@ -1,4 +1,4 @@
-# Research: Gob vs JSONL for Inter-Process Streaming in StreamV3
+# Research: Gob vs JSONL for Inter-Process Streaming in ssql
 
 **Date:** 2025-10-15
 **Author:** Claude Code
@@ -8,7 +8,7 @@
 
 **Recommendation: Continue using JSONL for inter-process streaming**
 
-While Go's `encoding/gob` offers better type preservation and ~20% faster encoding for simple data, it has **critical limitations** that make it unsuitable for StreamV3's CLI tool architecture:
+While Go's `encoding/gob` offers better type preservation and ~20% faster encoding for simple data, it has **critical limitations** that make it unsuitable for ssql's CLI tool architecture:
 
 1. ❌ **Cannot handle nested maps/slices** without type registration
 2. ❌ **36% larger file sizes** than JSONL
@@ -60,9 +60,9 @@ record := Record{
 }
 ```
 
-### Why This Breaks StreamV3
+### Why This Breaks ssql
 
-StreamV3's `Record` type is `map[string]any`, which supports:
+ssql's `Record` type is `map[string]any`, which supports:
 - Nested Records (GROUP BY aggregations)
 - Sequence fields (`iter.Seq` stored as arrays)
 - Dynamic field types from CSV parsing
@@ -84,14 +84,14 @@ record["age"]  // float64(30)  ❌ Type lost
 record["age"]  // int64(30)    ✅ Type preserved
 ```
 
-### StreamV3 Impact: Minimal
+### ssql Impact: Minimal
 
-StreamV3 already handles this with:
+ssql already handles this with:
 1. `Get[T]()` generic methods for type conversion
 2. CSV parser produces canonical types (int64, float64)
 3. Type coercion in operators (comparisons, math)
 
-**The int64→float64 issue is already solved** in StreamV3's API design.
+**The int64→float64 issue is already solved** in ssql's API design.
 
 ## CLI Tool Architecture Concerns
 
@@ -99,13 +99,13 @@ StreamV3 already handles this with:
 
 1. **Human-readable debugging**
    ```bash
-   streamv3 read-csv data.csv | head -5  # Can inspect pipeline
+   ssql read-csv data.csv | head -5  # Can inspect pipeline
    ```
 
 2. **Compatible with Unix tools**
    ```bash
-   streamv3 read-csv data.csv | jq '.age'
-   streamv3 read-csv data.csv | grep "Engineering"
+   ssql read-csv data.csv | jq '.age'
+   ssql read-csv data.csv | grep "Engineering"
    ```
 
 3. **Language-agnostic**
@@ -120,7 +120,7 @@ StreamV3 already handles this with:
 
 1. **Opaque binary format**
    ```bash
-   streamv3 read-csv data.csv | cat  # ❌ Unreadable binary
+   ssql read-csv data.csv | cat  # ❌ Unreadable binary
    ```
 
 2. **No cross-language support**
@@ -138,11 +138,11 @@ StreamV3 already handles this with:
 
 ## Real-World Performance Test
 
-Using the actual StreamV3 CLI with 50,000 records:
+Using the actual ssql CLI with 50,000 records:
 
 ```bash
 # Current JSONL implementation
-time (streamv3 read-csv large.csv | streamv3 where -match value gt 50000 | streamv3 write-csv)
+time (ssql read-csv large.csv | ssql where -match value gt 50000 | ssql write-csv)
 # Result: 0.458s
 
 # Theoretical Gob improvement (20% faster encoding)
@@ -162,11 +162,11 @@ This is insignificant for typical CLI usage where:
 
 ```bash
 # Default: JSONL (human-readable, debuggable)
-streamv3 read-csv data.csv | streamv3 where -match age gt 30
+ssql read-csv data.csv | ssql where -match age gt 30
 
 # Opt-in Gob mode for performance (internal only)
 export STREAMV3_INTERNAL_FORMAT=gob
-streamv3 read-csv data.csv | streamv3 where -match age gt 30
+ssql read-csv data.csv | ssql where -match age gt 30
 ```
 
 ### Problems with Hybrid
@@ -203,7 +203,7 @@ For **library usage** (not CLI), consider:
 
 ## Conclusion
 
-**Gob is NOT suitable for StreamV3 CLI inter-process communication** due to:
+**Gob is NOT suitable for ssql CLI inter-process communication** due to:
 1. Nested type registration requirements
 2. Larger file sizes (34% overhead)
 3. Loss of debuggability and Unix tool compatibility

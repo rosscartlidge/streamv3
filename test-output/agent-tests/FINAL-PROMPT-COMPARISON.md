@@ -51,7 +51,7 @@ The question is not "which works?" but "which approach is better for different u
 🎯 **Major Discovery:**
 
 The detailed examples prompt (with NO anti-patterns section) still achieved:
-- ✅ **0 wrong import paths** (`github.com/rosscartlidge/streamv3`)
+- ✅ **0 wrong import paths** (`github.com/rosscartlidge/ssql`)
 - ✅ **0 hallucinated GroupBy+Aggregate** combined APIs
 - ✅ **0 wrong Count() syntax** (all used parameterless `Count()`)
 - ✅ **100% matching namespaces** between GroupBy and Aggregate

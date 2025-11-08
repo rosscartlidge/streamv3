@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"os"
 	"strings"
 )
@@ -16,12 +16,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "📥 Reading CSV from stdin, processing, writing JSON to stdout...")
 
 		// Read CSV from stdin
-		csvStream := streamv3.ReadCSVFromReader(os.Stdin)
+		csvStream := ssql.ReadCSVFromReader(os.Stdin)
 
 		// Process the stream - add calculated fields
-		processedStream := streamv3.Select(func(record streamv3.Record) streamv3.Record {
+		processedStream := ssql.Select(func(record ssql.Record) ssql.Record {
 			// Create a new mutable record and copy all fields from the input
-			result := streamv3.MakeMutableRecord()
+			result := ssql.MakeMutableRecord()
 			for k, v := range record.All() {
 				result = result.SetAny(k, v)
 			}
@@ -30,7 +30,7 @@ func main() {
 			result = result.String("processed_at", "2024-01-01T10:00:00Z")
 
 			// Convert string field to uppercase if it exists
-			if name, ok := streamv3.Get[string](record, "name"); ok {
+			if name, ok := ssql.Get[string](record, "name"); ok {
 				result = result.String("name_upper", strings.ToUpper(name))
 			}
 
@@ -38,19 +38,19 @@ func main() {
 		})(csvStream)
 
 		// Write JSON to stdout
-		stream := streamv3.From([]streamv3.Record{})
+		stream := ssql.From([]ssql.Record{})
 		for record := range processedStream {
 			// We need to collect records first for the Stream wrapper
-			records := []streamv3.Record{record}
+			records := []ssql.Record{record}
 			for r := range processedStream {
 				records = append(records, r)
 				break // Just get one more for demo
 			}
-			stream = streamv3.From(records)
+			stream = ssql.From(records)
 			break
 		}
 
-		err := streamv3.WriteJSONToWriter(stream, os.Stdout)
+		err := ssql.WriteJSONToWriter(stream, os.Stdout)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -62,16 +62,16 @@ func main() {
 	fmt.Println("🔧 Demo 1: Generating sample CSV data")
 
 	// Create sample data
-	sampleData := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("id", "1").String("name", "Alice").Int("age", 30).Float("score", 95.5).Freeze(),
-		streamv3.MakeMutableRecord().String("id", "2").String("name", "Bob").Int("age", 25).Float("score", 87.2).Freeze(),
-		streamv3.MakeMutableRecord().String("id", "3").String("name", "Carol").Int("age", 35).Float("score", 92.8).Freeze(),
+	sampleData := []ssql.Record{
+		ssql.MakeMutableRecord().String("id", "1").String("name", "Alice").Int("age", 30).Float("score", 95.5).Freeze(),
+		ssql.MakeMutableRecord().String("id", "2").String("name", "Bob").Int("age", 25).Float("score", 87.2).Freeze(),
+		ssql.MakeMutableRecord().String("id", "3").String("name", "Carol").Int("age", 35).Float("score", 92.8).Freeze(),
 	}
 
 	// Write CSV to a file
 	csvFile := "/tmp/demo_data.csv"
 
-	err := streamv3.WriteCSV(streamv3.From(sampleData), csvFile)
+	err := ssql.WriteCSV(ssql.From(sampleData), csvFile)
 	if err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 		return
@@ -102,19 +102,19 @@ func main() {
 
 	// Step 1: CSV → Stream (simulating: cat data.csv | program1)
 	csvReader := strings.NewReader(csvData)
-	stream1 := streamv3.ReadCSVFromReader(csvReader)
+	stream1 := ssql.ReadCSVFromReader(csvReader)
 
 	// Step 2: Process Stream (simulating: program1 | program2)
-	var processedRecords []streamv3.Record
+	var processedRecords []ssql.Record
 	for record := range stream1 {
 		// Create new record with category field added
-		result := streamv3.MakeMutableRecord()
+		result := ssql.MakeMutableRecord()
 		for k, v := range record.All() {
 			result = result.SetAny(k, v)
 		}
 
 		// Add processing
-		if age, ok := streamv3.Get[int64](record, "age"); ok && age >= 30 {
+		if age, ok := ssql.Get[int64](record, "age"); ok && age >= 30 {
 			result = result.String("category", "senior")
 		} else {
 			result = result.String("category", "junior")
@@ -124,7 +124,7 @@ func main() {
 
 	// Step 3: Stream → JSON (simulating: program2 | program3 > output.json)
 	var jsonOutput strings.Builder
-	err = streamv3.WriteJSONToWriter(streamv3.From(processedRecords), &jsonOutput)
+	err = ssql.WriteJSONToWriter(ssql.From(processedRecords), &jsonOutput)
 	if err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 		return

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -15,20 +15,20 @@ func main() {
 	fmt.Println("Example 1: Update status field")
 	fmt.Println("-------------------------------")
 
-	r1 := streamv3.MakeMutableRecord()
+	r1 := ssql.MakeMutableRecord()
 	r1.String("name", "Alice")
 	r1.String("status", "pending")
 	r1.Int("age", int64(30))
 
-	r2 := streamv3.MakeMutableRecord()
+	r2 := ssql.MakeMutableRecord()
 	r2.String("name", "Bob")
 	r2.String("status", "pending")
 	r2.Int("age", int64(25))
 
-	records := []streamv3.Record{r1.Freeze(), r2.Freeze()}
+	records := []ssql.Record{r1.Freeze(), r2.Freeze()}
 
 	// Update all records to set status = "processed"
-	updateFilter := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	updateFilter := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 		return mut.String("status", "processed")
 	})
 	updated := updateFilter(slices.Values(records))
@@ -36,8 +36,8 @@ func main() {
 	fmt.Println("Before: status=pending")
 	fmt.Println("After update:")
 	for record := range updated {
-		name := streamv3.GetOr(record, "name", "")
-		status := streamv3.GetOr(record, "status", "")
+		name := ssql.GetOr(record, "name", "")
+		status := ssql.GetOr(record, "status", "")
 		fmt.Printf("  %s: status=%s\n", name, status)
 	}
 	fmt.Println()
@@ -46,9 +46,9 @@ func main() {
 	fmt.Println("Example 2: Update multiple fields")
 	fmt.Println("----------------------------------")
 
-	records2 := []streamv3.Record{r1.Freeze(), r2.Freeze()}
+	records2 := []ssql.Record{r1.Freeze(), r2.Freeze()}
 
-	multiUpdateFilter := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	multiUpdateFilter := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 		return mut.
 			String("status", "active").
 			Time("updated_at", time.Now()).
@@ -58,9 +58,9 @@ func main() {
 
 	fmt.Println("Added fields: status, updated_at, score")
 	for record := range multiUpdated {
-		name := streamv3.GetOr(record, "name", "")
-		status := streamv3.GetOr(record, "status", "")
-		score := streamv3.GetOr(record, "score", int64(0))
+		name := ssql.GetOr(record, "name", "")
+		status := ssql.GetOr(record, "status", "")
+		score := ssql.GetOr(record, "score", int64(0))
 		fmt.Printf("  %s: status=%s, score=%d\n", name, status, score)
 	}
 	fmt.Println()
@@ -69,23 +69,23 @@ func main() {
 	fmt.Println("Example 3: Add computed field (total = price * quantity)")
 	fmt.Println("----------------------------------------------------------")
 
-	order1 := streamv3.MakeMutableRecord()
+	order1 := ssql.MakeMutableRecord()
 	order1.String("product", "Widget")
 	order1.Float("price", float64(10.50))
 	order1.Int("quantity", int64(5))
 
-	order2 := streamv3.MakeMutableRecord()
+	order2 := ssql.MakeMutableRecord()
 	order2.String("product", "Gadget")
 	order2.Float("price", float64(25.00))
 	order2.Int("quantity", int64(3))
 
-	orders := []streamv3.Record{order1.Freeze(), order2.Freeze()}
+	orders := []ssql.Record{order1.Freeze(), order2.Freeze()}
 
-	totalFilter := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	totalFilter := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 		// Need to freeze to read values
 		frozen := mut.Freeze()
-		price := streamv3.GetOr(frozen, "price", float64(0))
-		qty := streamv3.GetOr(frozen, "quantity", int64(0))
+		price := ssql.GetOr(frozen, "price", float64(0))
+		qty := ssql.GetOr(frozen, "quantity", int64(0))
 		total := price * float64(qty)
 
 		return mut.Float("total", total)
@@ -94,10 +94,10 @@ func main() {
 
 	fmt.Println("Orders with computed total:")
 	for record := range withTotals {
-		product := streamv3.GetOr(record, "product", "")
-		price := streamv3.GetOr(record, "price", float64(0))
-		qty := streamv3.GetOr(record, "quantity", int64(0))
-		total := streamv3.GetOr(record, "total", float64(0))
+		product := ssql.GetOr(record, "product", "")
+		price := ssql.GetOr(record, "price", float64(0))
+		qty := ssql.GetOr(record, "quantity", int64(0))
+		total := ssql.GetOr(record, "total", float64(0))
 		fmt.Printf("  %s: $%.2f x %d = $%.2f\n", product, price, qty, total)
 	}
 	fmt.Println()
@@ -106,23 +106,23 @@ func main() {
 	fmt.Println("Example 4: Conditional update (age-based category)")
 	fmt.Println("---------------------------------------------------")
 
-	person1 := streamv3.MakeMutableRecord()
+	person1 := ssql.MakeMutableRecord()
 	person1.String("name", "Alice")
 	person1.Int("age", int64(30))
 
-	person2 := streamv3.MakeMutableRecord()
+	person2 := ssql.MakeMutableRecord()
 	person2.String("name", "Charlie")
 	person2.Int("age", int64(17))
 
-	person3 := streamv3.MakeMutableRecord()
+	person3 := ssql.MakeMutableRecord()
 	person3.String("name", "Diana")
 	person3.Int("age", int64(45))
 
-	people := []streamv3.Record{person1.Freeze(), person2.Freeze(), person3.Freeze()}
+	people := []ssql.Record{person1.Freeze(), person2.Freeze(), person3.Freeze()}
 
-	categoryFilter := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	categoryFilter := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 		frozen := mut.Freeze()
-		age := streamv3.GetOr(frozen, "age", int64(0))
+		age := ssql.GetOr(frozen, "age", int64(0))
 
 		if age >= 18 {
 			return mut.String("category", "adult")
@@ -133,9 +133,9 @@ func main() {
 
 	fmt.Println("People with age-based category:")
 	for record := range withCategory {
-		name := streamv3.GetOr(record, "name", "")
-		age := streamv3.GetOr(record, "age", int64(0))
-		category := streamv3.GetOr(record, "category", "")
+		name := ssql.GetOr(record, "name", "")
+		age := ssql.GetOr(record, "age", int64(0))
+		category := ssql.GetOr(record, "category", "")
 		fmt.Printf("  %s (age %d): category=%s\n", name, age, category)
 	}
 	fmt.Println()
@@ -144,28 +144,28 @@ func main() {
 	fmt.Println("Example 5: Chain multiple Update operations")
 	fmt.Println("--------------------------------------------")
 
-	orders2 := []streamv3.Record{order1.Freeze(), order2.Freeze()}
+	orders2 := []ssql.Record{order1.Freeze(), order2.Freeze()}
 
 	// First, calculate total
-	addTotal := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	addTotal := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 		frozen := mut.Freeze()
-		price := streamv3.GetOr(frozen, "price", float64(0))
-		qty := streamv3.GetOr(frozen, "quantity", int64(0))
+		price := ssql.GetOr(frozen, "price", float64(0))
+		qty := ssql.GetOr(frozen, "quantity", int64(0))
 		return mut.Float("total", price*float64(qty))
 	})
 
 	// Then, calculate tax based on total
-	addTax := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	addTax := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 		frozen := mut.Freeze()
-		total := streamv3.GetOr(frozen, "total", float64(0))
+		total := ssql.GetOr(frozen, "total", float64(0))
 		return mut.Float("tax", total*0.08)
 	})
 
 	// Finally, calculate grand total
-	addGrandTotal := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	addGrandTotal := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 		frozen := mut.Freeze()
-		total := streamv3.GetOr(frozen, "total", float64(0))
-		tax := streamv3.GetOr(frozen, "tax", float64(0))
+		total := ssql.GetOr(frozen, "total", float64(0))
+		tax := ssql.GetOr(frozen, "tax", float64(0))
 		return mut.Float("grand_total", total+tax)
 	})
 
@@ -176,10 +176,10 @@ func main() {
 
 	fmt.Println("Orders with total, tax, and grand total:")
 	for record := range withTaxAndTotal {
-		product := streamv3.GetOr(record, "product", "")
-		total := streamv3.GetOr(record, "total", float64(0))
-		tax := streamv3.GetOr(record, "tax", float64(0))
-		grandTotal := streamv3.GetOr(record, "grand_total", float64(0))
+		product := ssql.GetOr(record, "product", "")
+		total := ssql.GetOr(record, "total", float64(0))
+		tax := ssql.GetOr(record, "tax", float64(0))
+		grandTotal := ssql.GetOr(record, "grand_total", float64(0))
 		fmt.Printf("  %s: subtotal=$%.2f, tax=$%.2f, total=$%.2f\n",
 			product, total, tax, grandTotal)
 	}
@@ -187,12 +187,12 @@ func main() {
 
 	fmt.Println("=== Comparison with Select ===\n")
 	fmt.Println("Update helper (concise):")
-	fmt.Println(`  streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+	fmt.Println(`  ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
       return mut.String("status", "processed")
   })`)
 	fmt.Println()
 	fmt.Println("Equivalent using Select (more verbose):")
-	fmt.Println(`  streamv3.Select(func(r streamv3.Record) streamv3.Record {
+	fmt.Println(`  ssql.Select(func(r ssql.Record) ssql.Record {
       return r.ToMutable().String("status", "processed").Freeze()
   })`)
 	fmt.Println()

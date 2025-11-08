@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -52,9 +52,9 @@ func main() {
 
 func testLimit() {
 	// Simulate infinite sensor readings
-	sensorGenerator := func(yield func(streamv3.Record) bool) {
+	sensorGenerator := func(yield func(ssql.Record) bool) {
 		for i := 1; ; i++ { // Infinite loop
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("reading_id", fmt.Sprintf("SENSOR-%04d", i)).
 				Float("value", 20.0+float64(i%10)*2.5).
 				String("timestamp", time.Now().Add(time.Duration(i)*time.Second).Format("15:04:05")).
@@ -72,13 +72,13 @@ func testLimit() {
 	fmt.Println("Processing infinite sensor stream - taking first 5 readings...")
 
 	// Apply Limit to limit to first 5 elements
-	limitOp := streamv3.Limit[streamv3.Record](5)
+	limitOp := ssql.Limit[ssql.Record](5)
 	limitedStream := limitOp(sensorGenerator)
 
 	for record := range limitedStream {
-		readingId := streamv3.GetOr(record, "reading_id", "unknown")
-		value := streamv3.GetOr(record, "value", 0.0)
-		timestamp := streamv3.GetOr(record, "timestamp", "unknown")
+		readingId := ssql.GetOr(record, "reading_id", "unknown")
+		value := ssql.GetOr(record, "value", 0.0)
+		timestamp := ssql.GetOr(record, "timestamp", "unknown")
 
 		fmt.Printf("  %s: %.1f°C at %s\n", readingId, value, timestamp)
 	}
@@ -88,11 +88,11 @@ func testLimit() {
 
 func testTakeWhile() {
 	// Simulate stock price monitoring
-	priceGenerator := func(yield func(streamv3.Record) bool) {
+	priceGenerator := func(yield func(ssql.Record) bool) {
 		prices := []float64{100.0, 102.5, 105.2, 108.1, 95.3, 92.8, 98.7, 101.2}
 
 		for i, price := range prices {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("symbol", "TECH").
 				Float("price", price).
 				Int("tick", int64(i+1)).
@@ -108,18 +108,18 @@ func testTakeWhile() {
 	fmt.Println("Processing stock prices - continue while price >= $100...")
 
 	// Take while price is above $100
-	takeWhileOp := streamv3.TakeWhile(func(record streamv3.Record) bool {
-		price := streamv3.GetOr(record, "price", 0.0)
+	takeWhileOp := ssql.TakeWhile(func(record ssql.Record) bool {
+		price := ssql.GetOr(record, "price", 0.0)
 		return price >= 100.0
 	})
 
 	filteredStream := takeWhileOp(priceGenerator)
 
 	for record := range filteredStream {
-		symbol := streamv3.GetOr(record, "symbol", "unknown")
-		price := streamv3.GetOr(record, "price", 0.0)
-		tick := streamv3.GetOr(record, "tick", 0)
-		timestamp := streamv3.GetOr(record, "timestamp", "unknown")
+		symbol := ssql.GetOr(record, "symbol", "unknown")
+		price := ssql.GetOr(record, "price", 0.0)
+		tick := ssql.GetOr(record, "tick", 0)
+		timestamp := ssql.GetOr(record, "timestamp", "unknown")
 
 		fmt.Printf("  %s Tick %d: $%.2f at %s\n", symbol, tick, price, timestamp)
 	}
@@ -129,11 +129,11 @@ func testTakeWhile() {
 
 func testTakeUntil() {
 	// Simulate system monitoring - stop when error occurs
-	systemGenerator := func(yield func(streamv3.Record) bool) {
+	systemGenerator := func(yield func(ssql.Record) bool) {
 		statuses := []string{"OK", "OK", "WARNING", "OK", "ERROR", "OK", "OK"}
 
 		for i, status := range statuses {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("check_id", fmt.Sprintf("SYS-%03d", i+1)).
 				String("status", status).
 				Float("cpu_usage", float64(30+i*5)).
@@ -149,18 +149,18 @@ func testTakeUntil() {
 	fmt.Println("Processing system checks - stop when ERROR is encountered...")
 
 	// Take until we encounter an ERROR status
-	takeUntilOp := streamv3.TakeUntil(func(record streamv3.Record) bool {
-		status := streamv3.GetOr(record, "status", "unknown")
+	takeUntilOp := ssql.TakeUntil(func(record ssql.Record) bool {
+		status := ssql.GetOr(record, "status", "unknown")
 		return status == "ERROR"
 	})
 
 	filteredStream := takeUntilOp(systemGenerator)
 
 	for record := range filteredStream {
-		checkId := streamv3.GetOr(record, "check_id", "unknown")
-		status := streamv3.GetOr(record, "status", "unknown")
-		cpuUsage := streamv3.GetOr(record, "cpu_usage", 0.0)
-		timestamp := streamv3.GetOr(record, "timestamp", "unknown")
+		checkId := ssql.GetOr(record, "check_id", "unknown")
+		status := ssql.GetOr(record, "status", "unknown")
+		cpuUsage := ssql.GetOr(record, "cpu_usage", 0.0)
+		timestamp := ssql.GetOr(record, "timestamp", "unknown")
 
 		fmt.Printf("  %s: %s (CPU: %.1f%%) at %s\n", checkId, status, cpuUsage, timestamp)
 	}
@@ -170,9 +170,9 @@ func testTakeUntil() {
 
 func testTimeout() {
 	// Simulate slow data source
-	slowGenerator := func(yield func(streamv3.Record) bool) {
+	slowGenerator := func(yield func(ssql.Record) bool) {
 		for i := 1; i <= 10; i++ {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("data_id", fmt.Sprintf("DATA-%03d", i)).
 				Int("value", int64(i*10)).
 				Freeze()
@@ -189,7 +189,7 @@ func testTimeout() {
 	fmt.Println("Processing slow data source with 500ms timeout...")
 
 	// Apply timeout of 500ms
-	timeoutOp := streamv3.Timeout[streamv3.Record](500 * time.Millisecond)
+	timeoutOp := ssql.Timeout[ssql.Record](500 * time.Millisecond)
 	timedStream := timeoutOp(slowGenerator)
 
 	startTime := time.Now()
@@ -197,8 +197,8 @@ func testTimeout() {
 
 	for record := range timedStream {
 		count++
-		dataId := streamv3.GetOr(record, "data_id", "unknown")
-		value := streamv3.GetOr(record, "value", 0)
+		dataId := ssql.GetOr(record, "data_id", "unknown")
+		value := ssql.GetOr(record, "value", 0)
 
 		fmt.Printf("  %s: %d\n", dataId, value)
 	}
@@ -209,11 +209,11 @@ func testTimeout() {
 
 func testTimeBasedTimeout() {
 	// Simulate time-series data
-	timeSeriesGenerator := func(yield func(streamv3.Record) bool) {
+	timeSeriesGenerator := func(yield func(ssql.Record) bool) {
 		baseTime := time.Now()
 
 		for i := 0; i < 10; i++ {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				String("event_id", fmt.Sprintf("EVT-%03d", i+1)).
 				Float("value", float64(100+i*5)).
 				SetAny("timestamp", baseTime.Add(time.Duration(i)*time.Second)).
@@ -228,14 +228,14 @@ func testTimeBasedTimeout() {
 	fmt.Println("Processing time-series data with 5-second time window...")
 
 	// Apply time-based timeout of 5 seconds
-	timeBasedOp := streamv3.TimeBasedTimeout("timestamp", 5*time.Second)
+	timeBasedOp := ssql.TimeBasedTimeout("timestamp", 5*time.Second)
 	timedStream := timeBasedOp(timeSeriesGenerator)
 
 	for record := range timedStream {
-		eventId := streamv3.GetOr(record, "event_id", "unknown")
-		value := streamv3.GetOr(record, "value", 0.0)
+		eventId := ssql.GetOr(record, "event_id", "unknown")
+		value := ssql.GetOr(record, "value", 0.0)
 
-		if t, ok := streamv3.Get[time.Time](record, "timestamp"); ok {
+		if t, ok := ssql.Get[time.Time](record, "timestamp"); ok {
 			fmt.Printf("  %s: %.1f at %s\n", eventId, value, t.Format("15:04:05"))
 		} else {
 			fmt.Printf("  %s: %.1f\n", eventId, value)
@@ -247,7 +247,7 @@ func testTimeBasedTimeout() {
 
 func testSkipPatterns() {
 	// Simulate log file processing with headers
-	logGenerator := func(yield func(streamv3.Record) bool) {
+	logGenerator := func(yield func(ssql.Record) bool) {
 		lines := []string{
 			"# Log started at 2024-01-01",
 			"# Version 1.0",
@@ -260,7 +260,7 @@ func testSkipPatterns() {
 		}
 
 		for i, line := range lines {
-			record := streamv3.MakeMutableRecord().
+			record := ssql.MakeMutableRecord().
 				Int("line_no", int64(i+1)).
 				String("content", line).
 				String("type", getLogType(line)).
@@ -275,17 +275,17 @@ func testSkipPatterns() {
 	fmt.Println("Processing log file - skipping header comments...")
 
 	// Skip while lines start with '#' (comments)
-	skipWhileOp := streamv3.SkipWhile(func(record streamv3.Record) bool {
-		content := streamv3.GetOr(record, "content", "")
+	skipWhileOp := ssql.SkipWhile(func(record ssql.Record) bool {
+		content := ssql.GetOr(record, "content", "")
 		return len(content) > 0 && content[0] == '#'
 	})
 
 	filteredStream := skipWhileOp(logGenerator)
 
 	for record := range filteredStream {
-		lineNo := streamv3.GetOr(record, "line_no", 0)
-		content := streamv3.GetOr(record, "content", "unknown")
-		logType := streamv3.GetOr(record, "type", "unknown")
+		lineNo := ssql.GetOr(record, "line_no", 0)
+		content := ssql.GetOr(record, "content", "unknown")
+		logType := ssql.GetOr(record, "type", "unknown")
 
 		fmt.Printf("  Line %d [%s]: %s\n", lineNo, logType, content)
 	}

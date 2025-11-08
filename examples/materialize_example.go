@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"iter"
 	"slices"
 )
@@ -16,18 +16,18 @@ func main() {
 	tags2 := slices.Values([]string{"urgent", "feature"})
 	tags3 := slices.Values([]string{"work", "documentation"})
 
-	records := []streamv3.Record{
-		streamv3.MakeMutableRecord().
+	records := []ssql.Record{
+		ssql.MakeMutableRecord().
 			String("id", "TASK-123").
 			String("assignee", "Alice").
 			StringSeq("tags", tags1).
 			Freeze(),
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "TASK-124").
 			String("assignee", "Bob").
 			StringSeq("tags", tags2).
 			Freeze(),
-		streamv3.MakeMutableRecord().
+		ssql.MakeMutableRecord().
 			String("id", "TASK-125").
 			String("assignee", "Alice").
 			StringSeq("tags", tags3).
@@ -36,11 +36,11 @@ func main() {
 
 	fmt.Println("📊 Original Records:")
 	for i, record := range records {
-		id := streamv3.GetOr(record, "id", "")
-		assignee := streamv3.GetOr(record, "assignee", "")
+		id := ssql.GetOr(record, "id", "")
+		assignee := ssql.GetOr(record, "assignee", "")
 		fmt.Printf("  %d. %s (assignee: %s)\n", i+1, id, assignee)
 
-		if tagsSeq, ok := streamv3.Get[iter.Seq[string]](record, "tags"); ok {
+		if tagsSeq, ok := ssql.Get[iter.Seq[string]](record, "tags"); ok {
 			fmt.Print("     Tags: ")
 			for tag := range tagsSeq {
 				fmt.Printf("%s ", tag)
@@ -53,15 +53,15 @@ func main() {
 	fmt.Println("--------------------------------------------------")
 
 	// Use Materialize to convert iter.Seq to string representation
-	materializedResults := streamv3.Materialize("tags", "tags_key", ",")(slices.Values(records))
+	materializedResults := ssql.Materialize("tags", "tags_key", ",")(slices.Values(records))
 
 	fmt.Println("Materialized Records (with tags_key field):")
-	var materializedRecords []streamv3.Record
+	var materializedRecords []ssql.Record
 	for result := range materializedResults {
 		materializedRecords = append(materializedRecords, result)
-		id := streamv3.GetOr(result, "id", "")
-		assignee := streamv3.GetOr(result, "assignee", "")
-		tagsKey := streamv3.GetOr(result, "tags_key", "")
+		id := ssql.GetOr(result, "id", "")
+		assignee := ssql.GetOr(result, "assignee", "")
+		tagsKey := ssql.GetOr(result, "tags_key", "")
 		fmt.Printf("  %s (assignee: %s) - tags_key: \"%s\"\n", id, assignee, tagsKey)
 	}
 
@@ -69,17 +69,17 @@ func main() {
 	fmt.Println("--------------------------------------------------")
 
 	// Now group by the materialized string field (fast and predictable)
-	groupedResults := streamv3.Chain(
-		streamv3.GroupByFields("group_data", "assignee"),
-		streamv3.Aggregate("group_data", map[string]streamv3.AggregateFunc{
-			"count": streamv3.Count(),
+	groupedResults := ssql.Chain(
+		ssql.GroupByFields("group_data", "assignee"),
+		ssql.Aggregate("group_data", map[string]ssql.AggregateFunc{
+			"count": ssql.Count(),
 		}),
 	)(slices.Values(materializedRecords))
 
 	fmt.Println("Grouped by assignee:")
 	for result := range groupedResults {
-		assignee := streamv3.GetOr(result, "assignee", "")
-		count := streamv3.GetOr(result, "count", int64(0))
+		assignee := ssql.GetOr(result, "assignee", "")
+		count := ssql.GetOr(result, "count", int64(0))
 		fmt.Printf("  %s: %d tasks\n", assignee, count)
 	}
 
@@ -89,10 +89,10 @@ func main() {
 	// Try to group by the original iter.Seq field - should be rejected
 	fmt.Println("Attempting to group by 'tags' field (iter.Seq[string])...")
 
-	invalidGroupResults := streamv3.Chain(
-		streamv3.GroupByFields("group_data", "tags"), // This will skip records with iter.Seq fields
-		streamv3.Aggregate("group_data", map[string]streamv3.AggregateFunc{
-			"count": streamv3.Count(),
+	invalidGroupResults := ssql.Chain(
+		ssql.GroupByFields("group_data", "tags"), // This will skip records with iter.Seq fields
+		ssql.Aggregate("group_data", map[string]ssql.AggregateFunc{
+			"count": ssql.Count(),
 		}),
 	)(slices.Values(records))
 

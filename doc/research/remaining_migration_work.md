@@ -51,18 +51,18 @@ Successfully migrated ALL commands to native subcommand support:
 ✅ **chart** - Create interactive HTML chart from data
    - -x and -y flags for axis fields
    - -output flag for HTML file (default: chart.html)
-   - Uses QuickChart() from streamv3 library
+   - Uses QuickChart() from ssql library
 
-✅ **generate-go** - Generate Go code from StreamV3 CLI pipeline
+✅ **generate-go** - Generate Go code from ssql CLI pipeline
    - Assembles code fragments from stdin
    - OUTPUT argument for file (or stdout)
    - Enables self-generating pipelines
 
 ✅ **exec** - Execute command and parse output as records
-   - Uses special "--" separator to distinguish streamv3 flags from command args
+   - Uses special "--" separator to distinguish ssql flags from command args
    - completionflags v0.2.0+ supports -- separator natively
    - Access args after -- via `ctx.RemainingArgs`
-   - Example: `streamv3 exec -- echo -e "col1 col2\nval1 val2"`
+   - Example: `ssql exec -- echo -e "col1 col2\nval1 val2"`
 
 ## Migration Pattern
 
@@ -103,18 +103,18 @@ Subcommand("command-name").
 ## Testing Strategy
 
 For each migrated command:
-1. Build: `go build ./cmd/streamv3`
-2. Test help: `./streamv3 command-name -help`
-3. Test execution: `echo '{}' | ./streamv3 command-name [flags]`
-4. Test completion: `./streamv3 -complete 1 comm`
+1. Build: `go build ./cmd/ssql`
+2. Test help: `./ssql command-name -help`
+3. Test execution: `echo '{}' | ./ssql command-name [flags]`
+4. Test completion: `./ssql -complete 1 comm`
 
 ## Final State
 
 **Files:**
-- `cmd/streamv3/main.go` - All 14 commands implemented (100% complete)
-- `cmd/streamv3/main_old.go` - Disabled with build tag (can be removed)
-- `cmd/streamv3/helpers.go` - Comparison operators, aggregation helpers, extractNumeric(), chainRecords(), unionRecordToKey()
-- `cmd/streamv3/commands/*.go` - Original implementations (can be removed after verification)
+- `cmd/ssql/main.go` - All 14 commands implemented (100% complete)
+- `cmd/ssql/main_old.go` - Disabled with build tag (can be removed)
+- `cmd/ssql/helpers.go` - Comparison operators, aggregation helpers, extractNumeric(), chainRecords(), unionRecordToKey()
+- `cmd/ssql/commands/*.go` - Original implementations (can be removed after verification)
 
 **Current Progress: 14/14 commands (100%) ✅**
 
@@ -130,7 +130,7 @@ For each migrated command:
 - ✅ Command execution (exec) with -- separator support
 
 **Impact:**
-All 14 StreamV3 commands now use native completionflags subcommand support. This provides:
+All 14 ssql commands now use native completionflags subcommand support. This provides:
 - Consistent UX across all commands
 - Better documentation (auto-generated help)
 - Improved maintainability (simpler code structure)

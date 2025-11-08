@@ -144,7 +144,7 @@ diff -u generated_code.go test-output/test_case_1_manual.go
 ### All Code Should Have:
 
 - ✅ `package main` and `func main()`
-- ✅ Import: `"github.com/rosscartlidge/streamv3"`
+- ✅ Import: `"github.com/rosscartlidge/ssql"`
 - ✅ Error handling: `if err != nil { log.Fatalf(...) }`
 - ✅ SQL-style names: `Select`, `Where`, `Limit` (not Map, Filter, Take)
 - ✅ Chain composition for multi-step pipelines

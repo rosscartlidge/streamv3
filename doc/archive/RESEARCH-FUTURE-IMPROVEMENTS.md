@@ -290,13 +290,13 @@ Goal: Maximize reward
 **Features:**
 ```
 ┌─────────────────────────────────────────┐
-│  StreamV3 AI Prompt Playground          │
+│  ssql AI Prompt Playground          │
 ├─────────────────────────────────────────┤
 │                                         │
 │  [Prompt Editor]                        │
 │  ┌─────────────────────────────────┐   │
 │  │ You are an expert Go developer  │   │
-│  │ specializing in StreamV3...     │   │
+│  │ specializing in ssql...     │   │
 │  │                                 │   │
 │  └─────────────────────────────────┘   │
 │                                         │
@@ -330,7 +330,7 @@ Goal: Maximize reward
 
 **Use Cases:**
 - Prompt engineers testing changes
-- Users learning StreamV3
+- Users learning ssql
 - Debugging failed generations
 - A/B testing different wordings
 
@@ -348,7 +348,7 @@ Goal: Maximize reward
 **Data Collection:**
 ```json
 {
-  "failed_code": "streamv3.Count(\"field\")",
+  "failed_code": "ssql.Count(\"field\")",
   "validation_check": "count_parameters",
   "frequency": 15,
   "context": "inside Aggregate map",
@@ -393,7 +393,7 @@ for pattern in patterns.top(10):
 
 **Coverage Metrics:**
 ```
-StreamV3 Functions: 47 total
+ssql Functions: 47 total
 Validated in Tests: 15 (32%)
 
 Coverage by Category:

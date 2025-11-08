@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -18,8 +18,8 @@ func main() {
 	fmt.Printf("📊 Processing %d transactions...\n\n", len(transactions))
 
 	// Create a stream and split it into multiple analysis pipelines
-	stream := streamv3.From(transactions)
-	streams := streamv3.Tee(stream, 4) // Split into 4 parallel analysis streams
+	stream := ssql.From(transactions)
+	streams := ssql.Tee(stream, 4) // Split into 4 parallel analysis streams
 
 	fmt.Println("🚀 Running parallel analytics...")
 	fmt.Println("==============================")
@@ -47,15 +47,15 @@ func main() {
 	fmt.Println("   🎯 Efficient resource utilization")
 }
 
-func generateTransactionData() []streamv3.Record {
+func generateTransactionData() []ssql.Record {
 	customers := []string{"Alice Johnson", "Bob Smith", "Carol Davis", "David Wilson", "Eva Brown"}
 	products := []string{"Laptop", "Phone", "Headphones", "Tablet", "Watch"}
 	regions := []string{"North", "South", "East", "West"}
 
-	var transactions []streamv3.Record
+	var transactions []ssql.Record
 
 	for i := 0; i < 100; i++ {
-		transaction := streamv3.MakeMutableRecord().
+		transaction := ssql.MakeMutableRecord().
 			String("transaction_id", fmt.Sprintf("TXN-%04d", i+1)).
 			String("customer", customers[i%len(customers)]).
 			String("product", products[i%len(products)]).
@@ -96,7 +96,7 @@ func getCategory(product string) string {
 	}
 }
 
-func revenueAnalysis(stream iter.Seq[streamv3.Record]) {
+func revenueAnalysis(stream iter.Seq[ssql.Record]) {
 	// Calculate total revenue, average order value, and transaction count
 	var totalRevenue float64
 	var transactionCount int64
@@ -104,7 +104,7 @@ func revenueAnalysis(stream iter.Seq[streamv3.Record]) {
 	minAmount := float64(^uint(0) >> 1) // Max float64
 
 	for record := range stream {
-		amount := streamv3.GetOr(record, "amount", 0.0)
+		amount := ssql.GetOr(record, "amount", 0.0)
 		totalRevenue += amount
 		transactionCount++
 
@@ -124,7 +124,7 @@ func revenueAnalysis(stream iter.Seq[streamv3.Record]) {
 	fmt.Printf("  📊 Range: $%.2f - $%.2f\n", minAmount, maxAmount)
 }
 
-func customerSegmentation(stream iter.Seq[streamv3.Record]) {
+func customerSegmentation(stream iter.Seq[ssql.Record]) {
 	// Analyze customer tiers and their spending patterns
 	tierStats := make(map[string]struct {
 		count   int
@@ -132,8 +132,8 @@ func customerSegmentation(stream iter.Seq[streamv3.Record]) {
 	})
 
 	for record := range stream {
-		tier := streamv3.GetOr(record, "customer_tier", "unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
+		tier := ssql.GetOr(record, "customer_tier", "unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
 
 		stats := tierStats[tier]
 		stats.count++
@@ -148,7 +148,7 @@ func customerSegmentation(stream iter.Seq[streamv3.Record]) {
 	}
 }
 
-func productPerformance(stream iter.Seq[streamv3.Record]) {
+func productPerformance(stream iter.Seq[ssql.Record]) {
 	// Analyze top-selling products by revenue and quantity
 	productStats := make(map[string]struct {
 		revenue  float64
@@ -157,9 +157,9 @@ func productPerformance(stream iter.Seq[streamv3.Record]) {
 	})
 
 	for record := range stream {
-		product := streamv3.GetOr(record, "product", "unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
-		quantity := streamv3.GetOr(record, "quantity", int64(0))
+		product := ssql.GetOr(record, "product", "unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
+		quantity := ssql.GetOr(record, "quantity", int64(0))
 
 		stats := productStats[product]
 		stats.revenue += amount
@@ -184,7 +184,7 @@ func productPerformance(stream iter.Seq[streamv3.Record]) {
 	fmt.Printf("  🏆 Top Performer: %s ($%.2f)\n", topProduct, topRevenue)
 }
 
-func geographicAnalysis(stream iter.Seq[streamv3.Record]) {
+func geographicAnalysis(stream iter.Seq[ssql.Record]) {
 	// Analyze sales distribution by region
 	regionStats := make(map[string]struct {
 		revenue float64
@@ -194,8 +194,8 @@ func geographicAnalysis(stream iter.Seq[streamv3.Record]) {
 	totalRevenue := 0.0
 
 	for record := range stream {
-		region := streamv3.GetOr(record, "region", "unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
+		region := ssql.GetOr(record, "region", "unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
 
 		stats := regionStats[region]
 		stats.revenue += amount

@@ -37,11 +37,11 @@ Based on validation checks that detect errors, here's what LLMs might get wrong:
 ❌ **WRONG - This API doesn't exist:**
 ```go
 // LLMs often hallucinate this combined API
-result := streamv3.GroupByFields(
+result := ssql.GroupByFields(
     []string{"department"},
-    []streamv3.Aggregation{
-        streamv3.Count("employee_count"),
-        streamv3.Sum("salary", "total_salary"),
+    []ssql.Aggregation{
+        ssql.Count("employee_count"),
+        ssql.Sum("salary", "total_salary"),
     },
 )
 ```
@@ -49,12 +49,12 @@ result := streamv3.GroupByFields(
 ✅ **CORRECT - Two separate steps:**
 ```go
 // Step 1: Group by fields
-grouped := streamv3.GroupByFields("analysis", "department")(data)
+grouped := ssql.GroupByFields("analysis", "department")(data)
 
 // Step 2: Aggregate with map
-results := streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
-    "employee_count": streamv3.Count(),
-    "total_salary":   streamv3.Sum("salary"),
+results := ssql.Aggregate("analysis", map[string]ssql.AggregateFunc{
+    "employee_count": ssql.Count(),
+    "total_salary":   ssql.Sum("salary"),
 })(grouped)
 ```
 
@@ -78,11 +78,11 @@ results := streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
 ### Aggregation Functions
 
 ```go
-streamv3.Count()                    // ⚠️ NO PARAMETERS! Field name is map key
-streamv3.Sum("field")               // DOES take field parameter
-streamv3.Avg("field")
-streamv3.Min[T]("field")
-streamv3.Max[T]("field")
+ssql.Count()                    // ⚠️ NO PARAMETERS! Field name is map key
+ssql.Sum("field")               // DOES take field parameter
+ssql.Avg("field")
+ssql.Min[T]("field")
+ssql.Max[T]("field")
 ```
 
 **Common mistake:**
@@ -95,7 +95,7 @@ streamv3.Max[T]("field")
 **What validation detects:**
 ```go
 ❌ "github.com/rocketlaunchr/streamv3"
-✅ "github.com/rosscartlidge/streamv3"
+✅ "github.com/rosscartlidge/ssql"
 ```
 
 **Current prompt coverage:** Line 38 shows correct import
@@ -109,7 +109,7 @@ streamv3.Max[T]("field")
 **⚠️ IMPORTANT: Use the correct import path!**
 
 ```go
-import "github.com/rosscartlidge/streamv3"  // ✅ CORRECT
+import "github.com/rosscartlidge/ssql"  // ✅ CORRECT
 ```
 
 **Common mistakes:**
@@ -117,7 +117,7 @@ import "github.com/rosscartlidge/streamv3"  // ✅ CORRECT
 - ❌ `github.com/streamv3/v3` - Doesn't exist
 - ❌ `streamv3` - Not in stdlib
 
-**Why this matters:** LLMs trained on public code might confuse this with other stream libraries. Always use `github.com/rosscartlidge/streamv3`.
+**Why this matters:** LLMs trained on public code might confuse this with other stream libraries. Always use `github.com/rosscartlidge/ssql`.
 ```
 
 ## 4. Descending Sort Pattern
@@ -125,8 +125,8 @@ import "github.com/rosscartlidge/streamv3"  // ✅ CORRECT
 **What our reference implementations show:**
 ```go
 // All 3 top-N examples use negative values for descending sort
-streamv3.SortBy(func(r streamv3.Record) float64 {
-    return -streamv3.GetOr(r, "total", 0.0)  // Negative = descending
+ssql.SortBy(func(r ssql.Record) float64 {
+    return -ssql.GetOr(r, "total", 0.0)  // Negative = descending
 })
 ```
 
@@ -148,18 +148,18 @@ streamv3.SortBy(func(r streamv3.Record) float64 {
 **Top N pattern (very common):**
 ```go
 // Get top 10 by revenue (descending)
-topItems := streamv3.Chain(
-    streamv3.SortBy(func(r streamv3.Record) float64 {
-        return -streamv3.GetOr(r, "revenue", 0.0)  // Negative for DESC
+topItems := ssql.Chain(
+    ssql.SortBy(func(r ssql.Record) float64 {
+        return -ssql.GetOr(r, "revenue", 0.0)  // Negative for DESC
     }),
-    streamv3.Limit[streamv3.Record](10),
+    ssql.Limit[ssql.Record](10),
 )(data)
 ```
 ```
 
 ## 5. Type Parameter Guidance
 
-**What validation shows:** `Limit[streamv3.Record](10)` appears in all examples
+**What validation shows:** `Limit[ssql.Record](10)` appears in all examples
 
 **Current prompt coverage:** Line 209 mentions type parameters briefly
 **Issue:** Doesn't explain WHEN you need `[T]` vs when you don't
@@ -173,17 +173,17 @@ topItems := streamv3.Chain(
 
 **Common cases needing type parameters:**
 ```go
-streamv3.Limit[streamv3.Record](10)           // ✅ Usually needed
-streamv3.Offset[streamv3.Record](5)           // ✅ Usually needed
-streamv3.CountWindow[streamv3.Record](100)    // ✅ Usually needed
-streamv3.TimeWindow[streamv3.Record](duration, field)  // ✅ Usually needed
+ssql.Limit[ssql.Record](10)           // ✅ Usually needed
+ssql.Offset[ssql.Record](5)           // ✅ Usually needed
+ssql.CountWindow[ssql.Record](100)    // ✅ Usually needed
+ssql.TimeWindow[ssql.Record](duration, field)  // ✅ Usually needed
 ```
 
 **Cases that DON'T need type parameters:**
 ```go
-streamv3.Where(predicate)       // ✅ Type inferred from predicate
-streamv3.Select(transform)      // ✅ Type inferred from transform
-streamv3.SortBy(keyFunc)        // ✅ Type inferred from keyFunc
+ssql.Where(predicate)       // ✅ Type inferred from predicate
+ssql.Select(transform)      // ✅ Type inferred from transform
+ssql.SortBy(keyFunc)        // ✅ Type inferred from keyFunc
 ```
 
 **When in doubt:** Try without `[T]` first. If compiler complains, add it.
@@ -194,8 +194,8 @@ streamv3.SortBy(keyFunc)        // ✅ Type inferred from keyFunc
 **What reference implementations show:** Namespace must match!
 
 ```go
-grouped := streamv3.GroupByFields("sales", "region")(data)
-totals := streamv3.Aggregate("sales", aggregations)(grouped)
+grouped := ssql.GroupByFields("sales", "region")(data)
+totals := ssql.Aggregate("sales", aggregations)(grouped)
                                  ↑↑↑↑↑ Must match!
 ```
 
@@ -211,18 +211,18 @@ totals := streamv3.Aggregate("sales", aggregations)(grouped)
 
 ```go
 // Step 1: Group by fields with namespace "analysis"
-grouped := streamv3.GroupByFields("analysis", "department")(data)
+grouped := ssql.GroupByFields("analysis", "department")(data)
 
 // Step 2: Aggregate using SAME namespace "analysis"
-results := streamv3.Aggregate("analysis", map[string]streamv3.AggregateFunc{
-    "count": streamv3.Count(),
+results := ssql.Aggregate("analysis", map[string]ssql.AggregateFunc{
+    "count": ssql.Count(),
 })(grouped)
 ```
 
 ❌ **Wrong - Different namespaces:**
 ```go
-grouped := streamv3.GroupByFields("sales", "region")(data)
-results := streamv3.Aggregate("analysis", aggs)(grouped)  // Won't work!
+grouped := ssql.GroupByFields("sales", "region")(data)
+results := ssql.Aggregate("analysis", aggs)(grouped)  // Won't work!
                                   ↑↑↑↑↑↑↑↑↑
                                   Different namespace!
 ```
@@ -257,7 +257,7 @@ results := streamv3.Aggregate("analysis", aggs)(grouped)  // Won't work!
         os.WriteFile("/tmp/data.csv", []byte(csvData), 0644)
 
         // Process the data
-        data, err := streamv3.ReadCSV("/tmp/data.csv")
+        data, err := ssql.ReadCSV("/tmp/data.csv")
         // ... rest of code
     }
     ```
@@ -282,11 +282,11 @@ results := streamv3.Aggregate("analysis", aggs)(grouped)  // Won't work!
 - ✅ You want concise code
 
 ```go
-result := streamv3.Chain(
-    streamv3.Where(pred1),
-    streamv3.Where(pred2),
-    streamv3.Select(transform),
-    streamv3.Limit[streamv3.Record](10),
+result := ssql.Chain(
+    ssql.Where(pred1),
+    ssql.Where(pred2),
+    ssql.Select(transform),
+    ssql.Limit[ssql.Record](10),
 )(data)
 ```
 
@@ -297,11 +297,11 @@ result := streamv3.Chain(
 - ✅ Debugging/learning
 
 ```go
-filtered := streamv3.Where(complexPredicate)(data)
+filtered := ssql.Where(complexPredicate)(data)
 // Can print/inspect filtered here
-grouped := streamv3.GroupByFields("analysis", "field")(filtered)
+grouped := ssql.GroupByFields("analysis", "field")(filtered)
 // Can print/inspect grouped here
-final := streamv3.Aggregate("analysis", aggs)(grouped)
+final := ssql.Aggregate("analysis", aggs)(grouped)
 ```
 ```
 

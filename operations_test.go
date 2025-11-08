@@ -1,4 +1,4 @@
-package streamv3
+package ssql
 
 import (
 	"iter"

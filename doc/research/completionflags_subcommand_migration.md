@@ -2,7 +2,7 @@
 
 ## Current Architecture
 
-StreamV3 currently uses a **custom subcommand dispatcher**:
+ssql currently uses a **custom subcommand dispatcher**:
 
 1. **main.go** manually parses `os.Args[1]` to route to commands
 2. **Command interface** with custom `Execute(ctx, args)` method
@@ -11,9 +11,9 @@ StreamV3 currently uses a **custom subcommand dispatcher**:
 5. **Each command** owns its own `cf.Command` instance
 
 **Files:**
-- `cmd/streamv3/main.go` - manual routing (lines 36-55)
-- `cmd/streamv3/commands/registry.go` - Command interface + registry
-- `cmd/streamv3/commands/*.go` - individual command implementations
+- `cmd/ssql/main.go` - manual routing (lines 36-55)
+- `cmd/ssql/commands/registry.go` - Command interface + registry
+- `cmd/ssql/commands/*.go` - individual command implementations
 
 ## New Architecture (Native Subcommands)
 
@@ -59,8 +59,8 @@ root := cf.NewCommand("streamv3").
 - Cleaner error handling
 
 ### ✅ Better UX
-- `streamv3 -help` shows all subcommands
-- `streamv3 read-csv -help` shows command help
+- `ssql -help` shows all subcommands
+- `ssql read-csv -help` shows command help
 - Root flags work before OR after subcommand
 - Consistent with git/docker/kubectl
 
@@ -221,8 +221,8 @@ Flag("-version").
 ```
 
 These work in both positions:
-- `streamv3 -verbose read-csv data.csv`
-- `streamv3 read-csv -verbose data.csv`
+- `ssql -verbose read-csv data.csv`
+- `ssql read-csv -verbose data.csv`
 
 ## Code to Delete
 
@@ -283,11 +283,11 @@ Internal only - user-facing CLI unchanged (except completion flag).
 ### Phase 1: Parallel Testing
 ```bash
 # Test old system
-streamv3 read-csv data.csv | streamv3 where -match age gt 30
+ssql read-csv data.csv | ssql where -match age gt 30
 
 # Test new system
-STREAMV3_NATIVE_SUBCOMMANDS=1 streamv3 read-csv data.csv | \
-  STREAMV3_NATIVE_SUBCOMMANDS=1 streamv3 where -match age gt 30
+STREAMV3_NATIVE_SUBCOMMANDS=1 ssql read-csv data.csv | \
+  STREAMV3_NATIVE_SUBCOMMANDS=1 ssql where -match age gt 30
 ```
 
 ### Phase 2: Integration Tests
@@ -308,16 +308,16 @@ func TestCommandParity(t *testing.T) {
 ### Phase 3: Completion Tests
 ```bash
 # Test completion still works
-complete -p streamv3  # Should show completion is installed
-streamv3 read-<TAB>   # Should complete to read-csv
-streamv3 read-csv -<TAB>  # Should show flags
+complete -p ssql  # Should show completion is installed
+ssql read-<TAB>   # Should complete to read-csv
+ssql read-csv -<TAB>  # Should show flags
 ```
 
 ## File Organization
 
 ### Current
 ```
-cmd/streamv3/
+cmd/ssql/
   main.go               (manual routing)
   commands/
     registry.go         (Command interface)
@@ -329,13 +329,13 @@ cmd/streamv3/
 
 ### Option 1: Monolithic
 ```
-cmd/streamv3/
+cmd/ssql/
   main.go               (all subcommands inline)
 ```
 
 ### Option 2: Helpers (Recommended)
 ```
-cmd/streamv3/
+cmd/ssql/
   main.go               (root + subcommand definitions)
   handlers/
     readcsv.go          (executeReadCSV helper)

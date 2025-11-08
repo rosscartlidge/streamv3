@@ -1,4 +1,4 @@
-module github.com/rosscartlidge/streamv3
+module github.com/rosscartlidge/ssql
 
 go 1.24.8
 

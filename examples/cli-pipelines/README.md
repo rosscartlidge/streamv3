@@ -14,7 +14,7 @@ go install ./cmd/streamv3
 
 **Option 2: Install from GitHub (once pushed)**
 ```bash
-go install github.com/rosscartlidge/streamv3/cmd/streamv3@latest
+go install github.com/rosscartlidge/ssql/cmd/streamv3@latest
 ```
 
 **Option 3: Use local binary**

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"iter"
 )
 
@@ -20,13 +20,13 @@ func main() {
 	}
 
 	// Store it in a record
-	record := streamv3.MakeMutableRecord().
+	record := ssql.MakeMutableRecord().
 		String("id", "test").
 		IntSeq("numbers", numbers).
 		Freeze()
 
 	fmt.Println("🔍 First access to sequence:")
-	if numbersSeq, ok := streamv3.Get[iter.Seq[int]](record, "numbers"); ok {
+	if numbersSeq, ok := ssql.Get[iter.Seq[int]](record, "numbers"); ok {
 		fmt.Print("Numbers: ")
 		for num := range numbersSeq {
 			fmt.Printf("%d ", num)
@@ -35,7 +35,7 @@ func main() {
 	}
 
 	fmt.Println("\n🔍 Second access to same sequence:")
-	if numbersSeq, ok := streamv3.Get[iter.Seq[int]](record, "numbers"); ok {
+	if numbersSeq, ok := ssql.Get[iter.Seq[int]](record, "numbers"); ok {
 		fmt.Print("Numbers: ")
 		count := 0
 		for num := range numbersSeq {

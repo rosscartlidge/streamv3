@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {

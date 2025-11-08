@@ -6,10 +6,10 @@
 
 ## Executive Summary
 
-StreamV3 has two different JSON serialization implementations with significantly different performance characteristics:
+ssql has two different JSON serialization implementations with significantly different performance characteristics:
 
 1. **`lib.WriteJSONL`** - Fast, simple CLI path (9.7s for 430K rows)
-2. **`streamv3.WriteJSONToWriter`** - Slower, feature-rich library path (15.7s for 430K rows)
+2. **`ssql.WriteJSONToWriter`** - Slower, feature-rich library path (15.7s for 430K rows)
 
 The **62% performance difference** for simple CSV→JSON conversion is due to different design goals: CLI optimization vs. library flexibility. This document analyzes the trade-offs and proposes future actions.
 
@@ -17,11 +17,11 @@ The **62% performance difference** for simple CSV→JSON conversion is due to di
 
 ### 1. CLI Path: `lib.WriteJSONL`
 
-**Location:** `cmd/streamv3/lib/jsonl.go`
+**Location:** `cmd/ssql/lib/jsonl.go`
 
 **Implementation:**
 ```go
-func WriteJSONL(w io.Writer, records iter.Seq[streamv3.Record]) error {
+func WriteJSONL(w io.Writer, records iter.Seq[ssql.Record]) error {
     writer := bufio.NewWriter(w)  // ✅ Buffered
     defer writer.Flush()
 
@@ -41,7 +41,7 @@ func WriteJSONL(w io.Writer, records iter.Seq[streamv3.Record]) error {
 
 func convertRecordValue(v interface{}) interface{} {
     switch val := v.(type) {
-    case streamv3.Record:
+    case ssql.Record:
         // Nested records → recursive conversion
     case int64, float64, bool, string, nil:
         return val  // ✅ Canonical types pass through
@@ -62,7 +62,7 @@ func convertRecordValue(v interface{}) interface{} {
 
 ---
 
-### 2. Library Path: `streamv3.WriteJSONToWriter`
+### 2. Library Path: `ssql.WriteJSONToWriter`
 
 **Location:** `io.go:433-462`
 
@@ -164,7 +164,7 @@ func WriteJSONToWriter(sb iter.Seq[Record], writer io.Writer) error {
 
 ### Library Design Philosophy
 
-**Goal:** Maximum flexibility, support all StreamV3 types
+**Goal:** Maximum flexibility, support all ssql types
 
 **Constraints:**
 - Users might store iter.Seq fields and want to export them
@@ -186,7 +186,7 @@ func WriteJSONToWriter(sb iter.Seq[Record], writer io.Writer) error {
 # lib.WriteJSONL output (CLI)
 {"group":"A","values":"0x4f5080"}  # ❌ Memory address!
 
-# streamv3.WriteJSONToWriter output (Library)
+# ssql.WriteJSONToWriter output (Library)
 {"group":"B","values":[4,5,6]}     # ✅ Materialized array
 ```
 
@@ -200,7 +200,7 @@ func WriteJSONToWriter(sb iter.Seq[Record], writer io.Writer) error {
 **If we wanted cross-command iter.Seq:**
 ```bash
 # Hypothetical future CLI command
-streamv3 group-by -by region --no-aggregate | streamv3 custom-agg ...
+ssql group-by -by region --no-aggregate | ssql custom-agg ...
 ```
 
 This would require:
@@ -217,10 +217,10 @@ This would require:
 
 ```bash
 # CLI: 9.7s
-streamv3 read-csv data.csv > /dev/null
+ssql read-csv data.csv > /dev/null
 
 # Generated: 15.7s (uses WriteJSONToWriter)
-streamv3 read-csv -g data.csv | streamv3 generate-go > prog.go
+ssql read-csv -g data.csv | ssql generate-go > prog.go
 go build prog.go && ./prog > /dev/null
 ```
 
@@ -234,12 +234,12 @@ go build prog.go && ./prog > /dev/null
 
 ```bash
 # CLI: 10.2s (3 processes, 2× JSONL serialization)
-streamv3 read-csv data.csv | streamv3 group-by ... | streamv3 write-csv
+ssql read-csv data.csv | ssql group-by ... | ssql write-csv
 
 # Generated: 2.7s (single process, direct function composition)
 export STREAMV3_GENERATE_GO=1
-streamv3 read-csv data.csv | streamv3 group-by ... | streamv3 write-csv | \
-  streamv3 generate-go > prog.go
+ssql read-csv data.csv | ssql group-by ... | ssql write-csv | \
+  ssql generate-go > prog.go
 go build prog.go && ./prog
 ```
 
@@ -264,7 +264,7 @@ go build prog.go && ./prog
 // In generated code
 writer := bufio.NewWriter(os.Stdout)
 defer writer.Flush()
-streamv3.WriteJSONToWriter(records, writer)
+ssql.WriteJSONToWriter(records, writer)
 ```
 
 **Expected improvement:** 10-20% faster (reduced syscall overhead)
@@ -306,13 +306,13 @@ func WriteJSONLSimple(sb iter.Seq[Record], writer io.Writer) error {
 ```go
 if pipelineHasGroupByWithoutAggregate() {
     // Use WriteJSONToWriter (can handle iter.Seq)
-    generateCode("streamv3.WriteJSONToWriter(records, writer)")
+    generateCode("ssql.WriteJSONToWriter(records, writer)")
 } else if pipelineHasOnlySimpleTypes() {
     // Use fast path
-    generateCode("streamv3.WriteJSONLSimple(records, writer)")
+    generateCode("ssql.WriteJSONLSimple(records, writer)")
 } else {
     // Use full-featured writer
-    generateCode("streamv3.WriteJSONToWriter(records, writer)")
+    generateCode("ssql.WriteJSONToWriter(records, writer)")
 }
 ```
 
@@ -365,9 +365,9 @@ func WriteJSONWithOptions(records iter.Seq[Record], w io.Writer, opts Serializat
 **Example:**
 ```bash
 # Future possibility
-streamv3 group-by -by region --output-groups | \
-  streamv3 custom-process | \
-  streamv3 aggregate -func custom
+ssql group-by -by region --output-groups | \
+  ssql custom-process | \
+  ssql aggregate -func custom
 ```
 
 **Implementation:**
@@ -410,7 +410,7 @@ streamv3 group-by -by region --output-groups | \
 
 **Recommendation:**
 - Keep JSONL as default (human-readable, debuggable, interoperable)
-- Consider MessagePack as opt-in performance mode: `streamv3 --format=msgpack ...`
+- Consider MessagePack as opt-in performance mode: `ssql --format=msgpack ...`
 
 **Effort:** Very High (implement alternative formats, maintain compatibility)
 
@@ -484,7 +484,7 @@ The **real value** of code generation is in complex pipelines (3.8× faster), wh
 ## References
 
 - Benchmark data: 430K row CSV file (`run_correlator_min.20190611.csv`)
-- CLI implementation: `cmd/streamv3/lib/jsonl.go`
+- CLI implementation: `cmd/ssql/lib/jsonl.go`
 - Library implementation: `io.go:433-462` (`WriteJSONToWriter`)
 - Related research: `doc/research/serialization-formats.md`
-- Code generation: `cmd/streamv3/commands/generatego.go`
+- Code generation: `cmd/ssql/commands/generatego.go`

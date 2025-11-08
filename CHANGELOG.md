@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to StreamV3 will be documented in this file.
+All notable changes to ssql will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Before (v1.0.x):**
   ```go
   // This will NO LONGER compile:
-  var pred streamv3.JoinPredicate = func(left, right streamv3.Record) bool {
+  var pred ssql.JoinPredicate = func(left, right ssql.Record) bool {
       return left["id"] == right["id"]
   }
   ```
@@ -24,12 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **After (v1.1.0+):**
   ```go
   // Use OnCondition wrapper:
-  pred := streamv3.OnCondition(func(left, right streamv3.Record) bool {
-      return streamv3.GetOr(left, "id", "") == streamv3.GetOr(right, "id", "")
+  pred := ssql.OnCondition(func(left, right ssql.Record) bool {
+      return ssql.GetOr(left, "id", "") == ssql.GetOr(right, "id", "")
   })
 
   // OR use OnFields for automatic optimization:
-  pred := streamv3.OnFields("id")
+  pred := ssql.OnFields("id")
   ```
 
 ### Performance Improvements
@@ -79,6 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MutableRecord builder for efficient record construction
 - Comprehensive test suite
 
-[Unreleased]: https://github.com/rosscartlidge/streamv3/compare/v1.0.5...HEAD
-[v1.0.5]: https://github.com/rosscartlidge/streamv3/compare/v1.0.0...v1.0.5
-[v1.0.0]: https://github.com/rosscartlidge/streamv3/releases/tag/v1.0.0
+[Unreleased]: https://github.com/rosscartlidge/ssql/compare/v1.0.5...HEAD
+[v1.0.5]: https://github.com/rosscartlidge/ssql/compare/v1.0.0...v1.0.5
+[v1.0.0]: https://github.com/rosscartlidge/ssql/releases/tag/v1.0.0

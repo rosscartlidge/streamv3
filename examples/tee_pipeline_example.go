@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -56,22 +56,22 @@ func generateSalesData() {
 	fmt.Fprintln(os.Stderr, "🏭 Generating sales data...")
 
 	// Generate realistic sales data
-	salesData := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "North").String("product", "Laptop").Float("amount", 1299.99).String("salesperson", "Alice").String("customer_type", "enterprise").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "South").String("product", "Phone").Float("amount", 899.99).String("salesperson", "Bob").String("customer_type", "consumer").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "East").String("product", "Tablet").Float("amount", 649.99).String("salesperson", "Carol").String("customer_type", "education").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "West").String("product", "Laptop").Float("amount", 1199.99).String("salesperson", "David").String("customer_type", "enterprise").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-03").String("region", "North").String("product", "Phone").Float("amount", 799.99).String("salesperson", "Eva").String("customer_type", "consumer").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-03").String("region", "South").String("product", "Headphones").Float("amount", 299.99).String("salesperson", "Frank").String("customer_type", "consumer").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-04").String("region", "East").String("product", "Watch").Float("amount", 399.99).String("salesperson", "Grace").String("customer_type", "consumer").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-04").String("region", "West").String("product", "Tablet").Float("amount", 599.99).String("salesperson", "Henry").String("customer_type", "education").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-05").String("region", "North").String("product", "Laptop").Float("amount", 1399.99).String("salesperson", "Iris").String("customer_type", "enterprise").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-05").String("region", "South").String("product", "Phone").Float("amount", 949.99).String("salesperson", "Jack").String("customer_type", "consumer").Freeze(),
+	salesData := []ssql.Record{
+		ssql.MakeMutableRecord().String("date", "2024-01-01").String("region", "North").String("product", "Laptop").Float("amount", 1299.99).String("salesperson", "Alice").String("customer_type", "enterprise").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-01").String("region", "South").String("product", "Phone").Float("amount", 899.99).String("salesperson", "Bob").String("customer_type", "consumer").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-02").String("region", "East").String("product", "Tablet").Float("amount", 649.99).String("salesperson", "Carol").String("customer_type", "education").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-02").String("region", "West").String("product", "Laptop").Float("amount", 1199.99).String("salesperson", "David").String("customer_type", "enterprise").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-03").String("region", "North").String("product", "Phone").Float("amount", 799.99).String("salesperson", "Eva").String("customer_type", "consumer").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-03").String("region", "South").String("product", "Headphones").Float("amount", 299.99).String("salesperson", "Frank").String("customer_type", "consumer").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-04").String("region", "East").String("product", "Watch").Float("amount", 399.99).String("salesperson", "Grace").String("customer_type", "consumer").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-04").String("region", "West").String("product", "Tablet").Float("amount", 599.99).String("salesperson", "Henry").String("customer_type", "education").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-05").String("region", "North").String("product", "Laptop").Float("amount", 1399.99).String("salesperson", "Iris").String("customer_type", "enterprise").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-05").String("region", "South").String("product", "Phone").Float("amount", 949.99).String("salesperson", "Jack").String("customer_type", "consumer").Freeze(),
 	}
 
 	// Output as JSON to stdout for piping
-	stream := streamv3.From(salesData)
-	err := streamv3.WriteJSONToWriter(stream, os.Stdout)
+	stream := ssql.From(salesData)
+	err := ssql.WriteJSONToWriter(stream, os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing JSON: %v\n", err)
 		os.Exit(1)
@@ -84,10 +84,10 @@ func analyzeSalesData() {
 	fmt.Fprintln(os.Stderr, "📊 Running parallel analysis using Tee...")
 
 	// Read JSON from stdin
-	stream := streamv3.ReadJSONFromReader(os.Stdin)
+	stream := ssql.ReadJSONFromReader(os.Stdin)
 
 	// Use Tee to split into 4 parallel analysis streams
-	streams := streamv3.Tee(stream, 4)
+	streams := ssql.Tee(stream, 4)
 
 	fmt.Println("🔀 TEE PARALLEL ANALYSIS RESULTS")
 	fmt.Println("=================================")
@@ -115,12 +115,12 @@ func analyzeSalesData() {
 	fmt.Fprintln(os.Stderr, "\n✅ Completed all 4 analyses in parallel")
 }
 
-func revenueByRegion(stream iter.Seq[streamv3.Record]) {
+func revenueByRegion(stream iter.Seq[ssql.Record]) {
 	regionRevenue := make(map[string]float64)
 
 	for record := range stream {
-		region := streamv3.GetOr(record, "region", "Unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
+		region := ssql.GetOr(record, "region", "Unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
 		regionRevenue[region] += amount
 	}
 
@@ -129,12 +129,12 @@ func revenueByRegion(stream iter.Seq[streamv3.Record]) {
 	}
 }
 
-func topPerformers(stream iter.Seq[streamv3.Record]) {
+func topPerformers(stream iter.Seq[ssql.Record]) {
 	salesPersonRevenue := make(map[string]float64)
 
 	for record := range stream {
-		salesperson := streamv3.GetOr(record, "salesperson", "Unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
+		salesperson := ssql.GetOr(record, "salesperson", "Unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
 		salesPersonRevenue[salesperson] += amount
 	}
 
@@ -159,15 +159,15 @@ func topPerformers(stream iter.Seq[streamv3.Record]) {
 	}
 }
 
-func customerSegmentAnalysis(stream iter.Seq[streamv3.Record]) {
+func customerSegmentAnalysis(stream iter.Seq[ssql.Record]) {
 	segmentStats := make(map[string]struct {
 		count   int
 		revenue float64
 	})
 
 	for record := range stream {
-		customerType := streamv3.GetOr(record, "customer_type", "unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
+		customerType := ssql.GetOr(record, "customer_type", "unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
 
 		stats := segmentStats[customerType]
 		stats.count++
@@ -182,13 +182,13 @@ func customerSegmentAnalysis(stream iter.Seq[streamv3.Record]) {
 	}
 }
 
-func dailyTrends(stream iter.Seq[streamv3.Record]) {
+func dailyTrends(stream iter.Seq[ssql.Record]) {
 	dailyRevenue := make(map[string]float64)
 	dailyCount := make(map[string]int)
 
 	for record := range stream {
-		date := streamv3.GetOr(record, "date", "unknown")
-		amount := streamv3.GetOr(record, "amount", 0.0)
+		date := ssql.GetOr(record, "date", "unknown")
+		amount := ssql.GetOr(record, "amount", 0.0)
 
 		dailyRevenue[date] += amount
 		dailyCount[date]++
@@ -218,17 +218,17 @@ func runFullDemo() {
 	fmt.Println()
 
 	// Generate data
-	salesData := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "North").String("product", "Laptop").Float("amount", 1299.99).String("salesperson", "Alice").String("customer_type", "enterprise").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-01").String("region", "South").String("product", "Phone").Float("amount", 899.99).String("salesperson", "Bob").String("customer_type", "consumer").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "East").String("product", "Tablet").Float("amount", 649.99).String("salesperson", "Carol").String("customer_type", "education").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-02").String("region", "West").String("product", "Laptop").Float("amount", 1199.99).String("salesperson", "David").String("customer_type", "enterprise").Freeze(),
-		streamv3.MakeMutableRecord().String("date", "2024-01-03").String("region", "North").String("product", "Phone").Float("amount", 799.99).String("salesperson", "Eva").String("customer_type", "consumer").Freeze(),
+	salesData := []ssql.Record{
+		ssql.MakeMutableRecord().String("date", "2024-01-01").String("region", "North").String("product", "Laptop").Float("amount", 1299.99).String("salesperson", "Alice").String("customer_type", "enterprise").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-01").String("region", "South").String("product", "Phone").Float("amount", 899.99).String("salesperson", "Bob").String("customer_type", "consumer").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-02").String("region", "East").String("product", "Tablet").Float("amount", 649.99).String("salesperson", "Carol").String("customer_type", "education").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-02").String("region", "West").String("product", "Laptop").Float("amount", 1199.99).String("salesperson", "David").String("customer_type", "enterprise").Freeze(),
+		ssql.MakeMutableRecord().String("date", "2024-01-03").String("region", "North").String("product", "Phone").Float("amount", 799.99).String("salesperson", "Eva").String("customer_type", "consumer").Freeze(),
 	}
 
 	// Create stream and use Tee for parallel analysis
-	stream := streamv3.From(salesData)
-	streams := streamv3.Tee(stream, 4)
+	stream := ssql.From(salesData)
+	streams := ssql.Tee(stream, 4)
 
 	fmt.Println("📊 PARALLEL ANALYSIS RESULTS:")
 	fmt.Println("=============================")

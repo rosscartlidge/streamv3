@@ -1,6 +1,6 @@
 # AI Code Generation Test Cases
 
-These test cases validate that the AI prompt generates correct StreamV3 code.
+These test cases validate that the AI prompt generates correct ssql code.
 
 ## Test Case 1: Basic Filtering and Grouping
 **Natural Language Prompt:**
@@ -9,7 +9,7 @@ These test cases validate that the AI prompt generates correct StreamV3 code.
 **Expected Code Patterns:**
 - `ReadCSV("employees.csv")`
 - `if err != nil`
-- `Where(` or `streamv3.Where(`
+- `Where(` or `ssql.Where(`
 - `salary > 80000` or `> 80000`
 - `GroupByFields(` and `"department"`
 - `Count()`
@@ -58,7 +58,7 @@ These test cases validate that the AI prompt generates correct StreamV3 code.
 
 **Expected Code Patterns:**
 - `ReadCSV("product`
-- `Select(` or `streamv3.Select(`
+- `Select(` or `ssql.Select(`
 - `switch` or multiple `if` statements
 - `SetImmutable(` or `SetField(`
 - `"price_tier"`

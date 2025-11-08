@@ -2,51 +2,51 @@
 
 ## Overview
 
-Add an `update` subcommand to the StreamV3 CLI that allows users to modify field values in records. This complements the existing `select` (field projection) and `where` (filtering) commands.
+Add an `update` subcommand to the ssql CLI that allows users to modify field values in records. This complements the existing `select` (field projection) and `where` (filtering) commands.
 
 ## Use Cases
 
 ### 1. Set Constant Values
 ```bash
 # Mark all records as processed
-streamv3 read-csv data.csv | streamv3 update -set status "processed" | streamv3 write-csv out.csv
+ssql read-csv data.csv | ssql update -set status "processed" | ssql write-csv out.csv
 
 # Set multiple fields
-streamv3 read-csv orders.csv | \
-  streamv3 update -set status "shipped" -set shipped_date "2025-11-04" | \
-  streamv3 write-csv shipped_orders.csv
+ssql read-csv orders.csv | \
+  ssql update -set status "shipped" -set shipped_date "2025-11-04" | \
+  ssql write-csv shipped_orders.csv
 ```
 
 ### 2. Computed Values (from other fields)
 ```bash
 # Calculate total from price * quantity
-streamv3 read-csv orders.csv | \
-  streamv3 update -compute total "price * quantity" | \
-  streamv3 write-csv with_totals.csv
+ssql read-csv orders.csv | \
+  ssql update -compute total "price * quantity" | \
+  ssql write-csv with_totals.csv
 
 # Multiple computed fields
-streamv3 read-csv sales.csv | \
-  streamv3 update \
+ssql read-csv sales.csv | \
+  ssql update \
     -compute subtotal "price * quantity" \
     -compute tax "subtotal * 0.08" \
     -compute total "subtotal + tax" | \
-  streamv3 write-csv invoices.csv
+  ssql write-csv invoices.csv
 ```
 
 ### 3. Conditional Updates (with clauses)
 ```bash
 # Update status only for high-value orders
-streamv3 read-csv orders.csv | \
-  streamv3 update -if total gt 1000 -set priority "high" + \
+ssql read-csv orders.csv | \
+  ssql update -if total gt 1000 -set priority "high" + \
                   -if total le 1000 -set priority "normal" | \
-  streamv3 write-csv prioritized.csv
+  ssql write-csv prioritized.csv
 
 # Set tier based on purchase amount
-streamv3 read-csv customers.csv | \
-  streamv3 update -if purchases gt 5000 -set tier "Gold" + \
+ssql read-csv customers.csv | \
+  ssql update -if purchases gt 5000 -set tier "Gold" + \
                   -if purchases ge 1000 -if purchases le 5000 -set tier "Silver" + \
                   -set tier "Bronze" | \
-  streamv3 write-csv customers_with_tiers.csv
+  ssql write-csv customers_with_tiers.csv
 ```
 
 ## Command Design
@@ -54,7 +54,7 @@ streamv3 read-csv customers.csv | \
 ### Basic Structure
 
 ```
-streamv3 update [flags] [FILE]
+ssql update [flags] [FILE]
 ```
 
 ### Flags
@@ -98,7 +98,7 @@ streamv3 update [flags] [FILE]
 
 **Example:**
 ```bash
-streamv3 update -set status "processed" -set updated_at "2025-11-04"
+ssql update -set status "processed" -set updated_at "2025-11-04"
 ```
 
 **Implementation:**
@@ -129,7 +129,7 @@ for _, clause := range ctx.Clauses {
 
 **Example:**
 ```bash
-streamv3 update -compute total "price * quantity" -compute tax "total * 0.08"
+ssql update -compute total "price * quantity" -compute tax "total * 0.08"
 ```
 
 **Implementation Challenges:**
@@ -153,8 +153,8 @@ streamv3 update -compute total "price * quantity" -compute tax "total * 0.08"
 
 **Example:**
 ```bash
-streamv3 update -set "status = 'processed', total = price * quantity"
-streamv3 update -set "tier = CASE WHEN purchases > 5000 THEN 'Gold' ELSE 'Silver' END"
+ssql update -set "status = 'processed', total = price * quantity"
+ssql update -set "tier = CASE WHEN purchases > 5000 THEN 'Gold' ELSE 'Silver' END"
 ```
 
 ## Recommendation
@@ -164,14 +164,14 @@ streamv3 update -set "tier = CASE WHEN purchases > 5000 THEN 'Gold' ELSE 'Silver
 **Rationale:**
 1. **-set covers the most common use case**: Setting status flags, dates, categories
 2. **Computed values can be done in Go**: Users who need `total = price * qty` can write a simple Go program
-3. **Conditional updates can use where**: `streamv3where -match amount gt 1000 | streamv3 update -set priority "high"`
+3. **Conditional updates can use where**: `streamv3where -match amount gt 1000 | ssql update -set priority "high"`
 4. **Simpler is better**: Following Unix philosophy - do one thing well
 5. **Easy to extend**: Can add -compute later without breaking changes
 
 ### MVP Command Spec
 
 ```
-streamv3 update -set <field> <value> [-set <field> <value> ...] [FILE]
+ssql update -set <field> <value> [-set <field> <value> ...] [FILE]
 ```
 
 **Flags:**
@@ -182,20 +182,20 @@ streamv3 update -set <field> <value> [-set <field> <value> ...] [FILE]
 **Examples:**
 ```bash
 # Single field update
-streamv3 update -set status "processed"
+ssql update -set status "processed"
 
 # Multiple fields
-streamv3 update -set status "shipped" -set shipped_date "2025-11-04"
+ssql update -set status "shipped" -set shipped_date "2025-11-04"
 
 # From file
-streamv3 update -set processed "true" orders.jsonl > updated.jsonl
+ssql update -set processed "true" orders.jsonl > updated.jsonl
 
 # In pipeline
-cat data.jsonl | streamv3 where -match amount gt 100 | streamv3 update -set priority "high"
+cat data.jsonl | ssql where -match amount gt 100 | ssql update -set priority "high"
 
 # With code generation
 export STREAMV3_GENERATE_GO=1
-streamv3 read-csv data.csv | streamv3 update -set status "done" | streamv3 generate-go > program.go
+ssql read-csv data.csv | ssql update -set status "done" | ssql generate-go > program.go
 ```
 
 **Type Handling:**
@@ -210,14 +210,14 @@ This matches the CSV reader's auto-parsing behavior.
 
 ## Implementation Plan
 
-1. Add `update` subcommand to `cmd/streamv3/main.go`
+1. Add `update` subcommand to `cmd/ssql/main.go`
 2. Add `-set` flag with `.Arg("field")` and `.Arg("value")`
 3. Implement handler that:
    - Reads JSONL from stdin/file
    - Builds Update filter with accumulated -set operations
    - Applies filter and writes JSONL output
-4. Add `generateUpdateCode()` helper to `cmd/streamv3/helpers.go`
-5. Add tests to `cmd/streamv3/generation_test.go`
+4. Add `generateUpdateCode()` helper to `cmd/ssql/helpers.go`
+5. Add tests to `cmd/ssql/generation_test.go`
 6. Document in `doc/codelab-intro.md` and `doc/api-reference.md`
 
 ## Future Enhancements (Post-MVP)
@@ -226,17 +226,17 @@ If -set proves insufficient, consider adding:
 
 1. **-compute flag**: Simple arithmetic expressions
    ```bash
-   streamv3 update -compute total "price * quantity"
+   ssql update -compute total "price * quantity"
    ```
 
 2. **-if flag for conditional updates**:
    ```bash
-   streamv3 update -if amount gt 1000 -set priority "high"
+   ssql update -if amount gt 1000 -set priority "high"
    ```
 
 3. **Field references in -set**: Allow copying field values
    ```bash
-   streamv3 update -set new_status "@old_status"  # Copy from another field
+   ssql update -set new_status "@old_status"  # Copy from another field
    ```
 
 But start simple and only add complexity if users actually need it.

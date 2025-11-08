@@ -1,4 +1,4 @@
-# StreamV3 CLI Tutorial
+# ssql CLI Tutorial
 
 *Command-line data processing with code generation - Still in active development*
 
@@ -13,7 +13,7 @@
 
 ### Learning Path
 - [Quick Start](#quick-start)
-- [What is the StreamV3 CLI?](#what-is-the-streamv3-cli)
+- [What is the ssql CLI?](#what-is-the-streamv3-cli)
 - [Basic Pipeline Operations](#basic-pipeline-operations)
 - [Working with Real Data](#working-with-real-data)
 - [Grouping and Aggregations](#grouping-and-aggregations)
@@ -32,10 +32,10 @@
 
 ```bash
 # Install the CLI tool
-go install github.com/rosscartlidge/streamv3/cmd/streamv3@latest
+go install github.com/rosscartlidge/ssql/cmd/ssql@latest
 
 # Verify installation
-streamv3 -version
+ssql -version
 ```
 
 ### Your First Pipeline
@@ -51,9 +51,9 @@ David,28,Sales,70000
 EOF
 
 # Process it with a pipeline
-streamv3 read-csv employees.csv | \
-  streamv3 where -match department eq Engineering | \
-  streamv3 include name salary
+ssql read-csv employees.csv | \
+  ssql where -match department eq Engineering | \
+  ssql include name salary
 ```
 
 Output:
@@ -64,9 +64,9 @@ Output:
 
 ---
 
-## What is the StreamV3 CLI?
+## What is the ssql CLI?
 
-The StreamV3 CLI brings Unix pipeline philosophy to structured data processing. It provides:
+The ssql CLI brings Unix pipeline philosophy to structured data processing. It provides:
 
 - **🔗 Pipeline Operations** - Chain commands with Unix pipes
 - **📊 Built-in Visualization** - Create charts directly from pipelines
@@ -77,13 +77,13 @@ The StreamV3 CLI brings Unix pipeline philosophy to structured data processing. 
 
 **Command Chaining**
 ```bash
-streamv3 read-csv data.csv | streamv3 where ... | streamv3 group ... | streamv3 chart ...
+ssql read-csv data.csv | ssql where ... | ssql group ... | ssql chart ...
 ```
 
 **Self-Generating Commands**
 Every command supports `-generate` flag to emit Go code instead of executing:
 ```bash
-streamv3 read-csv -generate data.csv | streamv3 generate-go
+ssql read-csv -generate data.csv | ssql generate-go
 ```
 
 **Universal Data Format**
@@ -92,9 +92,9 @@ All commands use JSONL (JSON Lines) for inter-command communication, enabling co
 **Debugging with jq**
 Since all commands communicate via JSONL, you can inspect data at any stage with `jq`:
 ```bash
-streamv3 read-csv data.csv | jq '.' | head -5          # Pretty-print data
-streamv3 read-csv data.csv | jq '.age | type' | head   # Check field types
-streamv3 ... | streamv3 where ... | jq -s 'length'      # Count results
+ssql read-csv data.csv | jq '.' | head -5          # Pretty-print data
+ssql read-csv data.csv | jq '.age | type' | head   # Check field types
+ssql ... | ssql where ... | jq -s 'length'      # Count results
 ```
 [**See full debugging guide →**](debugging_pipelines.md)
 
@@ -109,7 +109,7 @@ streamv3 ... | streamv3 where ... | jq -s 'length'      # Count results
 Read CSV files and output as JSONL:
 
 ```bash
-streamv3 read-csv employees.csv
+ssql read-csv employees.csv
 ```
 
 Output (JSONL):
@@ -125,16 +125,16 @@ Filter records based on conditions:
 
 ```bash
 # Single condition
-streamv3 read-csv employees.csv | \
-  streamv3 where -match salary gt 70000
+ssql read-csv employees.csv | \
+  ssql where -match salary gt 70000
 
 # Multiple conditions (AND)
-streamv3 read-csv employees.csv | \
-  streamv3 where -match age gt 25 -match department eq Engineering
+ssql read-csv employees.csv | \
+  ssql where -match age gt 25 -match department eq Engineering
 
 # Multiple conditions (OR) - use + separator
-streamv3 read-csv employees.csv | \
-  streamv3 where -match department eq Engineering + -match department eq Sales
+ssql read-csv employees.csv | \
+  ssql where -match department eq Engineering + -match department eq Sales
 ```
 
 **Available Operators:**
@@ -154,13 +154,13 @@ Select specific fields or rename them:
 
 ```bash
 # Select fields
-streamv3 read-csv employees.csv | \
-  streamv3 include name salary
+ssql read-csv employees.csv | \
+  ssql include name salary
 
 # Rename fields
-streamv3 read-csv employees.csv | \
-  streamv3 include name salary | \
-  streamv3 rename -as name employee_name -as salary annual_salary
+ssql read-csv employees.csv | \
+  ssql include name salary | \
+  ssql rename -as name employee_name -as salary annual_salary
 ```
 
 ### Updating Fields
@@ -169,20 +169,20 @@ Update record fields conditionally using if-elseif-else logic:
 
 ```bash
 # Unconditional update - all records
-streamv3 read-csv employees.csv | \
-  streamv3 update -set status "active"
+ssql read-csv employees.csv | \
+  ssql update -set status "active"
 
 # Conditional update - only matching records
-streamv3 read-csv employees.csv | \
-  streamv3 update -match salary gt 100000 -set bracket "high"
+ssql read-csv employees.csv | \
+  ssql update -match salary gt 100000 -set bracket "high"
 
 # Multiple conditions (AND logic)
-streamv3 read-csv employees.csv | \
-  streamv3 update -match status eq pending -match priority eq urgent -set assignee "alice"
+ssql read-csv employees.csv | \
+  ssql update -match status eq pending -match priority eq urgent -set assignee "alice"
 
 # If-elseif-else with + separator (first match wins)
-streamv3 read-csv customers.csv | \
-  streamv3 update \
+ssql read-csv customers.csv | \
+  ssql update \
     -match purchases gt 5000 -set tier "Gold" -set discount 0.2 + \
     -match purchases gt 1000 -set tier "Silver" -set discount 0.1 + \
     -set tier "Bronze" -set discount 0.0
@@ -206,8 +206,8 @@ The `update` command automatically infers types from string values:
 **Complex Example:**
 ```bash
 # Set priority based on multiple conditions
-streamv3 read-csv orders.csv | \
-  streamv3 update \
+ssql read-csv orders.csv | \
+  ssql update \
     -match status eq pending -match amount gt 10000 -set priority "critical" -set sla 24 + \
     -match status eq pending -match amount gt 1000 -set priority "high" -set sla 48 + \
     -match status eq pending -set priority "normal" -set sla 72 + \
@@ -221,9 +221,9 @@ This keeps ALL records while selectively updating fields based on conditions.
 Write results to CSV:
 
 ```bash
-streamv3 read-csv employees.csv | \
-  streamv3 where -match department eq Engineering | \
-  streamv3 write-csv engineers.csv
+ssql read-csv employees.csv | \
+  ssql where -match department eq Engineering | \
+  ssql write-csv engineers.csv
 ```
 
 ### Displaying Data as Tables
@@ -232,25 +232,25 @@ Display records in a formatted table on the terminal:
 
 ```bash
 # Simple table display
-streamv3 read-csv employees.csv | streamv3 table
+ssql read-csv employees.csv | ssql table
 
 # With filtering
-streamv3 read-csv employees.csv | \
-  streamv3 where -match department eq Engineering | \
-  streamv3 table
+ssql read-csv employees.csv | \
+  ssql where -match department eq Engineering | \
+  ssql table
 
 # Limit column width to prevent wrapping
-streamv3 read-csv employees.csv | \
-  streamv3 table -max-width 30
+ssql read-csv employees.csv | \
+  ssql table -max-width 30
 
 # Complex pipeline with updates and filtering
-streamv3 read-csv customers.csv | \
-  streamv3 update \
+ssql read-csv customers.csv | \
+  ssql update \
     -match purchases gt 5000 -set tier "Gold" + \
     -match purchases gt 1000 -set tier "Silver" + \
     -set tier "Bronze" | \
-  streamv3 where -match tier eq Gold | \
-  streamv3 table
+  ssql where -match tier eq Gold | \
+  ssql table
 ```
 
 **Features:**
@@ -279,12 +279,12 @@ Execute shell commands and parse their output:
 
 ```bash
 # Analyze process information
-streamv3 exec -- ps -efl | \
-  streamv3 where -match CMD contains chrome | \
-  streamv3 include PID USER CMD
+ssql exec -- ps -efl | \
+  ssql where -match CMD contains chrome | \
+  ssql include PID USER CMD
 ```
 
-**Note:** The `--` separator is required to prevent StreamV3 from interpreting command flags like `-efl` as its own flags.
+**Note:** The `--` separator is required to prevent ssql from interpreting command flags like `-efl` as its own flags.
 
 ### Example: System Monitoring
 
@@ -292,10 +292,10 @@ Find memory-intensive processes:
 
 ```bash
 # Get top memory users
-streamv3 exec -- ps aux | \
-  streamv3 where -match USER eq root | \
-  streamv3 include PID MEM CMD | \
-  streamv3 write-csv system_processes.csv
+ssql exec -- ps aux | \
+  ssql where -match USER eq root | \
+  ssql include PID MEM CMD | \
+  ssql write-csv system_processes.csv
 ```
 
 ---
@@ -308,8 +308,8 @@ Group data and calculate statistics:
 
 ```bash
 # Count records by department
-streamv3 read-csv employees.csv | \
-  streamv3 group-by department -function count -result total
+ssql read-csv employees.csv | \
+  ssql group-by department -function count -result total
 ```
 
 Output:
@@ -324,8 +324,8 @@ Output:
 Use `+` to separate multiple aggregation functions:
 
 ```bash
-streamv3 read-csv employees.csv | \
-  streamv3 group-by department \
+ssql read-csv employees.csv | \
+  ssql group-by department \
     -function count -result employee_count + \
     -function avg -field salary -result avg_salary + \
     -function max -field salary -result max_salary
@@ -349,7 +349,7 @@ Output:
 
 ## SQL-Like Operations
 
-StreamV3 supports common SQL operations for multi-table queries and data manipulation.
+ssql supports common SQL operations for multi-table queries and data manipulation.
 
 ### Pagination with OFFSET and LIMIT
 
@@ -357,9 +357,9 @@ Skip and take records for pagination:
 
 ```bash
 # Skip first 20 records, take next 10 (records 21-30)
-streamv3 read-csv data.csv | \
-  streamv3 offset 20 | \
-  streamv3 limit 10
+ssql read-csv data.csv | \
+  ssql offset 20 | \
+  ssql limit 10
 ```
 
 Equivalent SQL:
@@ -373,11 +373,11 @@ Remove duplicate records:
 
 ```bash
 # Distinct on all fields
-streamv3 read-csv data.csv | streamv3 distinct
+ssql read-csv data.csv | ssql distinct
 
 # Distinct by specific fields
-streamv3 read-csv employees.csv | \
-  streamv3 distinct -by department -by location
+ssql read-csv employees.csv | \
+  ssql distinct -by department -by location
 ```
 
 Equivalent SQL:
@@ -391,17 +391,17 @@ Join two data sources on common fields:
 
 ```bash
 # Inner join on same field name
-streamv3 read-csv employees.csv | \
-  streamv3 join -type inner -right departments.csv -on dept_id
+ssql read-csv employees.csv | \
+  ssql join -type inner -right departments.csv -on dept_id
 
 # Left join with different field names
-streamv3 read-csv orders.csv | \
-  streamv3 join -type left -right customers.csv \
+ssql read-csv orders.csv | \
+  ssql join -type left -right customers.csv \
     -left-field customer_id -right-field id
 
 # Join on multiple fields (composite key)
-streamv3 read-csv sales.csv | \
-  streamv3 join -right products.csv \
+ssql read-csv sales.csv | \
+  ssql join -right products.csv \
     -on product_id -on region
 ```
 
@@ -423,12 +423,12 @@ Combine multiple data sources:
 
 ```bash
 # UNION (remove duplicates)
-streamv3 read-csv customers.csv | \
-  streamv3 union -file suppliers.csv
+ssql read-csv customers.csv | \
+  ssql union -file suppliers.csv
 
 # UNION ALL (keep duplicates)
-streamv3 read-csv file1.csv | \
-  streamv3 union -all -file file2.csv -file file3.csv
+ssql read-csv file1.csv | \
+  ssql union -all -file file2.csv -file file3.csv
 ```
 
 Equivalent SQL:
@@ -447,8 +447,8 @@ Generate interactive HTML charts with Chart.js:
 ### Simple Chart
 
 ```bash
-streamv3 read-csv employees.csv | \
-  streamv3 chart -x department -y salary -output salary_chart.html
+ssql read-csv employees.csv | \
+  ssql chart -x department -y salary -output salary_chart.html
 ```
 
 Opens `salary_chart.html` with an interactive chart featuring:
@@ -460,10 +460,10 @@ Opens `salary_chart.html` with an interactive chart featuring:
 ### Chart with Aggregations
 
 ```bash
-streamv3 read-csv employees.csv | \
-  streamv3 group-by department \
+ssql read-csv employees.csv | \
+  ssql group-by department \
     -function avg -field salary -result avg_salary | \
-  streamv3 chart -x department -y avg_salary -output dept_salaries.html
+  ssql chart -x department -y avg_salary -output dept_salaries.html
 ```
 
 ---
@@ -475,11 +475,11 @@ Every command supports the `-generate` flag to output Go code instead of executi
 ### Generate Code from Pipeline
 
 ```bash
-streamv3 read-csv -generate employees.csv | \
-  streamv3 where -generate -match department eq Engineering | \
-  streamv3 include name salary | \
-  streamv3 write-csv -generate output.csv | \
-  streamv3 generate-go
+ssql read-csv -generate employees.csv | \
+  ssql where -generate -match department eq Engineering | \
+  ssql include name salary | \
+  ssql write-csv -generate output.csv | \
+  ssql generate-go
 ```
 
 Output:
@@ -487,21 +487,21 @@ Output:
 package main
 
 import (
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
-	records := streamv3.ReadCSV("employees.csv")
-	filtered := streamv3.Where(func(r streamv3.Record) bool {
+	records := ssql.ReadCSV("employees.csv")
+	filtered := ssql.Where(func(r ssql.Record) bool {
 		return r["department"].(string) == "Engineering"
 	})(records)
-	selected := streamv3.Select(func(r streamv3.Record) streamv3.Record {
-		result := make(streamv3.Record)
+	selected := ssql.Select(func(r ssql.Record) ssql.Record {
+		result := make(ssql.Record)
 		result["name"] = r["name"]
 		result["salary"] = r["salary"]
 		return result
 	})(filtered)
-	streamv3.WriteCSV(selected, "output.csv")
+	ssql.WriteCSV(selected, "output.csv")
 }
 ```
 
@@ -509,15 +509,15 @@ func main() {
 
 ```bash
 # Generate code to file
-streamv3 read-csv -generate data.csv | \
-  streamv3 group -generate -by region -function sum -field sales -result total | \
-  streamv3 generate-go > analysis.go
+ssql read-csv -generate data.csv | \
+  ssql group -generate -by region -function sum -field sales -result total | \
+  ssql generate-go > analysis.go
 
 # Add package initialization
 cat > go.mod << 'EOF'
 module analysis
 go 1.23
-require github.com/rosscartlidge/streamv3 latest
+require github.com/rosscartlidge/ssql latest
 EOF
 
 # Build and run
@@ -527,17 +527,17 @@ go run analysis.go
 
 ### Advanced Example: Complex Pipeline with Chain()
 
-When you use multiple transformation commands, the generated code automatically uses `streamv3.Chain()` for clean, readable code:
+When you use multiple transformation commands, the generated code automatically uses `ssql.Chain()` for clean, readable code:
 
 ```bash
 # Complex pipeline: filter, select, sort, limit
-streamv3 read-csv -generate sales.csv | \
-  streamv3 where -match revenue gt 1000 -generate | \
-  streamv3 include salesperson revenue | \
-  streamv3 sort revenue -desc -generate | \
-  streamv3 limit 10 -generate | \
-  streamv3 write-csv -generate top_performers.csv | \
-  streamv3 generate-go > report.go
+ssql read-csv -generate sales.csv | \
+  ssql where -match revenue gt 1000 -generate | \
+  ssql include salesperson revenue | \
+  ssql sort revenue -desc -generate | \
+  ssql limit 10 -generate | \
+  ssql write-csv -generate top_performers.csv | \
+  ssql generate-go > report.go
 ```
 
 Generated code (`report.go`):
@@ -547,7 +547,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 // asFloat64 converts Record values to float64 for numeric comparisons
@@ -564,19 +564,19 @@ func asFloat64(v any) float64 {
 }
 
 func main() {
-	records, err := streamv3.ReadCSV("sales.csv")
+	records, err := ssql.ReadCSV("sales.csv")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", fmt.Errorf("reading CSV: %w", err))
 		os.Exit(1)
 	}
 
 	// Multiple operations composed with Chain()
-	result := streamv3.Chain(
-		streamv3.Where(func(r streamv3.Record) bool {
+	result := ssql.Chain(
+		ssql.Where(func(r ssql.Record) bool {
 			return asFloat64(r["revenue"]) > 1000
 		}),
-		streamv3.Select(func(r streamv3.Record) streamv3.Record {
-			result := make(streamv3.Record)
+		ssql.Select(func(r ssql.Record) ssql.Record {
+			result := make(ssql.Record)
 			if val, exists := r["salesperson"]; exists {
 				result["salesperson"] = val
 			}
@@ -585,7 +585,7 @@ func main() {
 			}
 			return result
 		}),
-		streamv3.SortBy(func(r streamv3.Record) float64 {
+		ssql.SortBy(func(r ssql.Record) float64 {
 			val, _ := r["revenue"]
 			switch v := val.(type) {
 			case int64:
@@ -596,10 +596,10 @@ func main() {
 				return 0
 			}
 		}),
-		streamv3.Limit[streamv3.Record](10),
+		ssql.Limit[ssql.Record](10),
 	)(records)
 
-	streamv3.WriteCSV(result, "top_performers.csv")
+	ssql.WriteCSV(result, "top_performers.csv")
 }
 ```
 
@@ -627,14 +627,14 @@ cat top_performers.csv
 Generate code for GROUP BY with multiple aggregations:
 
 ```bash
-streamv3 read-csv -generate sales.csv | \
-  streamv3 group-by region \
+ssql read-csv -generate sales.csv | \
+  ssql group-by region \
     -function count -result num_sales + \
     -function sum -field revenue -result total_revenue + \
     -function avg -field revenue -result avg_revenue -generate | \
-  streamv3 sort total_revenue -desc -generate | \
-  streamv3 write-csv -generate region_report.csv | \
-  streamv3 generate-go > region_analysis.go
+  ssql sort total_revenue -desc -generate | \
+  ssql write-csv -generate region_report.csv | \
+  ssql generate-go > region_analysis.go
 ```
 
 Generated code:
@@ -644,25 +644,25 @@ package main
 import (
 	"fmt"
 	"os"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
-	records, err := streamv3.ReadCSV("sales.csv")
+	records, err := ssql.ReadCSV("sales.csv")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	grouped := streamv3.GroupByFields("_group", "region")(records)
+	grouped := ssql.GroupByFields("_group", "region")(records)
 
-	aggregated := streamv3.Aggregate("_group", map[string]streamv3.AggregateFunc{
-		"num_sales": streamv3.Count(),
-		"total_revenue": streamv3.Sum("revenue"),
-		"avg_revenue": streamv3.Avg("revenue"),
+	aggregated := ssql.Aggregate("_group", map[string]ssql.AggregateFunc{
+		"num_sales": ssql.Count(),
+		"total_revenue": ssql.Sum("revenue"),
+		"avg_revenue": ssql.Avg("revenue"),
 	})(grouped)
 
-	sorted := streamv3.SortBy(func(r streamv3.Record) float64 {
+	sorted := ssql.SortBy(func(r ssql.Record) float64 {
 		val, _ := r["total_revenue"]
 		switch v := val.(type) {
 		case int64:
@@ -674,7 +674,7 @@ func main() {
 		}
 	})(aggregated)
 
-	streamv3.WriteCSV(sorted, "region_report.csv")
+	ssql.WriteCSV(sorted, "region_report.csv")
 }
 ```
 
@@ -690,9 +690,9 @@ Let's build a comprehensive data analysis pipeline:
 
 ```bash
 # Execute the pipeline
-streamv3 exec -- ps -efl | \
-  streamv3 group-by UID -function count -result process_count | \
-  streamv3 chart -x UID -y process_count -output /tmp/processes_by_user.html
+ssql exec -- ps -efl | \
+  ssql group-by UID -function count -result process_count | \
+  ssql chart -x UID -y process_count -output /tmp/processes_by_user.html
 ```
 
 This will:
@@ -708,10 +708,10 @@ Output: `Chart created: /tmp/processes_by_user.html`
 Now convert the same pipeline to Go code:
 
 ```bash
-streamv3 exec -generate -- ps -efl | \
-  streamv3 group -generate -by UID -function count -result process_count | \
-  streamv3 chart -generate -x UID -y process_count -output processes.html | \
-  streamv3 generate-go > monitor.go
+ssql exec -generate -- ps -efl | \
+  ssql group -generate -by UID -function count -result process_count | \
+  ssql chart -generate -x UID -y process_count -output processes.html | \
+  ssql generate-go > monitor.go
 ```
 
 Generated code in `monitor.go`:
@@ -719,16 +719,16 @@ Generated code in `monitor.go`:
 package main
 
 import (
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
-	records := streamv3.ExecCommand("ps", []string{"-efl"})
-	grouped := streamv3.GroupByFields("_group", "UID")(records)
-	aggregated := streamv3.Aggregate("_group", map[string]streamv3.AggregateFunc{
-		"process_count": streamv3.Count(),
+	records := ssql.ExecCommand("ps", []string{"-efl"})
+	grouped := ssql.GroupByFields("_group", "UID")(records)
+	aggregated := ssql.Aggregate("_group", map[string]ssql.AggregateFunc{
+		"process_count": ssql.Count(),
 	})(grouped)
-	streamv3.QuickChart(aggregated, "UID", "process_count", "processes.html")
+	ssql.QuickChart(aggregated, "UID", "process_count", "processes.html")
 }
 ```
 
@@ -736,7 +736,7 @@ Compile and run:
 ```bash
 # Setup module
 go mod init monitor
-go get github.com/rosscartlidge/streamv3
+go get github.com/rosscartlidge/ssql
 
 # Build and run
 go build -o monitor monitor.go
@@ -777,13 +777,13 @@ go build -o monitor monitor.go
 
 ```bash
 # Show all commands
-streamv3 -help
+ssql -help
 
 # Show command-specific help
-streamv3 read-csv -help
-streamv3 where -help
-streamv3 group -help
-streamv3 chart -help
+ssql read-csv -help
+ssql where -help
+ssql group -help
+ssql chart -help
 ```
 
 ### Bash Completion
@@ -792,36 +792,36 @@ The CLI supports intelligent tab completion for commands, flags, and even field 
 
 ```bash
 # Install bash completion (for current session)
-eval "$(streamv3 -bash-completion)"
+eval "$(ssql -bash-completion)"
 
 # Install permanently
-streamv3 -bash-completion > ~/.local/share/bash-completion/completions/streamv3
+ssql -bash-completion > ~/.local/share/bash-completion/completions/streamv3
 
 # Or add to ~/.bashrc
-echo 'eval "$(streamv3 -bash-completion)"' >> ~/.bashrc
+echo 'eval "$(ssql -bash-completion)"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
 Now you can tab-complete:
 ```bash
-streamv3 <TAB>          # Shows all commands
-streamv3 where <TAB>    # Shows flags like -match, -help
-streamv3 read-csv <TAB> # Completes .csv files
+ssql <TAB>          # Shows all commands
+ssql where <TAB>    # Shows flags like -match, -help
+ssql read-csv <TAB> # Completes .csv files
 ```
 
 ### Understanding Command Structure (Advanced)
 
-StreamV3 CLI uses the **completionflags** framework for declarative command definitions. This enables powerful features:
+ssql CLI uses the **completionflags** framework for declarative command definitions. This enables powerful features:
 
 **Clause Pattern:**
 Commands that support multiple items use `+` as a separator to create "clauses". Each clause can have its own set of flags:
 
 ```bash
 # Multiple WHERE conditions (OR logic) - each clause after + is independent
-streamv3 where -match age gt 30 + -match salary gt 100000
+ssql where -match age gt 30 + -match salary gt 100000
 
 # Multiple aggregations - each + starts a new aggregation
-streamv3 group-by department \
+ssql group-by department \
   -function count -result total + \
   -function avg -field salary -result avg_salary + \
   -function max -field salary -result max_salary
@@ -835,7 +835,7 @@ streamv3 group-by department \
 
 **Example breakdown:**
 ```bash
-streamv3 group-by department \
+ssql group-by department \
   -function count -result total + \
   #     └─ Clause 1 ─────────┘   │
   -function avg -field salary -result avg_salary
@@ -858,12 +858,12 @@ This pattern makes complex commands readable while maintaining type safety and c
 
 1. **Prototype with CLI** - Quickly explore your data
    ```bash
-   streamv3 read-csv data.csv | streamv3 where ... | streamv3 chart ...
+   ssql read-csv data.csv | ssql where ... | ssql chart ...
    ```
 
 2. **Generate Code** - Convert to Go when satisfied
    ```bash
-   streamv3 read-csv -generate data.csv | ... | streamv3 generate-go > app.go
+   ssql read-csv -generate data.csv | ... | ssql generate-go > app.go
    ```
 
 3. **Refine and Deploy** - Edit generated code, add error handling, deploy
@@ -874,12 +874,12 @@ This pattern makes complex commands readable while maintaining type safety and c
 ### Advanced Topics
 
 - **[API Reference](api-reference.md)** - Full library documentation for refining generated code
-- **[Getting Started Guide](codelab-intro.md)** - Learn the StreamV3 library directly
+- **[Getting Started Guide](codelab-intro.md)** - Learn the ssql library directly
 - **[Advanced Tutorial](advanced-tutorial.md)** - Production patterns and optimization
 
 ### Recently Added (v0.7.0)
 
-StreamV3 now supports essential SQL operations:
+ssql now supports essential SQL operations:
 - ✅ `join` - All JOIN types (INNER, LEFT, RIGHT, FULL)
 - ✅ `distinct` - Remove duplicates
 - ✅ `offset` - Skip N records for pagination
@@ -900,7 +900,7 @@ The CLI is actively being developed. Upcoming features:
 
 - **[Debugging Guide](debugging_pipelines.md)** - Learn to debug pipelines with jq
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
-- **[GitHub Issues](https://github.com/rosscartlidge/streamv3/issues)** - Report bugs
+- **[GitHub Issues](https://github.com/rosscartlidge/ssql/issues)** - Report bugs
 - **Examples** - Check `examples/` directory
 - **API Reference** - Full library documentation
 

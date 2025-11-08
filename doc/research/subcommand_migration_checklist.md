@@ -1,8 +1,8 @@
-# StreamV3 Subcommand Migration - Production Checklist
+# ssql Subcommand Migration - Production Checklist
 
 ## Overview
 
-Migrate StreamV3 from custom subcommand routing to native completionflags subcommand support.
+Migrate ssql from custom subcommand routing to native completionflags subcommand support.
 
 **Target Release:** v1.2.0
 **Estimated Time:** 10-12 hours
@@ -82,9 +82,9 @@ Migrate StreamV3 from custom subcommand routing to native completionflags subcom
 - [ ] Document initial state
   ```bash
   # Count lines in files to be deleted
-  wc -l cmd/streamv3/main.go
-  wc -l cmd/streamv3/commands/registry.go
-  wc -l cmd/streamv3/commands/*.go
+  wc -l cmd/ssql/main.go
+  wc -l cmd/ssql/commands/registry.go
+  wc -l cmd/ssql/commands/*.go
   ```
 
 **Expected Output:** Clean branch ready for work
@@ -95,7 +95,7 @@ Migrate StreamV3 from custom subcommand routing to native completionflags subcom
 
 ### 2.1 Create New Main Structure (1 hour)
 
-Create `cmd/streamv3/main_v2.go` with root command and 3 simple subcommands.
+Create `cmd/ssql/main_v2.go` with root command and 3 simple subcommands.
 
 - [ ] Create file skeleton
   ```go
@@ -105,8 +105,8 @@ Create `cmd/streamv3/main_v2.go` with root command and 3 simple subcommands.
       "fmt"
       "os"
       cf "github.com/rosscartlidge/completionflags"
-      "github.com/rosscartlidge/streamv3"
-      "github.com/rosscartlidge/streamv3/cmd/streamv3/version"
+      "github.com/rosscartlidge/ssql"
+      "github.com/rosscartlidge/ssql/cmd/ssql/version"
   )
 
   func buildRootCommand() *cf.Command {
@@ -143,7 +143,7 @@ Create `cmd/streamv3/main_v2.go` with root command and 3 simple subcommands.
   - **offset** - similar to limit
   - **distinct** - simple, no complex flags
 
-**File:** `cmd/streamv3/main_v2.go`
+**File:** `cmd/ssql/main_v2.go`
 
 ---
 
@@ -169,7 +169,7 @@ Create `cmd/streamv3/main_v2.go` with root command and 3 simple subcommands.
           input := lib.ReadJSONL(os.Stdin)
 
           // Apply limit
-          limited := streamv3.Limit[streamv3.Record](n)(input)
+          limited := ssql.Limit[ssql.Record](n)(input)
 
           // Write to stdout
           return lib.WriteJSONL(os.Stdout, limited)
@@ -180,7 +180,7 @@ Create `cmd/streamv3/main_v2.go` with root command and 3 simple subcommands.
 - [ ] Test limit subcommand
   ```bash
   # Build with POC
-  go build -o streamv3_v2 -tags=v2 ./cmd/streamv3
+  go build -o streamv3_v2 -tags=v2 ./cmd/ssql
 
   # Test
   echo '{"id":1}
@@ -320,7 +320,7 @@ Subcommand("select").
 
         // Apply select operation
         input := lib.ReadJSONL(os.Stdin)
-        selected := streamv3.Select(func(r streamv3.Record) streamv3.Record {
+        selected := ssql.Select(func(r ssql.Record) ssql.Record {
             // ... select logic
         })(input)
 
@@ -440,8 +440,8 @@ Subcommand("where").
 
 - [ ] Rename files
   ```bash
-  mv cmd/streamv3/main.go cmd/streamv3/main_old.go
-  mv cmd/streamv3/main_v2.go cmd/streamv3/main.go
+  mv cmd/ssql/main.go cmd/ssql/main_old.go
+  mv cmd/ssql/main_v2.go cmd/ssql/main.go
   ```
 
 - [ ] Add build tag to old main (temporary)
@@ -454,8 +454,8 @@ Subcommand("where").
 
 - [ ] Rebuild
   ```bash
-  go build ./cmd/streamv3
-  streamv3 -version  # Should show v1.2.0-dev
+  go build ./cmd/ssql
+  ssql -version  # Should show v1.2.0-dev
   ```
 
 **Expected Output:** New implementation is now default
@@ -479,22 +479,22 @@ Subcommand("where").
   echo "Testing limit..."
   echo '{"id":1}
   {"id":2}
-  {"id":3}' | streamv3 limit -n 2
+  {"id":3}' | ssql limit -n 2
 
   echo "Testing offset..."
   echo '{"id":1}
   {"id":2}
-  {"id":3}' | streamv3 offset -n 1
+  {"id":3}' | ssql offset -n 1
 
   echo "Testing where..."
   echo '{"age":25}
   {"age":35}
-  {"age":45}' | streamv3 where -match age gt 30
+  {"age":45}' | ssql where -match age gt 30
 
   echo "Testing join..."
   echo '{"id":1,"name":"Alice"}' > /tmp/left.jsonl
   echo '{"id":1,"dept":"Eng"}' > /tmp/right.jsonl
-  cat /tmp/left.jsonl | streamv3 join -right /tmp/right.jsonl -on id
+  cat /tmp/left.jsonl | ssql join -right /tmp/right.jsonl -on id
 
   # ... etc for all commands
 
@@ -507,29 +507,29 @@ Subcommand("where").
 
 - [ ] Test completion
   ```bash
-  streamv3 -completion-script > /tmp/streamv3_completion.sh
+  ssql -completion-script > /tmp/streamv3_completion.sh
   source /tmp/streamv3_completion.sh
 
   # Test completion works
-  streamv3 wh<TAB>
-  streamv3 where -m<TAB>
+  ssql wh<TAB>
+  ssql where -m<TAB>
   ```
 
 - [ ] Test help
   ```bash
-  streamv3 -help              # Shows all subcommands
-  streamv3 where -help        # Shows where-specific help
-  streamv3 join -help         # Shows join-specific help
+  ssql -help              # Shows all subcommands
+  ssql where -help        # Shows where-specific help
+  ssql join -help         # Shows join-specific help
   ```
 
 - [ ] Test pipelines
   ```bash
-  streamv3 read-csv data.csv | \
-    streamv3 where -match age gt 30 | \
-    streamv3 select -field name -field age | \
-    streamv3 sort -field age -desc | \
-    streamv3 limit -n 10 | \
-    streamv3 write-csv output.csv
+  ssql read-csv data.csv | \
+    ssql where -match age gt 30 | \
+    ssql select -field name -field age | \
+    ssql sort -field age -desc | \
+    ssql limit -n 10 | \
+    ssql write-csv output.csv
   ```
 
 **Expected Output:** All tests pass, completion works
@@ -540,16 +540,16 @@ Subcommand("where").
 
 - [ ] Benchmark simple command
   ```bash
-  time cat large.jsonl | streamv3 limit -n 10000 > /dev/null
+  time cat large.jsonl | ssql limit -n 10000 > /dev/null
   # Compare with old version
   ```
 
 - [ ] Benchmark complex pipeline
   ```bash
-  time streamv3 read-csv large.csv | \
-    streamv3 where -match age gt 30 | \
-    streamv3 group-by -field dept -aggregate salary sum | \
-    streamv3 write-csv output.csv
+  time ssql read-csv large.csv | \
+    ssql where -match age gt 30 | \
+    ssql group-by -field dept -aggregate salary sum | \
+    ssql write-csv output.csv
   ```
 
 - [ ] Document any performance regressions
@@ -564,12 +564,12 @@ Subcommand("where").
 
 - [ ] Delete old main
   ```bash
-  rm cmd/streamv3/main_old.go
+  rm cmd/ssql/main_old.go
   ```
 
 - [ ] Delete commands directory
   ```bash
-  rm -rf cmd/streamv3/commands/
+  rm -rf cmd/ssql/commands/
   ```
 
 - [ ] Delete custom completion code
@@ -622,8 +622,8 @@ Subcommand("where").
 
   ### Migration Guide
   **Completion Setup:**
-  - Old: `eval "$(streamv3 -bash-completion)"`
-  - New: `eval "$(streamv3 -completion-script)"`
+  - Old: `eval "$(ssql -bash-completion)"`
+  - New: `eval "$(ssql -completion-script)"`
   ```
 
 **Expected Output:** Documentation up to date
@@ -646,8 +646,8 @@ Subcommand("where").
 
 - [ ] Completion works
   ```bash
-  source <(streamv3 -completion-script)
-  streamv3 <TAB>
+  source <(ssql -completion-script)
+  ssql <TAB>
   ```
 
 - [ ] Documentation updated
@@ -662,12 +662,12 @@ Subcommand("where").
 
 - [ ] Update version
   ```bash
-  echo "v1.2.0" > cmd/streamv3/version/version.txt
+  echo "v1.2.0" > cmd/ssql/version/version.txt
   ```
 
 - [ ] Commit version
   ```bash
-  git add cmd/streamv3/version/version.txt
+  git add cmd/ssql/version/version.txt
   git commit -m "Bump version to v1.2.0"
   ```
 
@@ -686,7 +686,7 @@ Subcommand("where").
 - [ ] Create tag
   ```bash
   git tag -a v1.2.0 -m "$(cat <<'EOF'
-  StreamV3 v1.2.0 - Native Subcommand Support
+  ssql v1.2.0 - Native Subcommand Support
 
   This release migrates to completionflags native subcommand support,
   simplifying the codebase and improving user experience.
@@ -701,7 +701,7 @@ Subcommand("where").
   - Completion flag: Use -completion-script instead of -bash-completion
 
   MIGRATION:
-  - Update: eval "$(streamv3 -completion-script)"
+  - Update: eval "$(ssql -completion-script)"
   - Everything else works the same
 
   For details, see CHANGELOG.md
@@ -716,8 +716,8 @@ Subcommand("where").
 
 - [ ] Rebuild and install
   ```bash
-  go install ./cmd/streamv3
-  streamv3 -version  # Should show v1.2.0
+  go install ./cmd/ssql
+  ssql -version  # Should show v1.2.0
   ```
 
 **Expected Output:** v1.2.0 released!
@@ -728,10 +728,10 @@ Subcommand("where").
 
 After release, verify:
 
-- [ ] `streamv3 -version` shows v1.2.0
-- [ ] `streamv3 -help` shows all subcommands
-- [ ] `streamv3 -completion-script` generates completion
-- [ ] Completion works: `streamv3 wh<TAB>` → `where`
+- [ ] `ssql -version` shows v1.2.0
+- [ ] `ssql -help` shows all subcommands
+- [ ] `ssql -completion-script` generates completion
+- [ ] Completion works: `ssql wh<TAB>` → `where`
 - [ ] All commands execute correctly
 - [ ] Pipelines work
 - [ ] Join with hash optimization still works

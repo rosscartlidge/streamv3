@@ -62,7 +62,7 @@ Score: 7/8 checks passed (97.5%)
 
 | Pattern | Anti-Patterns Prompt | Detailed Examples Prompt |
 |---------|---------------------|-------------------------|
-| **Import Path** | ✅ `github.com/rosscartlidge/streamv3` | ✅ `github.com/rosscartlidge/streamv3` |
+| **Import Path** | ✅ `github.com/rosscartlidge/ssql` | ✅ `github.com/rosscartlidge/ssql` |
 | **Where vs Filter** | ✅ Uses `Where` | ✅ Uses `Where` |
 | **GroupByFields** | ✅ Separate from Aggregate | ✅ Separate from Aggregate |
 | **Count() syntax** | ✅ `Count()` no params | ✅ `Count()` no params |

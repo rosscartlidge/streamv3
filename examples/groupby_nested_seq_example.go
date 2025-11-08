@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 	"iter"
 	"slices"
 )
@@ -17,33 +17,33 @@ func main() {
 	tags3 := slices.Values([]string{"personal"})
 
 	// Nested records containing iter.Seq fields
-	profile1 := streamv3.MakeMutableRecord().
+	profile1 := ssql.MakeMutableRecord().
 		String("role", "developer").
 		StringSeq("tags", tags1).
 		Freeze()
 
-	profile2 := streamv3.MakeMutableRecord().
+	profile2 := ssql.MakeMutableRecord().
 		String("role", "developer").
 		StringSeq("tags", tags2). // Same content as profile1, but different sequence instance
 		Freeze()
 
-	profile3 := streamv3.MakeMutableRecord().
+	profile3 := ssql.MakeMutableRecord().
 		String("role", "manager").
 		StringSeq("tags", tags3).
 		Freeze()
 
-	records := []streamv3.Record{
-		streamv3.MakeMutableRecord().String("user", "Alice").Nested("profile", profile1).Freeze(),
-		streamv3.MakeMutableRecord().String("user", "Bob").Nested("profile", profile2).Freeze(),   // Same profile content as Alice
-		streamv3.MakeMutableRecord().String("user", "Carol").Nested("profile", profile3).Freeze(), // Different profile
+	records := []ssql.Record{
+		ssql.MakeMutableRecord().String("user", "Alice").Nested("profile", profile1).Freeze(),
+		ssql.MakeMutableRecord().String("user", "Bob").Nested("profile", profile2).Freeze(),   // Same profile content as Alice
+		ssql.MakeMutableRecord().String("user", "Carol").Nested("profile", profile3).Freeze(), // Different profile
 	}
 
 	fmt.Println("📊 Sample records:")
 	for i, record := range records {
-		user := streamv3.GetOr(record, "user", "")
-		if profile, ok := streamv3.Get[streamv3.Record](record, "profile"); ok {
-			role := streamv3.GetOr(profile, "role", "")
-			if tagsSeq, ok := streamv3.Get[iter.Seq[string]](profile, "tags"); ok {
+		user := ssql.GetOr(record, "user", "")
+		if profile, ok := ssql.Get[ssql.Record](record, "profile"); ok {
+			role := ssql.GetOr(profile, "role", "")
+			if tagsSeq, ok := ssql.Get[iter.Seq[string]](profile, "tags"); ok {
 				fmt.Printf("  %d. %s (%s) with tags: ", i+1, user, role)
 				for tag := range tagsSeq {
 					fmt.Printf("%s ", tag)
@@ -55,10 +55,10 @@ func main() {
 
 	fmt.Println("\n🧪 Trying to group by 'profile' field (Record containing iter.Seq):")
 
-	results := streamv3.Chain(
-		streamv3.GroupByFields("group_data", "profile"),
-		streamv3.Aggregate("group_data", map[string]streamv3.AggregateFunc{
-			"count": streamv3.Count(),
+	results := ssql.Chain(
+		ssql.GroupByFields("group_data", "profile"),
+		ssql.Aggregate("group_data", map[string]ssql.AggregateFunc{
+			"count": ssql.Count(),
 		}),
 	)(slices.Values(records))
 
@@ -66,10 +66,10 @@ func main() {
 	groupCount := 0
 	for result := range results {
 		groupCount++
-		count := streamv3.GetOr(result, "count", int64(0))
+		count := ssql.GetOr(result, "count", int64(0))
 
-		if profile, ok := streamv3.Get[streamv3.Record](result, "profile"); ok {
-			role := streamv3.GetOr(profile, "role", "")
+		if profile, ok := ssql.Get[ssql.Record](result, "profile"); ok {
+			role := ssql.GetOr(profile, "role", "")
 			fmt.Printf("  Group %d: %d records, role = %s\n", groupCount, count, role)
 		}
 	}

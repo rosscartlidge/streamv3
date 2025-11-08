@@ -6,7 +6,7 @@ import (
 	"os"
 	"slices"
 
-	streamv3 "github.com/rosscartlidge/streamv3"
+	streamv3 "github.com/rosscartlidge/ssql"
 )
 
 func main() {

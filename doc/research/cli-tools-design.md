@@ -1,17 +1,17 @@
-# StreamV3 CLI Tools Design Document
+# ssql CLI Tools Design Document
 
 ## Executive Summary
 
-This document outlines the design and implementation of command-line tools for StreamV3, enabling Unix-style pipelines for data processing. The CLI will leverage the existing gs (gogstools) framework for declarative command definition, intelligent tab completion, and clause-based filtering.
+This document outlines the design and implementation of command-line tools for ssql, enabling Unix-style pipelines for data processing. The CLI will leverage the existing gs (gogstools) framework for declarative command definition, intelligent tab completion, and clause-based filtering.
 
 **Example Pipeline:**
 ```bash
 cat data.csv |
-  streamv3 read-csv |
-  streamv3 where -match age gt 18 -match status eq active |
-  streamv3 group -by age -function count -result count + -function avg -field score -result avg_score |
-  streamv3 sort -field count -desc |
-  streamv3 write-csv > output.csv
+  ssql read-csv |
+  ssql where -match age gt 18 -match status eq active |
+  ssql group -by age -function count -result count + -function avg -field score -result avg_score |
+  ssql sort -field count -desc |
+  ssql write-csv > output.csv
 ```
 
 ## Goals
@@ -19,23 +19,23 @@ cat data.csv |
 1. **Unix Philosophy**: Small, composable tools that do one thing well
 2. **Streaming Performance**: Process data in constant memory regardless of size
 3. **Developer Experience**: Intelligent tab completion for fields, operators, and values
-4. **Type Safety**: Maintain StreamV3's type system in CLI tools
+4. **Type Safety**: Maintain ssql's type system in CLI tools
 5. **Discoverability**: Self-documenting with -help, -man, -bash-completion
 
 ## Architecture
 
 ### Binary Structure
 
-**Single binary with subcommands**: `streamv3 <command> [options]`
+**Single binary with subcommands**: `ssql <command> [options]`
 
-- Single `cmd/streamv3/main.go` entry point
-- Each command in separate package: `cmd/streamv3/commands/<command>/`
-- Shared utilities in `cmd/streamv3/lib/`
+- Single `cmd/ssql/main.go` entry point
+- Each command in separate package: `cmd/ssql/commands/<command>/`
+- Shared utilities in `cmd/ssql/lib/`
 
 **Benefits:**
-- Single installation: `go install github.com/rosscartlidge/streamv3/cmd/streamv3@latest`
-- Consistent help system: `streamv3 -help` shows all commands
-- Shared completion script: `streamv3 -bash-completion`
+- Single installation: `go install github.com/rosscartlidge/ssql/cmd/ssql@latest`
+- Consistent help system: `ssql -help` shows all commands
+- Shared completion script: `ssql -bash-completion`
 
 ### Data Interchange Format: JSONL (JSON Lines)
 
@@ -70,8 +70,8 @@ cat data.csv |
 
 **Usage:**
 ```bash
-streamv3 read-csv data.csv
-cat data.csv | streamv3 read-csv
+ssql read-csv data.csv
+cat data.csv | ssql read-csv
 ```
 
 **Config:**
@@ -84,7 +84,7 @@ type ReadCSVConfig struct {
 ```
 
 **Features:**
-- Auto-detect numeric types (consistent with StreamV3.ReadCSV)
+- Auto-detect numeric types (consistent with ssql.ReadCSV)
 - Read from file or stdin
 - Output JSONL to stdout
 
@@ -93,8 +93,8 @@ type ReadCSVConfig struct {
 
 **Usage:**
 ```bash
-streamv3 write-csv output.csv
-cat data.jsonl | streamv3 write-csv
+ssql write-csv output.csv
+cat data.jsonl | ssql write-csv
 ```
 
 **Config:**
@@ -117,16 +117,16 @@ type WriteCSVConfig struct {
 **Usage:**
 ```bash
 # Single condition
-streamv3 where -match age gt 18
+ssql where -match age gt 18
 
 # Multiple AND conditions (multiple -match in same command)
-streamv3 where -match age gt 18 -match status eq active
+ssql where -match age gt 18 -match status eq active
 
 # OR conditions (+ separator starts new clause)
-streamv3 where -match age gt 65 + -match age lt 18
+ssql where -match age gt 65 + -match age lt 18
 
 # Complex: (A AND B) OR C
-streamv3 where -match age gt 18 -match status eq active + -match department eq Engineering
+ssql where -match age gt 18 -match status eq active + -match department eq Engineering
 ```
 
 **Config:**
@@ -155,13 +155,13 @@ type WhereConfig struct {
 **Usage:**
 ```bash
 # Select specific fields (use + to separate multiple fields)
-streamv3 select -field name + -field age
+ssql select -field name + -field age
 
 # Rename fields
-streamv3 select -field name -as fullname + -field age
+ssql select -field name -as fullname + -field age
 
 # Multiple field selection
-streamv3 select -field name + -field age + -field department
+ssql select -field name + -field age + -field department
 ```
 
 **Config:**
@@ -175,7 +175,7 @@ type SelectConfig struct {
 ```
 
 **Implementation:**
-- Maps to StreamV3.Select() for field projection
+- Maps to ssql.Select() for field projection
 - Each clause specifies one output field
 
 ### 5. group
@@ -184,10 +184,10 @@ type SelectConfig struct {
 **Usage:**
 ```bash
 # Group by single field with aggregation
-streamv3 group - fields department - agg 'count=count()' - agg 'avg_salary=avg(salary)'
+ssql group - fields department - agg 'count=count()' - agg 'avg_salary=avg(salary)'
 
 # Group by multiple fields
-streamv3 group - fields department - fields location - agg 'total=sum(sales)'
+ssql group - fields department - fields location - agg 'total=sum(sales)'
 ```
 
 **Config:**
@@ -210,7 +210,7 @@ type GroupByConfig struct {
 
 **Implementation:**
 - Parse aggregation expressions: `name=func(field)`
-- Maps to StreamV3.GroupByFields() + Aggregate()
+- Maps to ssql.GroupByFields() + Aggregate()
 
 ### 6. sort
 **Purpose:** Sort records by fields
@@ -218,13 +218,13 @@ type GroupByConfig struct {
 **Usage:**
 ```bash
 # Sort ascending
-streamv3 sort -field age
+ssql sort -field age
 
 # Sort descending
-streamv3 sort -field age -desc
+ssql sort -field age -desc
 
 # Multi-field sort (future enhancement)
-streamv3 sort -field department + -field age -desc
+ssql sort -field department + -field age -desc
 ```
 
 **Config:**
@@ -237,7 +237,7 @@ type SortConfig struct {
 ```
 
 **Implementation:**
-- Maps to StreamV3.SortBy() with field extraction
+- Maps to ssql.SortBy() with field extraction
 - Descending = negate numeric values
 
 ### 7. limit
@@ -245,7 +245,7 @@ type SortConfig struct {
 
 **Usage:**
 ```bash
-streamv3 limit -n 100
+ssql limit -n 100
 ```
 
 **Config:**
@@ -262,10 +262,10 @@ type LimitConfig struct {
 **Usage:**
 ```bash
 # Distinct by all fields
-streamv3 distinct
+ssql distinct
 
 # Distinct by specific fields
-streamv3 distinct - field name - field email
+ssql distinct - field name - field email
 ```
 
 **Config:**
@@ -277,7 +277,7 @@ type DistinctConfig struct {
 ```
 
 **Implementation:**
-- No fields specified = StreamV3.Distinct() on entire record
+- No fields specified = ssql.Distinct() on entire record
 - Fields specified = Distinct by field subset
 
 ## gs Framework Enhancements
@@ -367,8 +367,8 @@ func (cfg *WhereConfig) GetOperators(fieldName string) []string {
 **Enhancement:** Auto-detect stdin vs file input
 
 ```go
-// In cmd/streamv3/lib/input.go
-func OpenInput(filename string) (iter.Seq[streamv3.Record], error) {
+// In cmd/ssql/lib/input.go
+func OpenInput(filename string) (iter.Seq[ssql.Record], error) {
     var reader io.Reader
 
     if filename == "" || filename == "-" {
@@ -393,26 +393,26 @@ func OpenInput(filename string) (iter.Seq[streamv3.Record], error) {
 
 ### 5. Clause-to-Filter Composition
 
-**Enhancement:** Helper to convert gs.ClauseSet to StreamV3 Filter
+**Enhancement:** Helper to convert gs.ClauseSet to ssql Filter
 
 ```go
-// In cmd/streamv3/lib/compose.go
-type ClauseFilter func(clause gs.ClauseSet) streamv3.Filter[streamv3.Record, streamv3.Record]
+// In cmd/ssql/lib/compose.go
+type ClauseFilter func(clause gs.ClauseSet) ssql.Filter[ssql.Record, ssql.Record]
 
-func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Filter[streamv3.Record, streamv3.Record] {
+func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) ssql.Filter[ssql.Record, ssql.Record] {
     if len(clauses) == 0 {
-        return func(seq iter.Seq[streamv3.Record]) iter.Seq[streamv3.Record] {
+        return func(seq iter.Seq[ssql.Record]) iter.Seq[ssql.Record] {
             return seq // Identity filter
         }
     }
 
     // Each clause = one filter, compose with Pipe()
-    filters := make([]streamv3.Filter[streamv3.Record, streamv3.Record], len(clauses))
+    filters := make([]ssql.Filter[ssql.Record, ssql.Record], len(clauses))
     for i, clause := range clauses {
         filters[i] = makeFilter(clause)
     }
 
-    return streamv3.Pipe(filters...)
+    return ssql.Pipe(filters...)
 }
 ```
 
@@ -426,8 +426,8 @@ func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Fi
    - Test with existing gogstools examples
 
 2. **CLI Infrastructure**
-   - Create `cmd/streamv3/main.go` with command router
-   - Create `cmd/streamv3/lib/` with shared utilities:
+   - Create `cmd/ssql/main.go` with command router
+   - Create `cmd/ssql/lib/` with shared utilities:
      - `input.go`: JSONL reading from stdin/file
      - `output.go`: JSONL writing to stdout/file
      - `compose.go`: Clause-to-Filter helpers
@@ -436,7 +436,7 @@ func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Fi
 3. **Basic I/O Commands**
    - Implement `read-csv` command
    - Implement `write-csv` command
-   - Test: `cat data.csv | streamv3 read-csv | streamv3 write-csv`
+   - Test: `cat data.csv | ssql read-csv | ssql write-csv`
 
 ### Phase 2: Core Filtering (Week 2)
 1. **where command**
@@ -448,7 +448,7 @@ func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Fi
 2. **select command**
    - Field projection
    - Field renaming
-   - Test: `streamv3 read-csv data.csv | streamv3 select - field name - field age`
+   - Test: `ssql read-csv data.csv | ssql select - field name - field age`
 
 3. **limit command**
    - Simple record limiting
@@ -459,7 +459,7 @@ func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Fi
    - Parse aggregation expressions
    - Implement all aggregation functions
    - Support multi-field grouping
-   - Test: `streamv3 group - fields dept - agg 'count=count()' - agg 'avg=avg(salary)'`
+   - Test: `ssql group - fields dept - agg 'count=count()' - agg 'avg=avg(salary)'`
 
 2. **sort command**
    - Single and multi-field sorting
@@ -492,41 +492,41 @@ func ComposeFilters(clauses []gs.ClauseSet, makeFilter ClauseFilter) streamv3.Fi
 ```bash
 # Remove invalid records, select relevant fields, deduplicate
 cat users.csv |
-  streamv3 read-csv |
-  streamv3 where -match age gt 0 -match email contains '@' |
-  streamv3 select -field name + -field email + -field age |
-  streamv3 distinct -field email |
-  streamv3 write-csv > clean_users.csv
+  ssql read-csv |
+  ssql where -match age gt 0 -match email contains '@' |
+  ssql select -field name + -field email + -field age |
+  ssql distinct -field email |
+  ssql write-csv > clean_users.csv
 ```
 
 ### Use Case 2: Analytics
 ```bash
 # Find top Engineering employees by salary
 cat employees.csv |
-  streamv3 read-csv |
-  streamv3 where -match department eq Engineering |
-  streamv3 select -field name + -field salary + -field age |
-  streamv3 sort -field salary -desc |
-  streamv3 limit -n 10 |
-  streamv3 write-csv > top_engineers.csv
+  ssql read-csv |
+  ssql where -match department eq Engineering |
+  ssql select -field name + -field salary + -field age |
+  ssql sort -field salary -desc |
+  ssql limit -n 10 |
+  ssql write-csv > top_engineers.csv
 ```
 
 ### Use Case 3: Complex Filtering
 ```bash
 # Find employees who are either senior (age > 40) or high earners (salary > 100k)
-streamv3 read-csv employees.csv |
-  streamv3 where -match age gt 40 + -match salary gt 100000 |
-  streamv3 sort -field salary -desc |
-  streamv3 write-csv > senior_or_high_earners.csv
+ssql read-csv employees.csv |
+  ssql where -match age gt 40 + -match salary gt 100000 |
+  ssql sort -field salary -desc |
+  ssql write-csv > senior_or_high_earners.csv
 ```
 
 ### Use Case 4: Multi-criteria Filtering
 ```bash
 # Find young Engineering employees OR any Sales employees
-streamv3 read-csv employees.csv |
-  streamv3 where -match age lt 30 -match department eq Engineering + -match department eq Sales |
-  streamv3 select -field name + -field department + -field age |
-  streamv3 write-csv > filtered_employees.csv
+ssql read-csv employees.csv |
+  ssql where -match age lt 30 -match department eq Engineering + -match department eq Sales |
+  ssql select -field name + -field department + -field age |
+  ssql write-csv > filtered_employees.csv
 ```
 
 ## Design Decisions
@@ -539,12 +539,12 @@ streamv3 read-csv employees.csv |
 
 ### Why single binary with subcommands?
 - **Installation**: Single `go install` command
-- **Discoverability**: `streamv3 -help` shows all commands
+- **Discoverability**: `ssql -help` shows all commands
 - **Consistency**: Shared flags (-help, -bash-completion, -man)
 - **Completion**: Single completion script for all commands
 
 ### Why clause-based syntax with - and +?
-- **Composability**: Matches StreamV3's Pipe() mental model
+- **Composability**: Matches ssql's Pipe() mental model
 - **Readability**: Clear separation of arguments
 - **Power**: OR logic (+) and AND logic (-) in same command
 - **Completion**: gs framework handles parsing automatically
@@ -560,13 +560,13 @@ streamv3 read-csv employees.csv |
 
 ### Overview
 
-One of the most powerful features of the StreamV3 CLI is the ability to **prototype pipelines interactively**, then convert them to **production-quality Go code** for deployment. This workflow combines the rapid iteration of CLI tools with the performance and type safety of compiled Go programs.
+One of the most powerful features of the ssql CLI is the ability to **prototype pipelines interactively**, then convert them to **production-quality Go code** for deployment. This workflow combines the rapid iteration of CLI tools with the performance and type safety of compiled Go programs.
 
 ### Self-Generating Command Architecture (IMPLEMENTED)
 
 **Status:** ✅ Implemented and deployed
 
-The StreamV3 CLI uses a revolutionary **self-generating command architecture** where each command generates its own Go code. This eliminates the need for a separate parser and ensures generated code always stays in sync with command implementations.
+The ssql CLI uses a revolutionary **self-generating command architecture** where each command generates its own Go code. This eliminates the need for a separate parser and ensures generated code always stays in sync with command implementations.
 
 #### Architecture Design
 
@@ -608,20 +608,20 @@ type CodeFragment struct {
 
 1. **read-csv -generate data.csv** outputs:
 ```json
-{"type":"init","var":"records","input":"","code":"records := streamv3.ReadCSV(\"data.csv\")","imports":null}
+{"type":"init","var":"records","input":"","code":"records := ssql.ReadCSV(\"data.csv\")","imports":null}
 ```
 
 2. **where -generate -match age gt 30** outputs:
 ```json
-{"type":"init","var":"records","input":"","code":"records := streamv3.ReadCSV(\"data.csv\")","imports":null}
-{"type":"stmt","var":"filtered","input":"records","code":"filtered := streamv3.Where(func(r streamv3.Record) bool {\n\t\treturn r[\"age\"].(float64) > 30\n\t})(records)","imports":null}
+{"type":"init","var":"records","input":"","code":"records := ssql.ReadCSV(\"data.csv\")","imports":null}
+{"type":"stmt","var":"filtered","input":"records","code":"filtered := ssql.Where(func(r ssql.Record) bool {\n\t\treturn r[\"age\"].(float64) > 30\n\t})(records)","imports":null}
 ```
 
 3. **write-csv -generate** outputs:
 ```json
-{"type":"init","var":"records","input":"","code":"records := streamv3.ReadCSV(\"data.csv\")","imports":null}
-{"type":"stmt","var":"filtered","input":"records","code":"filtered := streamv3.Where(func(r streamv3.Record) bool {\n\t\treturn r[\"age\"].(float64) > 30\n\t})(records)","imports":null}
-{"type":"final","var":"","input":"filtered","code":"streamv3.WriteCSV(\"\", filtered)","imports":null}
+{"type":"init","var":"records","input":"","code":"records := ssql.ReadCSV(\"data.csv\")","imports":null}
+{"type":"stmt","var":"filtered","input":"records","code":"filtered := ssql.Where(func(r ssql.Record) bool {\n\t\treturn r[\"age\"].(float64) > 30\n\t})(records)","imports":null}
+{"type":"final","var":"","input":"filtered","code":"ssql.WriteCSV(\"\", filtered)","imports":null}
 ```
 
 4. **generate-go** assembles all fragments:
@@ -629,22 +629,22 @@ type CodeFragment struct {
 package main
 
 import (
-	"github.com/rosscartlidge/streamv3"
+	"github.com/rosscartlidge/ssql"
 )
 
 func main() {
-	records := streamv3.ReadCSV("data.csv")
-	filtered := streamv3.Where(func(r streamv3.Record) bool {
+	records := ssql.ReadCSV("data.csv")
+	filtered := ssql.Where(func(r ssql.Record) bool {
 		return r["age"].(float64) > 30
 	})(records)
-	streamv3.WriteCSV("", filtered)
+	ssql.WriteCSV("", filtered)
 }
 ```
 
 #### Implementation Details
 
 **File Structure:**
-- `cmd/streamv3/lib/codefragment.go` - Fragment utilities
+- `cmd/ssql/lib/codefragment.go` - Fragment utilities
 - Each command implements `generateCode()` method
 - Commands use `ReadAllCodeFragments()` and `WriteCodeFragment()`
 
@@ -674,7 +674,7 @@ func (c *WhereConfig) generateCode(clauses []gs.ClauseSet) error {
 
     // 4. Generate this command's code
     filterCode, imports := generateWhereCode(clauses)
-    code := fmt.Sprintf("filtered := streamv3.Where(%s)(%s)", filterCode, inputVar)
+    code := fmt.Sprintf("filtered := ssql.Where(%s)(%s)", filterCode, inputVar)
 
     // 5. Write this command's fragment
     frag := lib.NewStmtFragment("filtered", inputVar, code, imports)
@@ -696,13 +696,13 @@ func (c *WhereConfig) generateCode(clauses []gs.ClauseSet) error {
 
 **Command with AND/OR Logic:**
 ```bash
-streamv3 where -match age gt 30 -match department eq Engineering + -match salary gt 100000
+ssql where -match age gt 30 -match department eq Engineering + -match salary gt 100000
 # Means: (age > 30 AND department = Engineering) OR (salary > 100000)
 ```
 
 **Generated Code:**
 ```go
-filtered := streamv3.Where(func(r streamv3.Record) bool {
+filtered := ssql.Where(func(r ssql.Record) bool {
     return (r["age"].(float64) > 30 && r["department"] == "Engineering") ||
            r["salary"].(float64) > 100000
 })(records)
@@ -803,28 +803,28 @@ func (c *MyCommandConfig) generateCode(clauses []gs.ClauseSet) error {
 
 **Simple Pipeline:**
 ```bash
-streamv3 read-csv -generate data.csv | \
-  streamv3 where -generate -match age gt 18 | \
-  streamv3 write-csv -generate output.csv | \
-  streamv3 generate-go > main.go
+ssql read-csv -generate data.csv | \
+  ssql where -generate -match age gt 18 | \
+  ssql write-csv -generate output.csv | \
+  ssql generate-go > main.go
 ```
 
 **Complex Filtering:**
 ```bash
 # (age > 30 AND status = active) OR (department = Engineering)
-streamv3 read-csv -generate employees.csv | \
-  streamv3 where -generate \
+ssql read-csv -generate employees.csv | \
+  ssql where -generate \
     -match age gt 30 -match status eq active + \
     -match department eq Engineering | \
-  streamv3 write-csv -generate filtered.csv | \
-  streamv3 generate-go > main.go
+  ssql write-csv -generate filtered.csv | \
+  ssql generate-go > main.go
 ```
 
 **Build and Run:**
 ```bash
 # Compile generated code
 go mod init myproject
-go get github.com/rosscartlidge/streamv3@latest
+go get github.com/rosscartlidge/ssql@latest
 go build -o myproject main.go
 
 # Run compiled binary (10-100x faster than CLI)
@@ -852,18 +852,18 @@ go build -o myproject main.go
 **Test Fragment Output:**
 ```bash
 # Test individual command generation
-streamv3 where -generate -match age gt 30 < input_fragment.json
+ssql where -generate -match age gt 30 < input_fragment.json
 
 # Verify output is valid JSON
-streamv3 where -generate -match age gt 30 < input_fragment.json | jq .
+ssql where -generate -match age gt 30 < input_fragment.json | jq .
 ```
 
 **Test Complete Pipeline:**
 ```bash
 # Generate code
-streamv3 read-csv -generate data.csv | \
-  streamv3 where -generate -match age gt 30 | \
-  streamv3 generate-go > test.go
+ssql read-csv -generate data.csv | \
+  ssql where -generate -match age gt 30 | \
+  ssql generate-go > test.go
 
 # Verify it compiles
 go build test.go
@@ -884,7 +884,7 @@ go build test.go
 **Workflow:**
 1. **Prototype**: Use CLI to explore data and build pipeline interactively
 2. **Test**: Verify pipeline produces correct results with real data
-3. **Convert**: Generate equivalent Go code using StreamV3 library
+3. **Convert**: Generate equivalent Go code using ssql library
 4. **Optimize**: Add type safety, error handling, custom logic
 5. **Deploy**: Compile single binary, 10-100x faster than CLI
 
@@ -905,17 +905,17 @@ go build test.go
 
 ### CLI-to-Go Mapping
 
-The StreamV3 CLI has a **1:1 mapping** with the library API, making code generation straightforward:
+The ssql CLI has a **1:1 mapping** with the library API, making code generation straightforward:
 
 #### Example 1: Simple Filter Pipeline
 
 **CLI Pipeline:**
 ```bash
-streamv3 read-csv data.csv | \
-  streamv3 where -field age -op gt -value 18 | \
-  streamv3 select -field name -field email | \
-  streamv3 limit -n 100 | \
-  streamv3 write-csv output.csv
+ssql read-csv data.csv | \
+  ssql where -field age -op gt -value 18 | \
+  ssql select -field name -field email | \
+  ssql limit -n 100 | \
+  ssql write-csv output.csv
 ```
 
 **Generated Go Code:**
@@ -925,15 +925,15 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Read CSV
-    records := streamv3.ReadCSV("data.csv")
+    records := ssql.ReadCSV("data.csv")
 
     // Where: age > 18
-    filtered := streamv3.Where(func(r streamv3.Record) bool {
+    filtered := ssql.Where(func(r ssql.Record) bool {
         if age, ok := r["age"].(float64); ok {
             return age > 18
         }
@@ -941,18 +941,18 @@ func main() {
     })(records)
 
     // Select: name, email
-    selected := streamv3.Select(func(r streamv3.Record) streamv3.Record {
-        return streamv3.Record{
+    selected := ssql.Select(func(r ssql.Record) ssql.Record {
+        return ssql.Record{
             "name": r["name"],
             "email": r["email"],
         }
     })(filtered)
 
     // Limit: 100
-    limited := streamv3.Limit[streamv3.Record](100)(selected)
+    limited := ssql.Limit[ssql.Record](100)(selected)
 
     // Write CSV
-    if err := streamv3.WriteCSV("output.csv", limited); err != nil {
+    if err := ssql.WriteCSV("output.csv", limited); err != nil {
         log.Fatalf("Error writing CSV: %v", err)
     }
 }
@@ -962,12 +962,12 @@ func main() {
 
 **CLI Pipeline:**
 ```bash
-streamv3 read-csv sales.csv | \
-  streamv3 group -fields region -fields product \
+ssql read-csv sales.csv | \
+  ssql group -fields region -fields product \
     -agg 'total=sum(amount)' -agg 'count=count()' | \
-  streamv3 sort -field total -desc | \
-  streamv3 limit -n 10 | \
-  streamv3 write-csv top_sales.csv
+  ssql sort -field total -desc | \
+  ssql limit -n 10 | \
+  ssql write-csv top_sales.csv
 ```
 
 **Generated Go Code:**
@@ -976,27 +976,27 @@ package main
 
 import (
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
     // Read CSV
-    records := streamv3.ReadCSV("sales.csv")
+    records := ssql.ReadCSV("sales.csv")
 
     // Group by: region, product
-    grouped := streamv3.GroupByFields("region", "product")(records)
+    grouped := ssql.GroupByFields("region", "product")(records)
 
     // Aggregate: total=sum(amount), count=count()
-    aggregated := streamv3.Aggregate(
-        streamv3.Sum("amount", "total"),
-        streamv3.Count("count"),
+    aggregated := ssql.Aggregate(
+        ssql.Sum("amount", "total"),
+        ssql.Count("count"),
     )(grouped)
 
     // Flatten groups to records
-    flattened := streamv3.FlattenGroups(aggregated)
+    flattened := ssql.FlattenGroups(aggregated)
 
     // Sort by: total descending
-    sorted := streamv3.SortBy(func(r streamv3.Record) float64 {
+    sorted := ssql.SortBy(func(r ssql.Record) float64 {
         if total, ok := r["total"].(float64); ok {
             return -total // Negative for descending
         }
@@ -1004,10 +1004,10 @@ func main() {
     })(flattened)
 
     // Limit: 10
-    limited := streamv3.Limit[streamv3.Record](10)(sorted)
+    limited := ssql.Limit[ssql.Record](10)(sorted)
 
     // Write CSV
-    if err := streamv3.WriteCSV("top_sales.csv", limited); err != nil {
+    if err := ssql.WriteCSV("top_sales.csv", limited); err != nil {
         log.Fatalf("Error writing CSV: %v", err)
     }
 }
@@ -1017,9 +1017,9 @@ func main() {
 
 **CLI Pipeline:**
 ```bash
-streamv3 read-csv users.csv | \
-  streamv3 where -field age -op gt -value 18 -field status -op eq -value active | \
-  streamv3 write-csv adult_active.csv
+ssql read-csv users.csv | \
+  ssql where -field age -op gt -value 18 -field status -op eq -value active | \
+  ssql write-csv adult_active.csv
 ```
 
 **Generated Go Code:**
@@ -1028,14 +1028,14 @@ package main
 
 import (
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
-    records := streamv3.ReadCSV("users.csv")
+    records := ssql.ReadCSV("users.csv")
 
     // Where: age > 18 AND status = active
-    filtered := streamv3.Where(func(r streamv3.Record) bool {
+    filtered := ssql.Where(func(r ssql.Record) bool {
         age, ageOk := r["age"].(float64)
         status, statusOk := r["status"].(string)
 
@@ -1043,7 +1043,7 @@ func main() {
                statusOk && status == "active"
     })(records)
 
-    if err := streamv3.WriteCSV("adult_active.csv", filtered); err != nil {
+    if err := ssql.WriteCSV("adult_active.csv", filtered); err != nil {
         log.Fatalf("Error writing CSV: %v", err)
     }
 }
@@ -1055,27 +1055,27 @@ There are three approaches to implementing code generation:
 
 #### Approach 1: Simple Code Generator (Recommended for MVP)
 
-**Command:** `streamv3 generate-go`
+**Command:** `ssql generate-go`
 
 **Usage:**
 ```bash
 # Generate from shell history
-streamv3 generate-go < pipeline.sh > main.go
+ssql generate-go < pipeline.sh > main.go
 
 # Or inline
-echo 'streamv3 read-csv data.csv | streamv3 where -field age -op gt -value 18' | \
-  streamv3 generate-go > main.go
+echo 'ssql read-csv data.csv | ssql where -field age -op gt -value 18' | \
+  ssql generate-go > main.go
 
 # Then compile and run
 go mod init myproject
-go get github.com/rosscartlidge/streamv3
+go get github.com/rosscartlidge/ssql
 go build -o myproject main.go
 ./myproject
 ```
 
 **Implementation:**
 ```go
-// cmd/streamv3/commands/generatego.go
+// cmd/ssql/commands/generatego.go
 type GenerateGoConfig struct {
     Output string `gs:"file,global,last,help=Output Go file,suffix=.go"`
 }
@@ -1104,19 +1104,19 @@ func (c *generateGoCommand) Execute(ctx context.Context, args []string) error {
 
 #### Approach 2: Interactive Pipeline Recorder
 
-**Command:** `streamv3 record-pipeline`
+**Command:** `ssql record-pipeline`
 
 **Usage:**
 ```bash
 # Start recording
-streamv3 record-pipeline start my-pipeline
+ssql record-pipeline start my-pipeline
 
 # Run commands normally (recorded in background)
-streamv3 read-csv data.csv | streamv3 where -field age -op gt -value 18
+ssql read-csv data.csv | ssql where -field age -op gt -value 18
 
 # Stop and generate code
-streamv3 record-pipeline stop
-streamv3 record-pipeline generate my-pipeline.go
+ssql record-pipeline stop
+ssql record-pipeline generate my-pipeline.go
 ```
 
 **Implementation:** Records commands to temporary file, converts on demand.
@@ -1126,10 +1126,10 @@ streamv3 record-pipeline generate my-pipeline.go
 **Usage:**
 ```bash
 # Run pipeline normally, but also generate code
-streamv3 --generate-go=output.go \
+ssql --generate-go=output.go \
   read-csv data.csv | \
-  streamv3 where -field age -op gt -value 18 | \
-  streamv3 write-csv result.csv
+  ssql where -field age -op gt -value 18 | \
+  ssql write-csv result.csv
 ```
 
 **Implementation:** Each command logs itself to shared context, main() generates code at exit.
@@ -1173,7 +1173,7 @@ func ParsePipeline(input string) (*Pipeline, error) {
 }
 
 func parseCommand(cmdLine string) (Command, error) {
-    // Parse: streamv3 where -field age -op gt -value 18
+    // Parse: ssql where -field age -op gt -value 18
     fields := strings.Fields(cmdLine)
     if len(fields) < 2 || fields[0] != "streamv3" {
         return Command{}, fmt.Errorf("invalid command: %s", cmdLine)
@@ -1226,7 +1226,7 @@ func (g *CodeGenerator) writeMainFunc(p *Pipeline) {
     for i, cmd := range p.Commands {
         switch cmd.Name {
         case "read-csv":
-            g.writeln(fmt.Sprintf("%s := streamv3.ReadCSV(%q)",
+            g.writeln(fmt.Sprintf("%s := ssql.ReadCSV(%q)",
                 varName, cmd.Args["file"]))
 
         case "where":
@@ -1236,7 +1236,7 @@ func (g *CodeGenerator) writeMainFunc(p *Pipeline) {
 
         case "limit":
             newVar := fmt.Sprintf("limited%d", i)
-            g.writeln(fmt.Sprintf("%s := streamv3.Limit[streamv3.Record](%s)(%s)",
+            g.writeln(fmt.Sprintf("%s := ssql.Limit[ssql.Record](%s)(%s)",
                 newVar, cmd.Args["n"], varName))
             varName = newVar
 
@@ -1254,7 +1254,7 @@ func (g *CodeGenerator) writeWhere(input, output string, cmd Command) {
     op := cmd.Args["op"]
     value := cmd.Args["value"]
 
-    g.writeln(fmt.Sprintf("%s := streamv3.Where(func(r streamv3.Record) bool {", output))
+    g.writeln(fmt.Sprintf("%s := ssql.Where(func(r ssql.Record) bool {", output))
     g.indent++
 
     // Generate comparison based on operator
@@ -1283,7 +1283,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -1323,13 +1323,13 @@ func generateWhere(cmd Command) string {
     switch op {
     case "eq", "ne":
         return fmt.Sprintf(
-            `streamv3.Where(func(r streamv3.Record) bool {
+            `ssql.Where(func(r ssql.Record) bool {
                 return r[%q] %s %s
             })`, field, opToSymbol(op), formatValue(value, valueType))
 
     case "gt", "ge", "lt", "le":
         return fmt.Sprintf(
-            `streamv3.Where(func(r streamv3.Record) bool {
+            `ssql.Where(func(r ssql.Record) bool {
                 if val, ok := r[%q].(float64); ok {
                     return val %s %s
                 }
@@ -1338,7 +1338,7 @@ func generateWhere(cmd Command) string {
 
     case "contains":
         return fmt.Sprintf(
-            `streamv3.Where(func(r streamv3.Record) bool {
+            `ssql.Where(func(r ssql.Record) bool {
                 if val, ok := r[%q].(string); ok {
                     return strings.Contains(val, %q)
                 }
@@ -1358,7 +1358,7 @@ func generateGroupBy(cmd Command) string {
     var buf bytes.Buffer
 
     // Generate GroupByFields
-    buf.WriteString("grouped := streamv3.GroupByFields(")
+    buf.WriteString("grouped := ssql.GroupByFields(")
     for i, field := range fields {
         if i > 0 {
             buf.WriteString(", ")
@@ -1368,7 +1368,7 @@ func generateGroupBy(cmd Command) string {
     buf.WriteString(")(records)\n")
 
     // Generate Aggregate
-    buf.WriteString("aggregated := streamv3.Aggregate(\n")
+    buf.WriteString("aggregated := ssql.Aggregate(\n")
     for i, agg := range aggs {
         if i > 0 {
             buf.WriteString(",\n")
@@ -1378,7 +1378,7 @@ func generateGroupBy(cmd Command) string {
     buf.WriteString("\n)(grouped)\n")
 
     // Flatten
-    buf.WriteString("records = streamv3.FlattenGroups(aggregated)\n")
+    buf.WriteString("records = ssql.FlattenGroups(aggregated)\n")
 
     return buf.String()
 }
@@ -1386,15 +1386,15 @@ func generateGroupBy(cmd Command) string {
 func generateAggFunc(agg Aggregation) string {
     switch agg.Func {
     case "count":
-        return fmt.Sprintf("streamv3.Count(%q)", agg.OutputName)
+        return fmt.Sprintf("ssql.Count(%q)", agg.OutputName)
     case "sum":
-        return fmt.Sprintf("streamv3.Sum(%q, %q)", agg.Field, agg.OutputName)
+        return fmt.Sprintf("ssql.Sum(%q, %q)", agg.Field, agg.OutputName)
     case "avg":
-        return fmt.Sprintf("streamv3.Avg(%q, %q)", agg.Field, agg.OutputName)
+        return fmt.Sprintf("ssql.Avg(%q, %q)", agg.Field, agg.OutputName)
     case "min":
-        return fmt.Sprintf("streamv3.Min(%q, %q)", agg.Field, agg.OutputName)
+        return fmt.Sprintf("ssql.Min(%q, %q)", agg.Field, agg.OutputName)
     case "max":
-        return fmt.Sprintf("streamv3.Max(%q, %q)", agg.Field, agg.OutputName)
+        return fmt.Sprintf("ssql.Max(%q, %q)", agg.Field, agg.OutputName)
     }
     return ""
 }
@@ -1405,27 +1405,27 @@ func generateAggFunc(agg Aggregation) string {
 **Step 1: Interactive Prototyping**
 ```bash
 # Explore data structure
-streamv3 read-csv data.csv | head -5
+ssql read-csv data.csv | head -5
 
 # Try different filters
-streamv3 read-csv data.csv | streamv3 where -field age -op gt -value 18 | head
-streamv3 read-csv data.csv | streamv3 where -field status -op eq -value active | head
+ssql read-csv data.csv | ssql where -field age -op gt -value 18 | head
+ssql read-csv data.csv | ssql where -field status -op eq -value active | head
 
 # Build full pipeline
-streamv3 read-csv data.csv | \
-  streamv3 where -field age -op gt -value 18 | \
-  streamv3 select -field name -field email | \
-  streamv3 write-csv > output.csv
+ssql read-csv data.csv | \
+  ssql where -field age -op gt -value 18 | \
+  ssql select -field name -field email | \
+  ssql write-csv > output.csv
 ```
 
 **Step 2: Save Working Pipeline**
 ```bash
 # Save to script
 cat > pipeline.sh <<'EOF'
-streamv3 read-csv data.csv | \
-  streamv3 where -field age -op gt -value 18 | \
-  streamv3 select -field name -field email | \
-  streamv3 write-csv
+ssql read-csv data.csv | \
+  ssql where -field age -op gt -value 18 | \
+  ssql select -field name -field email | \
+  ssql write-csv
 EOF
 
 chmod +x pipeline.sh
@@ -1435,14 +1435,14 @@ chmod +x pipeline.sh
 **Step 3: Generate Go Code**
 ```bash
 # Generate production code
-streamv3 generate-go < pipeline.sh > main.go
+ssql generate-go < pipeline.sh > main.go
 
 # Review generated code
 cat main.go
 
 # Initialize Go module
 go mod init myproject
-go get github.com/rosscartlidge/streamv3@latest
+go get github.com/rosscartlidge/ssql@latest
 
 # Build binary
 go build -o myproject main.go
@@ -1456,7 +1456,7 @@ package main
 import (
     "flag"
     "log"
-    "github.com/rosscartlidge/streamv3"
+    "github.com/rosscartlidge/ssql"
 )
 
 func main() {
@@ -1467,10 +1467,10 @@ func main() {
     flag.Parse()
 
     // Read CSV
-    records := streamv3.ReadCSV(*inputFile)
+    records := ssql.ReadCSV(*inputFile)
 
     // Filter by age (using variable instead of hardcoded value)
-    filtered := streamv3.Where(func(r streamv3.Record) bool {
+    filtered := ssql.Where(func(r ssql.Record) bool {
         if age, ok := r["age"].(float64); ok {
             return age > *minAge
         }
@@ -1478,15 +1478,15 @@ func main() {
     })(records)
 
     // Select fields
-    selected := streamv3.Select(func(r streamv3.Record) streamv3.Record {
-        return streamv3.Record{
+    selected := ssql.Select(func(r ssql.Record) ssql.Record {
+        return ssql.Record{
             "name": r["name"],
             "email": r["email"],
         }
     })(filtered)
 
     // Write CSV
-    if err := streamv3.WriteCSV(*outputFile, selected); err != nil {
+    if err := ssql.WriteCSV(*outputFile, selected); err != nil {
         log.Fatalf("Error writing CSV: %v", err)
     }
 }
@@ -1534,7 +1534,7 @@ time ./myproject
 2. **Memory**: Constant memory usage regardless of input size (streaming)
 3. **Composability**: All commands work in pipelines with JSONL
 4. **Usability**: Tab completion for fields, operators, and values works
-5. **Correctness**: All operations match StreamV3 library behavior exactly
+5. **Correctness**: All operations match ssql library behavior exactly
 6. **Code Generation**: Generate working Go code from any valid pipeline
 7. **Performance Gain**: Generated code 10-100x faster than CLI equivalent
 
@@ -1547,11 +1547,11 @@ time ./myproject
 5. **Statistics**: `stats - field salary` (min, max, avg, stddev, percentiles)
 6. **chart command**: Generate Chart.js visualizations from CLI
 7. **Parallel processing**: `parallel - workers 8` for CPU-intensive operations
-8. **SQL mode**: `streamv3 sql "SELECT name, age FROM stdin WHERE age > 18"`
+8. **SQL mode**: `ssql sql "SELECT name, age FROM stdin WHERE age > 18"`
 
 ## References
 
-- StreamV3 Library: `/home/rossc/src/streamv3/`
+- ssql Library: `/home/rossc/src/streamv3/`
 - gs Framework: `/home/rossc/tsv/gogstools/gs/`
 - JSONL Specification: https://jsonlines.org/
 - Unix Philosophy: https://en.wikipedia.org/wiki/Unix_philosophy

@@ -1,8 +1,8 @@
-# StreamV3 Serialization Format Analysis
+# ssql Serialization Format Analysis
 
 ## Executive Summary
 
-This document analyzes different serialization formats for inter-process communication in StreamV3 pipelines. Based on comprehensive benchmarking and compatibility analysis, **JSON remains the optimal default format** while specific binary alternatives offer significant performance benefits for targeted use cases.
+This document analyzes different serialization formats for inter-process communication in ssql pipelines. Based on comprehensive benchmarking and compatibility analysis, **JSON remains the optimal default format** while specific binary alternatives offer significant performance benefits for targeted use cases.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This document analyzes different serialization formats for inter-process communi
 
 ## Background
 
-StreamV3's io.Reader/io.Writer architecture enables flexible serialization formats for process chaining. The key question was whether JSON's universality and debuggability outweigh potential efficiency gains from binary formats.
+ssql's io.Reader/io.Writer architecture enables flexible serialization formats for process chaining. The key question was whether JSON's universality and debuggability outweigh potential efficiency gains from binary formats.
 
 ### Requirements Analysis
 
@@ -46,7 +46,7 @@ StreamV3's io.Reader/io.Writer architecture enables flexible serialization forma
 
 ## Benchmark Results
 
-**Test Dataset:** 202 records with realistic StreamV3 data including strings, numbers, arrays, and metadata.
+**Test Dataset:** 202 records with realistic ssql data including strings, numbers, arrays, and metadata.
 
 | Format | Size (bytes) | Size vs JSON | Speed | Compatibility | Debuggability |
 |--------|-------------|--------------|-------|---------------|---------------|
@@ -68,7 +68,7 @@ StreamV3's io.Reader/io.Writer architecture enables flexible serialization forma
 - **50% size reduction** with **2-5x speed improvement**
 - Broad language ecosystem support (Python, Node.js, Ruby, Rust, etc.)
 - Self-describing binary format
-- Perfect for StreamV3-to-StreamV3 communication
+- Perfect for ssql-to-ssql communication
 
 #### 🔧 Go gob: Maximum Efficiency
 - **99.9% size reduction** with **3x speed improvement**
@@ -100,12 +100,12 @@ cat data.csv | process1 | process2 | format_output
 
 ### Tier 2: Performance Optimizations
 
-#### For StreamV3-to-StreamV3 Chains
+#### For ssql-to-ssql Chains
 
 **Use MessagePack for performance-critical pipelines:**
 
 ```bash
-# High-performance StreamV3 chain
+# High-performance ssql chain
 cat data.csv | process1 --format=msgpack | process2 --format=msgpack | format_output
 ```
 
@@ -166,7 +166,7 @@ func DetectFormat(reader io.Reader) (SerializationFormat, error)
 
 ### Phase 2: Command Line Integration
 
-Add format flags to all StreamV3 programs:
+Add format flags to all ssql programs:
 
 ```go
 var (
@@ -202,7 +202,7 @@ func selectDefaultFormat() SerializationFormat {
 
 #### 🌍 JSON (Default)
 **Use when:**
-- Integrating with non-StreamV3 tools
+- Integrating with non-ssql tools
 - Debugging or development
 - Unknown downstream consumers
 - First time implementing a pipeline
@@ -215,7 +215,7 @@ cat sales.csv | streamv3_analyze | jq '.[] | select(.revenue > 1000)' | streamv3
 
 #### ⚡ MessagePack
 **Use when:**
-- StreamV3-heavy processing pipelines
+- ssql-heavy processing pipelines
 - Performance is critical
 - Other tools in pipeline support MessagePack
 - Network bandwidth is limited
@@ -316,7 +316,7 @@ func ReadRecordStream(reader io.Reader, format SerializationFormat) <-chan Recor
 ### Auto-Optimization
 
 **Intelligent Format Selection:**
-StreamV3 could automatically choose optimal formats based on:
+ssql could automatically choose optimal formats based on:
 - Data size patterns
 - Network characteristics
 - Downstream tool capabilities
@@ -324,9 +324,9 @@ StreamV3 could automatically choose optimal formats based on:
 
 ## Conclusion
 
-**JSON remains the optimal default choice** for StreamV3 due to its universal compatibility, debuggability, and proven data integrity preservation. However, **strategic use of binary formats** can provide significant performance improvements:
+**JSON remains the optimal default choice** for ssql due to its universal compatibility, debuggability, and proven data integrity preservation. However, **strategic use of binary formats** can provide significant performance improvements:
 
-- **MessagePack** for performance-critical StreamV3 chains
+- **MessagePack** for performance-critical ssql chains
 - **Compressed JSON** for large datasets while maintaining compatibility
 - **Go gob** for maximum efficiency in pure Go environments
 
@@ -334,10 +334,10 @@ The io.Reader/io.Writer architecture provides the foundation for this flexible f
 
 **Next Steps:**
 1. Implement MessagePack support as the first binary alternative
-2. Add command-line format flags to key StreamV3 tools
+2. Add command-line format flags to key ssql tools
 3. Create comprehensive benchmarks across different data patterns
 4. Develop best practices documentation for format selection
 
 ---
 
-*For implementation details, see the `examples/format_comparison.go` and `examples/messagepack_demo.go` files in the StreamV3 repository.*
+*For implementation details, see the `examples/format_comparison.go` and `examples/messagepack_demo.go` files in the ssql repository.*
