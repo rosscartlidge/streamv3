@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	cf "github.com/rosscartlidge/completionflags/v2"
+	cf "github.com/rosscartlidge/autocli/v3"
 	"github.com/rosscartlidge/streamv3"
 	"github.com/rosscartlidge/streamv3/cmd/streamv3/lib"
 )

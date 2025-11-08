@@ -2,4 +2,6 @@ module github.com/rosscartlidge/streamv3
 
 go 1.24.8
 
-require github.com/rosscartlidge/completionflags/v2 v2.1.2
+require github.com/rosscartlidge/autocli/v3 v3.0.0
+
+replace github.com/rosscartlidge/autocli/v3 => /home/rossc/src/completionflags
