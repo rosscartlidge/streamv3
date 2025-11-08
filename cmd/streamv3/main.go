@@ -14,8 +14,6 @@ import (
 )
 
 func buildRootCommand() *cf.Command {
-	var verbose bool
-
 	return cf.NewCommand("streamv3").
 		Version(version.Version).
 		Description("Unix-style data processing tools").
@@ -23,7 +21,6 @@ func buildRootCommand() *cf.Command {
 		// Root global flags
 		Flag("-verbose", "-v").
 			Bool().
-			Bind(&verbose).
 			Global().
 			Help("Enable verbose output").
 			Done().
