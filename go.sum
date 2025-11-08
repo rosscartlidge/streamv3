@@ -6,3 +6,5 @@ github.com/rosscartlidge/completionflags v1.1.0 h1:8WJ0ZC+GQeQoZRUmVBhLjKqXc0Sim
 github.com/rosscartlidge/completionflags v1.1.0/go.mod h1:jm2wbi1BiEisPWtfT+vDngv4KBoCL6eymjguU5EvQSo=
 github.com/rosscartlidge/completionflags v1.1.1 h1:IqBP7H8VubxSjs3eH56Yts7gOY+S7ERf4La2vyiF93g=
 github.com/rosscartlidge/completionflags v1.1.1/go.mod h1:jm2wbi1BiEisPWtfT+vDngv4KBoCL6eymjguU5EvQSo=
+github.com/rosscartlidge/completionflags v1.2.0 h1:w3Fjym2QAS3zAW8RgKJCinFZ4mzp/eFbXR0zpLAj7t4=
+github.com/rosscartlidge/completionflags v1.2.0/go.mod h1:jm2wbi1BiEisPWtfT+vDngv4KBoCL6eymjguU5EvQSo=
