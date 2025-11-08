@@ -31,6 +31,9 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: version
 		Subcommand("version").
 			Description("Show version information").
+
+			Example("streamv3 version", "Display the current streamv3 version").
+
 			Handler(func(ctx *cf.Context) error {
 				fmt.Printf("streamv3 v%s\n", version.Version)
 				return nil
@@ -244,6 +247,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("distinct").
 			Description("Remove duplicate records").
 
+			Example("streamv3 read-csv data.csv | streamv3 distinct", "Remove duplicate records").
+			Example("streamv3 read-csv users.csv | streamv3 include email | streamv3 distinct", "Get unique email addresses").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -417,6 +423,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("read-json").
 			Description("Read JSON array or JSONL file (auto-detects format)").
 
+			Example("streamv3 read-json data.jsonl | streamv3 table", "Read JSONL file and display as table").
+			Example("streamv3 read-json array.json | streamv3 where -match status eq active", "Read JSON array and filter records").
+
 			Flag("-generate", "-g").
 				Bool().
 				Global().
@@ -472,6 +481,9 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: write-json
 		Subcommand("write-json").
 			Description("Write as JSONL (default) or pretty JSON array (-pretty)").
+
+			Example("streamv3 read-csv data.csv | streamv3 write-json", "Convert CSV to JSONL").
+			Example("streamv3 read-csv data.csv | streamv3 write-json -pretty > output.json", "Convert CSV to pretty JSON array").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -1320,6 +1332,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("join").
 			Description("Join records from two data sources (SQL JOIN)").
 
+			Example("streamv3 read-csv users.csv | streamv3 join -right orders.csv -on user_id", "Inner join users and orders on user_id").
+			Example("streamv3 read-csv employees.csv | streamv3 join -type left -right departments.csv -on dept_id", "Left join employees with departments").
+
 			Flag("-type", "-t").
 				String().
 				Completer(&cf.StaticCompleter{Options: []string{"inner", "left", "right", "full"}}).
@@ -1493,6 +1508,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("union").
 			Description("Combine records from multiple sources (SQL UNION)").
 
+			Example("streamv3 read-csv 2023.csv | streamv3 union -file 2024.csv", "Combine records from two CSV files (removes duplicates)").
+			Example("streamv3 read-csv east.csv | streamv3 union -all -file west.csv -file south.csv", "Combine three files keeping all records (UNION ALL)").
+
 			Flag("-file", "-f").
 				String().
 				Completer(&cf.FileCompleter{Pattern: "*.{csv,jsonl}"}).
@@ -1581,6 +1599,9 @@ func buildRootCommand() *cf.Command {
 		Subcommand("exec").
 			Description("Execute command and parse output as records").
 
+			Example("streamv3 exec -- ps aux | streamv3 where -match USER eq root", "Parse ps output and filter for root processes").
+			Example("streamv3 exec -- ls -la | streamv3 include FILE SIZE", "Parse ls output and select specific fields").
+
 			Handler(func(ctx *cf.Context) error {
 				// Everything after -- is in ctx.RemainingArgs
 				if len(ctx.RemainingArgs) == 0 {
@@ -1609,6 +1630,9 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: chart
 		Subcommand("chart").
 			Description("Create interactive HTML chart from data").
+
+			Example("streamv3 read-csv data.csv | streamv3 chart -x date -y revenue", "Create line chart of revenue over time").
+			Example("streamv3 read-csv sales.csv | streamv3 chart -x product -y sales -output sales.html", "Create chart with custom output file").
 
 			Flag("-generate", "-g").
 				Bool().
@@ -1705,6 +1729,9 @@ func buildRootCommand() *cf.Command {
 		// Subcommand: generate-go
 		Subcommand("generate-go").
 			Description("Generate Go code from StreamV3 CLI pipeline").
+
+			Example("streamv3 read-csv -g data.csv | streamv3 where -g -match age gt 18 | streamv3 generate-go", "Generate Go code from pipeline").
+			Example("export STREAMV3_GENERATE_GO=1 && streamv3 read-csv data.csv | streamv3 limit 10 | streamv3 generate-go > prog.go", "Generate using environment variable").
 
 			Flag("OUTPUT").
 				String().
