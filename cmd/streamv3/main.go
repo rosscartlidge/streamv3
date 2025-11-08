@@ -1731,7 +1731,7 @@ func buildRootCommand() *cf.Command {
 			Description("Generate Go code from StreamV3 CLI pipeline").
 
 			Example("streamv3 read-csv -g data.csv | streamv3 where -g -match age gt 18 | streamv3 generate-go", "Generate Go code from pipeline").
-			Example("export STREAMV3_GENERATE_GO=1 && streamv3 read-csv data.csv | streamv3 limit 10 | streamv3 generate-go > prog.go", "Generate using environment variable").
+			Example("(export STREAMV3_GENERATE_GO=1 && streamv3 read-csv data.csv | streamv3 limit 10 | streamv3 generate-go) > prog.go", "Generate using environment variable").
 
 			Flag("OUTPUT").
 				String().
