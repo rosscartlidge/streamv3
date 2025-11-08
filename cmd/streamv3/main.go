@@ -999,7 +999,7 @@ func buildRootCommand() *cf.Command {
 			Description("Exclude specified fields").
 
 			Example("streamv3 read-csv data.csv | streamv3 exclude id created_at updated_at", "Remove metadata fields").
-			Example("streamv3 read-json api.json | streamv3 exclude internal_* debug_*", "Remove all internal and debug fields").
+			Example("streamv3 read-json api.json | streamv3 exclude password token secret_key", "Remove sensitive fields").
 
 			Flag("-generate", "-g").
 				Bool().
