@@ -307,7 +307,7 @@ func buildRootCommand() *cf.Command {
 			Description("Read CSV file and output JSONL stream").
 
 			Example("streamv3 read-csv data.csv | streamv3 table", "Read CSV and display as table").
-			Example("cat data.csv | streamv3 read-csv | streamv3 limit -n 10", "Read from stdin and show first 10 records").
+			Example("cat data.csv | streamv3 read-csv | streamv3 limit 10", "Read from stdin and show first 10 records").
 
 			Flag("-generate", "-g").
 				Bool().
