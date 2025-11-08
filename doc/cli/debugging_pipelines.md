@@ -45,7 +45,7 @@ streamv3 read-csv data.csv | jq -s 'length'
 
 ```bash
 # Work with small dataset while developing
-streamv3 read-csv large_file.csv | streamv3 limit -n 100 | \
+streamv3 read-csv large_file.csv | streamv3 limit 100 | \
   streamv3 where -match ... | \
   jq '.'
 
@@ -129,7 +129,7 @@ streamv3 read-csv data.csv | jq '.age | type' | head -5
 ```bash
 # Inspect GROUP BY results
 streamv3 read-csv data.csv | \
-  streamv3 group -by department -function count -result total | \
+  streamv3 group-by department -function count -result total | \
   jq '.'
 
 # Extract nested fields
@@ -225,12 +225,12 @@ streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c
 
 # Step 2: See raw GROUP BY output
 streamv3 read-csv data.csv | \
-  streamv3 group -by department -function count -result total | \
+  streamv3 group-by department -function count -result total | \
   jq '.'
 
 # Step 3: Check specific group
 streamv3 read-csv data.csv | \
-  streamv3 group -by department -function count -result total | \
+  streamv3 group-by department -function count -result total | \
   jq 'select(.department == "Engineering")'
 
 # Step 4: Verify counts manually
@@ -263,7 +263,7 @@ time (streamv3 read-csv large.csv | streamv3 where -match age gt 30 > /dev/null)
 time (streamv3 read-csv large.csv | streamv3 where ... | streamv3 group ... > /dev/null)
 
 # Use limit to stop early
-streamv3 read-csv large.csv | streamv3 where ... | streamv3 limit -n 100
+streamv3 read-csv large.csv | streamv3 where ... | streamv3 limit 100
 ```
 
 ---
@@ -276,7 +276,7 @@ streamv3 read-csv large.csv | streamv3 where ... | streamv3 limit -n 100
 # Time entire pipeline
 time (streamv3 read-csv data.csv | \
   streamv3 where -match age gt 30 | \
-  streamv3 group -by department -function count -result total | \
+  streamv3 group-by department -function count -result total | \
   streamv3 write-csv output.csv)
 
 # Time individual commands
@@ -291,7 +291,7 @@ time (cat /tmp/stage2.jsonl | streamv3 group ... > /tmp/stage3.jsonl)
 # Ensure no data loss between stages
 echo "Input: $(streamv3 read-csv data.csv | wc -l)"
 echo "After filter: $(streamv3 read-csv data.csv | streamv3 where -match age gt 30 | wc -l)"
-echo "After group: $(streamv3 read-csv data.csv | streamv3 where -match age gt 30 | streamv3 group -by dept -function count -result n | wc -l)"
+echo "After group: $(streamv3 read-csv data.csv | streamv3 where -match age gt 30 | streamv3 group-by dept -function count -result n | wc -l)"
 ```
 
 ### Sample Large Datasets
@@ -304,7 +304,7 @@ streamv3 read-csv huge.csv | shuf | head -1000 | streamv3 where ...
 streamv3 read-csv huge.csv | awk 'NR % 100 == 0' | streamv3 where ...
 
 # First N records
-streamv3 read-csv huge.csv | streamv3 limit -n 1000 | streamv3 where ...
+streamv3 read-csv huge.csv | streamv3 limit 1000 | streamv3 where ...
 ```
 
 ---
@@ -396,7 +396,7 @@ streamv3 read-csv data.csv | jq 'select(.department == null or .department == ""
 # Verify manual count matches GROUP BY count
 DEPT="Engineering"
 echo "Manual count: $(streamv3 read-csv data.csv | jq "select(.department == \"$DEPT\")" | wc -l)"
-echo "GROUP BY count: $(streamv3 read-csv data.csv | streamv3 group -by department -function count -result n | jq "select(.department == \"$DEPT\") | .n")"
+echo "GROUP BY count: $(streamv3 read-csv data.csv | streamv3 group-by department -function count -result n | jq "select(.department == \"$DEPT\") | .n")"
 ```
 
 ---
@@ -436,7 +436,7 @@ streamv3 read-csv data.csv | \
 streamv3 read-csv data.csv | \
   streamv3 where -match age gt 30 | \
   streamv3 where -match department eq Engineering | \
-  streamv3 group -by department -function avg -field salary -result avg_salary | \
+  streamv3 group-by department -function avg -field salary -result avg_salary | \
   jq '.'
 ```
 
@@ -464,7 +464,7 @@ streamv3 read-csv data.csv | streamv3 where -match age gt 30 | streamv3 where -m
 
 ```bash
 # Work with small sample while developing
-streamv3 read-csv huge.csv | streamv3 limit -n 100 | \
+streamv3 read-csv huge.csv | streamv3 limit 100 | \
   streamv3 where ... | \
   streamv3 group ... | \
   jq '.'
@@ -476,7 +476,7 @@ streamv3 read-csv huge.csv | streamv3 limit -n 100 | \
 # Save stages for debugging
 streamv3 read-csv data.csv > /tmp/1-input.jsonl
 cat /tmp/1-input.jsonl | streamv3 where -match age gt 30 > /tmp/2-filtered.jsonl
-cat /tmp/2-filtered.jsonl | streamv3 group -by dept -function count -result n > /tmp/3-grouped.jsonl
+cat /tmp/2-filtered.jsonl | streamv3 group-by dept -function count -result n > /tmp/3-grouped.jsonl
 
 # Inspect any stage
 jq '.' /tmp/2-filtered.jsonl | less
@@ -488,7 +488,7 @@ jq '.' /tmp/2-filtered.jsonl | less
 # Count records at each stage
 streamv3 read-csv data.csv | tee >(wc -l >&2) | \
   streamv3 where -match age gt 30 | tee >(wc -l >&2) | \
-  streamv3 group -by dept -function count -result n | tee >(wc -l >&2) | \
+  streamv3 group-by dept -function count -result n | tee >(wc -l >&2) | \
   streamv3 write-csv output.csv
 ```
 

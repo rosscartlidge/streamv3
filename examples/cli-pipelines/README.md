@@ -71,23 +71,23 @@ streamv3 where -match age gt 30 -match department eq Engineering + -match salary
 **Demonstrates**: Field projection, sorting, and limiting results
 ```bash
 # Top 3 earners with just name and salary
-streamv3 select -field name + -field salary | \
-  streamv3 sort -field salary -desc | \
-  streamv3 limit -n 3
+streamv3 include name salary | \
+  streamv3 sort salary -desc | \
+  streamv3 limit 3
 ```
-- `select` uses `+` to separate multiple fields
+- `include` selects only specified fields
 - `sort -desc` for descending order
-- `limit -n` takes first N records
+- `limit` takes first N records
 
 ### 05-full-pipeline.sh
 **Demonstrates**: Complete end-to-end data processing pipeline
 ```bash
-# Full pipeline: filter, select, sort, limit, export
+# Full pipeline: filter, include, sort, limit, export
 streamv3 read-csv employees.csv | \
   streamv3 where -match department eq Engineering | \
-  streamv3 select -field name + -field age + -field salary | \
-  streamv3 sort -field salary -desc | \
-  streamv3 limit -n 3 | \
+  streamv3 include name age salary | \
+  streamv3 sort salary -desc | \
+  streamv3 limit 3 | \
   streamv3 write-csv > output.csv
 ```
 - Chains multiple operations
@@ -180,7 +180,7 @@ View command help:
 ```bash
 streamv3 -help                # Show all commands
 streamv3 where -help          # Show where command help
-streamv3 select -help         # Show select command help
+streamv3 include -help        # Show include command help
 ```
 
 ## Next Steps

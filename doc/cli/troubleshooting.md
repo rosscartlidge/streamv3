@@ -45,7 +45,7 @@ streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c
 streamv3 read-csv data.csv | jq 'select(.department == null or .department == "")'
 
 # Inspect GROUP BY output
-streamv3 read-csv data.csv | streamv3 group -by dept -function count -result n | jq '.'
+streamv3 read-csv data.csv | streamv3 group-by dept -function count -result n | jq '.'
 ```
 
 ---
@@ -202,7 +202,7 @@ streamv3 read-csv data.csv | jq -r '.status' | sort | uniq -c
 **Symptoms:**
 ```bash
 # GROUP BY shows more groups than expected
-$ streamv3 read-csv data.csv | streamv3 group -by department -function count -result n | jq -s 'length'
+$ streamv3 read-csv data.csv | streamv3 group-by department -function count -result n | jq -s 'length'
 12  # Expected only 5 departments
 ```
 
@@ -232,7 +232,7 @@ streamv3 read-csv data.csv | jq -r '.department' | sort -f | uniq -i -c
 # Normalize in jq before GROUP BY
 streamv3 read-csv data.csv | \
   jq '.department |= (. // "" | ascii_downcase | gsub("^\\s+|\\s+$"; ""))' | \
-  streamv3 group -by department -function count -result n
+  streamv3 group-by department -function count -result n
 
 # Check grouping manually
 streamv3 read-csv data.csv | jq -r '.department' | sort | uniq -c
@@ -304,10 +304,10 @@ wc -l huge.csv
 **Solutions:**
 ```bash
 # Test with small sample first
-streamv3 read-csv huge.csv | streamv3 limit -n 1000 | streamv3 where ...
+streamv3 read-csv huge.csv | streamv3 limit 1000 | streamv3 where ...
 
 # Use limit after filter to stop early
-streamv3 read-csv huge.csv | streamv3 where ... | streamv3 limit -n 100
+streamv3 read-csv huge.csv | streamv3 where ... | streamv3 limit 100
 
 # Save intermediate results
 streamv3 read-csv huge.csv | streamv3 where ... > /tmp/filtered.jsonl
@@ -482,7 +482,7 @@ jq '.' /tmp/after.jsonl | head -3
 
 ```bash
 # Don't process entire file if not needed
-streamv3 read-csv huge.csv | streamv3 limit -n 1000 | ...
+streamv3 read-csv huge.csv | streamv3 limit 1000 | ...
 
 # Use head for quick samples
 streamv3 read-csv huge.csv | head -100 | ...
@@ -616,7 +616,7 @@ streamv3 -help
 | jq '.field' | sort | uniq -c        # Value distribution
 
 # Performance
-| streamv3 limit -n 100               # Work with sample
+| streamv3 limit 100               # Work with sample
 | tee >(wc -l >&2)                    # Count at stage
 time command                          # Measure time
 ```
