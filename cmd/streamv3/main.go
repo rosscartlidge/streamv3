@@ -160,20 +160,21 @@ func buildRootCommand() *cf.Command {
 		Subcommand("sort").
 			Description("Sort records by field").
 
-			Example("streamv3 read-csv data.csv | streamv3 sort -field age", "Sort by age ascending").
-			Example("streamv3 read-csv sales.csv | streamv3 sort -field amount -desc", "Sort by amount descending").
+			Example("streamv3 read-csv data.csv | streamv3 sort age", "Sort by age ascending").
+			Example("streamv3 read-csv sales.csv | streamv3 sort amount -desc", "Sort by amount descending").
+
+			Flag("FIELD").
+				String().
+				Required().
+				Completer(cf.NoCompleter{Hint: "<field-name>"}).
+				Global().
+				Help("Field to sort by").
+				Done().
 
 			Flag("-generate", "-g").
 				Bool().
 				Global().
 				Help("Generate Go code instead of executing").
-				Done().
-
-			Flag("-field", "-f").
-				String().
-				Completer(cf.NoCompleter{Hint: "<field-name>"}).
-				Global().
-				Help("Field to sort by").
 				Done().
 
 			Flag("-desc", "-d").
@@ -182,30 +183,17 @@ func buildRootCommand() *cf.Command {
 				Help("Sort descending").
 				Done().
 
-			Flag("FILE").
-				String().
-				Completer(&cf.FileCompleter{Pattern: "*.jsonl"}).
-				Global().
-				Default("").
-				Help("Input JSONL file (or stdin if not specified)").
-				Done().
-
 			Handler(func(ctx *cf.Context) error {
 				var field string
 				var desc bool
-				var inputFile string
 				var generate bool
 
-				if fieldVal, ok := ctx.GlobalFlags["-field"]; ok {
+				if fieldVal, ok := ctx.GlobalFlags["FIELD"]; ok {
 					field = fieldVal.(string)
 				}
 
 				if descVal, ok := ctx.GlobalFlags["-desc"]; ok {
 					desc = descVal.(bool)
-				}
-
-				if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
-					inputFile = fileVal.(string)
 				}
 
 				if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
@@ -221,14 +209,8 @@ func buildRootCommand() *cf.Command {
 					return generateSortCode(field, desc)
 				}
 
-				// Read JSONL from stdin or file
-				input, err := lib.OpenInput(inputFile)
-				if err != nil {
-					return err
-				}
-				defer input.Close()
-
-				records := lib.ReadJSONL(input)
+				// Read JSONL from stdin
+				records := lib.ReadJSONL(os.Stdin)
 
 				// Build sort key extractor and apply sort
 				var result iter.Seq[streamv3.Record]
