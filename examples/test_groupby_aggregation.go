@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"slices"
 	"strings"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {
@@ -43,12 +43,12 @@ func main() {
 	results1 := streamv3.Chain(
 		streamv3.GroupByFields("group_data", "region"),
 		streamv3.Aggregate("group_data", map[string]streamv3.AggregateFunc{
-			"total_sales":   streamv3.Sum("amount"),
-			"total_qty":     streamv3.Sum("quantity"),
-			"avg_amount":    streamv3.Avg("amount"),
-			"count":         streamv3.Count(),
-			"max_amount":    streamv3.Max[float64]("amount"),
-			"min_amount":    streamv3.Min[float64]("amount"),
+			"total_sales": streamv3.Sum("amount"),
+			"total_qty":   streamv3.Sum("quantity"),
+			"avg_amount":  streamv3.Avg("amount"),
+			"count":       streamv3.Count(),
+			"max_amount":  streamv3.Max[float64]("amount"),
+			"min_amount":  streamv3.Min[float64]("amount"),
 		}),
 	)(slices.Values(salesData))
 
@@ -138,9 +138,9 @@ func main() {
 	results4 := streamv3.Chain(
 		streamv3.GroupByFields("group_data", "region"),
 		streamv3.Aggregate("group_data", map[string]streamv3.AggregateFunc{
-			"total_sales": streamv3.Sum("amount"),
-			"avg_amount":  streamv3.Avg("amount"),
-			"count":       streamv3.Count(),
+			"total_sales":   streamv3.Sum("amount"),
+			"avg_amount":    streamv3.Avg("amount"),
+			"count":         streamv3.Count(),
 			"first_product": streamv3.First("product"),
 			"last_product":  streamv3.Last("product"),
 		}),

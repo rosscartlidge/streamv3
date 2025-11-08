@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"iter"
 	"slices"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {
@@ -20,9 +20,9 @@ func main() {
 	record := streamv3.MakeMutableRecord().
 		String("id", "task-123").
 		String("title", "Complete project").
-		IntSeq("numbers", numbers).        // iter.Seq[int]
-		StringSeq("tags", tags).           // iter.Seq[string]
-		Float64Seq("scores", scores).      // iter.Seq[float64]
+		IntSeq("numbers", numbers).   // iter.Seq[int]
+		StringSeq("tags", tags).      // iter.Seq[string]
+		Float64Seq("scores", scores). // iter.Seq[float64]
 		Freeze()
 
 	fmt.Println("📋 Created record with iter.Seq fields:")

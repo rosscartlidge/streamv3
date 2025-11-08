@@ -1225,9 +1225,12 @@ func Hash(sourceField, targetField string) Filter[Record, Record] {
 // iter.Seq fields are expanded using dot product (linear, one-to-one mapping).
 // When sequences have different lengths, uses minimum length and discards excess elements.
 // Example with sequences: {"id": 1, "tags": iter.Seq["a", "b"], "scores": iter.Seq[10, 20]} →
-//   [{"id": 1, "tags": "a", "scores": 10}, {"id": 1, "tags": "b", "scores": 20}]
+//
+//	[{"id": 1, "tags": "a", "scores": 10}, {"id": 1, "tags": "b", "scores": 20}]
+//
 // Example with different lengths: {"short": iter.Seq["a", "b"], "long": iter.Seq[1, 2, 3, 4]} →
-//   [{"short": "a", "long": 1}, {"short": "b", "long": 2}] (elements 3, 4 discarded)
+//
+//	[{"short": "a", "long": 1}, {"short": "b", "long": 2}] (elements 3, 4 discarded)
 func DotFlatten(separator string, fields ...string) Filter[Record, Record] {
 	if separator == "" {
 		separator = "."
@@ -1535,37 +1538,69 @@ func materializeSequence(value any) []any {
 
 	switch seq := value.(type) {
 	case iter.Seq[int]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[int8]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[int16]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[int32]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[int64]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[uint]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[uint8]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[uint16]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[uint32]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[uint64]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[float32]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[float64]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[bool]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[string]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[time.Time]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[Record]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	}
 
 	return result

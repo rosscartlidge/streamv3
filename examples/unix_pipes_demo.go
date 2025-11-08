@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"os"
 	"strings"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {

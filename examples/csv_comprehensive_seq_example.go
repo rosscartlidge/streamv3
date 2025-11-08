@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"iter"
 	"slices"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {
@@ -32,25 +32,33 @@ func main() {
 
 	if seq, ok := streamv3.Get[iter.Seq[string]](record, "string_tags"); ok {
 		fmt.Print("  String Tags: ")
-		for val := range seq { fmt.Printf("%s ", val) }
+		for val := range seq {
+			fmt.Printf("%s ", val)
+		}
 		fmt.Println()
 	}
 
 	if seq, ok := streamv3.Get[iter.Seq[int]](record, "int_scores"); ok {
 		fmt.Print("  Int Scores: ")
-		for val := range seq { fmt.Printf("%d ", val) }
+		for val := range seq {
+			fmt.Printf("%d ", val)
+		}
 		fmt.Println()
 	}
 
 	if seq, ok := streamv3.Get[iter.Seq[float64]](record, "float_values"); ok {
 		fmt.Print("  Float Values: ")
-		for val := range seq { fmt.Printf("%.1f ", val) }
+		for val := range seq {
+			fmt.Printf("%.1f ", val)
+		}
 		fmt.Println()
 	}
 
 	if seq, ok := streamv3.Get[iter.Seq[bool]](record, "bool_flags"); ok {
 		fmt.Print("  Bool Flags: ")
-		for val := range seq { fmt.Printf("%t ", val) }
+		for val := range seq {
+			fmt.Printf("%t ", val)
+		}
 		fmt.Println()
 	}
 

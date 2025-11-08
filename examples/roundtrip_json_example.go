@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"iter"
 	"reflect"
 	"slices"
 	"strings"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {
@@ -144,7 +144,9 @@ func printRecord(record streamv3.Record, indent string) {
 			fmt.Printf("%s%s: [", indent, key)
 			first := true
 			for item := range v {
-				if !first { fmt.Print(", ") }
+				if !first {
+					fmt.Print(", ")
+				}
 				fmt.Printf("%q", item)
 				first = false
 			}
@@ -153,7 +155,9 @@ func printRecord(record streamv3.Record, indent string) {
 			fmt.Printf("%s%s: [", indent, key)
 			first := true
 			for item := range v {
-				if !first { fmt.Print(", ") }
+				if !first {
+					fmt.Print(", ")
+				}
 				fmt.Printf("%d", item)
 				first = false
 			}
@@ -162,7 +166,9 @@ func printRecord(record streamv3.Record, indent string) {
 			fmt.Printf("%s%s: [", indent, key)
 			first := true
 			for item := range v {
-				if !first { fmt.Print(", ") }
+				if !first {
+					fmt.Print(", ")
+				}
 				fmt.Printf("%t", item)
 				first = false
 			}
@@ -171,7 +177,9 @@ func printRecord(record streamv3.Record, indent string) {
 			fmt.Printf("%s%s: [", indent, key)
 			first := true
 			for item := range v {
-				if !first { fmt.Print(", ") }
+				if !first {
+					fmt.Print(", ")
+				}
 				fmt.Printf("%.1f", item)
 				first = false
 			}
@@ -282,13 +290,21 @@ func materializeSequenceForComparison(value any) []any {
 	var result []any
 	switch seq := value.(type) {
 	case iter.Seq[string]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[int]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[bool]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	case iter.Seq[float64]:
-		for v := range seq { result = append(result, v) }
+		for v := range seq {
+			result = append(result, v)
+		}
 	}
 	return result
 }

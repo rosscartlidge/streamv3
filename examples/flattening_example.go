@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"iter"
 	"slices"
 	"strings"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {
@@ -32,13 +32,17 @@ func main() {
 	// Show input sequences
 	if tagsSeq, ok := streamv3.Get[iter.Seq[string]](record1, "tags"); ok {
 		fmt.Print("  Tags: ")
-		for tag := range tagsSeq { fmt.Printf("%s ", tag) }
+		for tag := range tagsSeq {
+			fmt.Printf("%s ", tag)
+		}
 		fmt.Println()
 	}
 
 	if scoresSeq, ok := streamv3.Get[iter.Seq[int]](record1, "scores"); ok {
 		fmt.Print("  Scores: ")
-		for score := range scoresSeq { fmt.Printf("%d ", score) }
+		for score := range scoresSeq {
+			fmt.Printf("%d ", score)
+		}
 		fmt.Println()
 	}
 
@@ -76,13 +80,17 @@ func main() {
 
 	if priSeq, ok := streamv3.Get[iter.Seq[string]](record2, "priorities"); ok {
 		fmt.Print("  Priorities: ")
-		for pri := range priSeq { fmt.Printf("%s ", pri) }
+		for pri := range priSeq {
+			fmt.Printf("%s ", pri)
+		}
 		fmt.Println()
 	}
 
 	if typSeq, ok := streamv3.Get[iter.Seq[string]](record2, "types"); ok {
 		fmt.Print("  Types: ")
-		for typ := range typSeq { fmt.Printf("%s ", typ) }
+		for typ := range typSeq {
+			fmt.Printf("%s ", typ)
+		}
 		fmt.Println()
 	}
 

@@ -771,7 +771,9 @@ func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record
 				result := MakeMutableRecord()
 
 				// Copy the grouping field values
-				for k, v := range groupFields[key].All() { result.fields[k] = v }
+				for k, v := range groupFields[key].All() {
+					result.fields[k] = v
+				}
 
 				// Add the sequence of group members as an iter.Seq[Record]
 				groupRecords := groups[key]
@@ -1023,4 +1025,3 @@ func Collect(field string) AggregateFunc {
 		return values
 	}
 }
-

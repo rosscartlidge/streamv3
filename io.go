@@ -109,56 +109,56 @@ func ReadCSVSafeFromReader(reader io.Reader, config ...CSVConfig) iter.Seq2[Reco
 	}
 
 	return func(yield func(Record, error) bool) {
-			// Wrap reader in bufio.Reader for better performance with large files
-			bufferedReader := bufio.NewReader(reader)
-			csvReader := csv.NewReader(bufferedReader)
-			csvReader.Comma = cfg.Delimiter
-			csvReader.Comment = cfg.Comment
+		// Wrap reader in bufio.Reader for better performance with large files
+		bufferedReader := bufio.NewReader(reader)
+		csvReader := csv.NewReader(bufferedReader)
+		csvReader.Comma = cfg.Delimiter
+		csvReader.Comment = cfg.Comment
 
-			var headers []string
-			if cfg.HasHeaders {
-				headerRow, err := csvReader.Read()
-				if err != nil {
-					yield(Record{}, fmt.Errorf("failed to read CSV headers: %w", err))
+		var headers []string
+		if cfg.HasHeaders {
+			headerRow, err := csvReader.Read()
+			if err != nil {
+				yield(Record{}, fmt.Errorf("failed to read CSV headers: %w", err))
+				return
+			}
+			headers = headerRow
+		}
+
+		rowIndex := int64(0)
+		for {
+			row, err := csvReader.Read()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				if !yield(Record{}, fmt.Errorf("failed to read CSV row %d: %w", rowIndex, err)) {
 					return
 				}
-				headers = headerRow
+				continue
 			}
 
-			rowIndex := int64(0)
-			for {
-				row, err := csvReader.Read()
-				if err == io.EOF {
-					return
-				}
-				if err != nil {
-					if !yield(Record{}, fmt.Errorf("failed to read CSV row %d: %w", rowIndex, err)) {
-						return
-					}
-					continue
-				}
-
-				record := MakeMutableRecord()
-				if cfg.HasHeaders && len(headers) > 0 {
-					for i, value := range row {
-						if i < len(headers) {
-							record.fields[headers[i]] = parseValue(value)
-						}
-					}
-				} else {
-					for i, value := range row {
-						record.fields[fmt.Sprintf("col_%d", i)] = parseValue(value)
+			record := MakeMutableRecord()
+			if cfg.HasHeaders && len(headers) > 0 {
+				for i, value := range row {
+					if i < len(headers) {
+						record.fields[headers[i]] = parseValue(value)
 					}
 				}
-
-				record.fields["_row_number"] = rowIndex
-				rowIndex++
-
-				if !yield(record.Freeze(), nil) {
-					return
+			} else {
+				for i, value := range row {
+					record.fields[fmt.Sprintf("col_%d", i)] = parseValue(value)
 				}
+			}
+
+			record.fields["_row_number"] = rowIndex
+			rowIndex++
+
+			if !yield(record.Freeze(), nil) {
+				return
 			}
 		}
+	}
 }
 
 // WriteCSVToWriter writes records as CSV to an io.Writer
@@ -301,22 +301,22 @@ func ReadCSV(filename string, config ...CSVConfig) (iter.Seq[Record], error) {
 // ReadCSVSafe reads CSV with error handling
 func ReadCSVSafe(filename string, config ...CSVConfig) iter.Seq2[Record, error] {
 	return func(yield func(Record, error) bool) {
-			file, err := os.Open(filename)
-			if err != nil {
-				if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
-					return
-				}
+		file, err := os.Open(filename)
+		if err != nil {
+			if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
 				return
 			}
-			defer file.Close()
+			return
+		}
+		defer file.Close()
 
-			// Use the io.Reader version
-			for record, err := range ReadCSVSafeFromReader(file, config...) {
-				if !yield(record, err) {
-					return
-				}
+		// Use the io.Reader version
+		for record, err := range ReadCSVSafeFromReader(file, config...) {
+			if !yield(record, err) {
+				return
 			}
 		}
+	}
 }
 
 // WriteCSV writes records to a CSV file.
@@ -366,69 +366,69 @@ func WriteCSV(sb iter.Seq[Record], filename string, config ...CSVConfig) error {
 // ReadJSONFromReader reads JSON records from an io.Reader (one JSON object per line)
 func ReadJSONFromReader(reader io.Reader) iter.Seq[Record] {
 	return func(yield func(Record) bool) {
-			scanner := bufio.NewScanner(reader)
-			lineNumber := int64(0)
+		scanner := bufio.NewScanner(reader)
+		lineNumber := int64(0)
 
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" {
-					lineNumber++
-					continue
-				}
-
-				var record Record
-				if err := json.Unmarshal([]byte(line), &record); err != nil {
-					// For simple API, skip invalid JSON lines
-					lineNumber++
-					continue
-				}
-
-				// Add line number metadata
-				record.fields["_line_number"] = lineNumber
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
 				lineNumber++
+				continue
+			}
 
-				if !yield(record) {
-					return
-				}
+			var record Record
+			if err := json.Unmarshal([]byte(line), &record); err != nil {
+				// For simple API, skip invalid JSON lines
+				lineNumber++
+				continue
+			}
+
+			// Add line number metadata
+			record.fields["_line_number"] = lineNumber
+			lineNumber++
+
+			if !yield(record) {
+				return
 			}
 		}
+	}
 }
 
 // ReadJSONSafeFromReader reads JSON records from an io.Reader with error handling
 func ReadJSONSafeFromReader(reader io.Reader) iter.Seq2[Record, error] {
 	return func(yield func(Record, error) bool) {
-			scanner := bufio.NewScanner(reader)
-			lineNumber := int64(0)
+		scanner := bufio.NewScanner(reader)
+		lineNumber := int64(0)
 
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" {
-					lineNumber++
-					continue
-				}
-
-				var record Record
-				if err := json.Unmarshal([]byte(line), &record); err != nil {
-					if !yield(Record{}, fmt.Errorf("failed to parse JSON on line %d: %w", lineNumber, err)) {
-						return
-					}
-					lineNumber++
-					continue
-				}
-
-				record.fields["_line_number"] = lineNumber
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
 				lineNumber++
+				continue
+			}
 
-				if !yield(record, nil) {
+			var record Record
+			if err := json.Unmarshal([]byte(line), &record); err != nil {
+				if !yield(Record{}, fmt.Errorf("failed to parse JSON on line %d: %w", lineNumber, err)) {
 					return
 				}
+				lineNumber++
+				continue
 			}
 
-			// Check for scanner errors
-			if err := scanner.Err(); err != nil {
-				yield(Record{}, fmt.Errorf("error reading input: %w", err))
+			record.fields["_line_number"] = lineNumber
+			lineNumber++
+
+			if !yield(record, nil) {
+				return
 			}
 		}
+
+		// Check for scanner errors
+		if err := scanner.Err(); err != nil {
+			yield(Record{}, fmt.Errorf("error reading input: %w", err))
+		}
+	}
 }
 
 // WriteJSONToWriter writes records as JSON to an io.Writer (one object per line)
@@ -511,44 +511,44 @@ func ReadJSON(filename string) (iter.Seq[Record], error) {
 // ReadJSONSafe reads JSON with error handling
 func ReadJSONSafe(filename string) iter.Seq2[Record, error] {
 	return func(yield func(Record, error) bool) {
-			file, err := os.Open(filename)
-			if err != nil {
-				if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
-					return
-				}
+		file, err := os.Open(filename)
+		if err != nil {
+			if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
 				return
 			}
-			defer file.Close()
+			return
+		}
+		defer file.Close()
 
-			scanner := bufio.NewScanner(file)
-			lineNum := 0
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if line == "" {
-					continue
-				}
+		scanner := bufio.NewScanner(file)
+		lineNum := 0
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
 
-				var record Record
-				if err := json.Unmarshal([]byte(line), &record); err != nil {
-					if !yield(Record{}, fmt.Errorf("invalid JSON on line %d: %w", lineNum, err)) {
-						return
-					}
-					continue
-				}
-
-				// Add line metadata
-				record.fields["_line_number"] = int64(lineNum)
-				lineNum++
-
-				if !yield(record, nil) {
+			var record Record
+			if err := json.Unmarshal([]byte(line), &record); err != nil {
+				if !yield(Record{}, fmt.Errorf("invalid JSON on line %d: %w", lineNum, err)) {
 					return
 				}
+				continue
 			}
 
-			if err := scanner.Err(); err != nil {
-				yield(Record{}, fmt.Errorf("error reading file: %w", err))
+			// Add line metadata
+			record.fields["_line_number"] = int64(lineNum)
+			lineNum++
+
+			if !yield(record, nil) {
+				return
 			}
 		}
+
+		if err := scanner.Err(); err != nil {
+			yield(Record{}, fmt.Errorf("error reading file: %w", err))
+		}
+	}
 }
 
 // WriteJSON writes records as JSON (one object per line)
@@ -590,9 +590,9 @@ func ReadLines(filename string) (iter.Seq[Record], error) {
 		lineNum := 0
 		for scanner.Scan() {
 			record := Record{fields: map[string]any{
-			"line":        scanner.Text(),
-			"line_number": int64(lineNum),
-		}}
+				"line":        scanner.Text(),
+				"line_number": int64(lineNum),
+			}}
 			lineNum++
 
 			if !yield(record) {
@@ -607,33 +607,33 @@ func ReadLines(filename string) (iter.Seq[Record], error) {
 // ReadLinesSafe reads text lines with error handling
 func ReadLinesSafe(filename string) iter.Seq2[Record, error] {
 	return func(yield func(Record, error) bool) {
-			file, err := os.Open(filename)
-			if err != nil {
-				if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
-					return
-				}
+		file, err := os.Open(filename)
+		if err != nil {
+			if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
 				return
 			}
-			defer file.Close()
+			return
+		}
+		defer file.Close()
 
-			scanner := bufio.NewScanner(file)
-			lineNum := 0
-			for scanner.Scan() {
-				record := Record{fields: map[string]any{
-			"line":        scanner.Text(),
-			"line_number": int64(lineNum),
-		}}
-				lineNum++
+		scanner := bufio.NewScanner(file)
+		lineNum := 0
+		for scanner.Scan() {
+			record := Record{fields: map[string]any{
+				"line":        scanner.Text(),
+				"line_number": int64(lineNum),
+			}}
+			lineNum++
 
-				if !yield(record, nil) {
-					return
-				}
-			}
-
-			if err := scanner.Err(); err != nil {
-				yield(Record{}, fmt.Errorf("error reading file: %w", err))
+			if !yield(record, nil) {
+				return
 			}
 		}
+
+		if err := scanner.Err(); err != nil {
+			yield(Record{}, fmt.Errorf("error reading file: %w", err))
+		}
+	}
 }
 
 // WriteLines writes records as text lines (using "line" field)
@@ -815,65 +815,65 @@ func ReadCommandOutputSafe(filename string, config ...CommandConfig) iter.Seq2[R
 
 	return func(yield func(Record, error) bool) {
 		file, err := os.Open(filename)
-			if err != nil {
-				if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
-					return
-				}
+		if err != nil {
+			if !yield(Record{}, fmt.Errorf("failed to open file %s: %w", filename, err)) {
 				return
 			}
-			defer file.Close()
+			return
+		}
+		defer file.Close()
 
-			scanner := bufio.NewScanner(file)
+		scanner := bufio.NewScanner(file)
 
-			var columnPositions []ColumnInfo
-			lineNum := 0
-			headerProcessed := false
+		var columnPositions []ColumnInfo
+		lineNum := 0
+		headerProcessed := false
 
-			for scanner.Scan() {
-				line := scanner.Text()
+		for scanner.Scan() {
+			line := scanner.Text()
 
-				// Skip empty lines if configured
-				if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
-					continue
-				}
+			// Skip empty lines if configured
+			if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
+				continue
+			}
 
-				// Process header line
-				if cfg.HasHeaders && !headerProcessed {
-					columnPositions = parseHeaderLine(line)
-					if len(columnPositions) == 0 {
-						if !yield(Record{}, fmt.Errorf("failed to parse header line: %s", line)) {
-							return
-						}
-						continue
-					}
-					headerProcessed = true
-					lineNum++
-					continue
-				}
-
-				// Parse data line
-				record, parseErr := parseDataLineSafe(line, columnPositions, cfg.TrimSpaces)
-				if parseErr != nil {
-					if !yield(Record{}, fmt.Errorf("error parsing line %d: %w", lineNum, parseErr)) {
+			// Process header line
+			if cfg.HasHeaders && !headerProcessed {
+				columnPositions = parseHeaderLine(line)
+				if len(columnPositions) == 0 {
+					if !yield(Record{}, fmt.Errorf("failed to parse header line: %s", line)) {
 						return
 					}
 					continue
 				}
-
-				record.fields["_line_number"] = int64(lineNum)
-				record.fields["_raw_line"] = line
-
+				headerProcessed = true
 				lineNum++
+				continue
+			}
 
-				if !yield(record, nil) {
+			// Parse data line
+			record, parseErr := parseDataLineSafe(line, columnPositions, cfg.TrimSpaces)
+			if parseErr != nil {
+				if !yield(Record{}, fmt.Errorf("error parsing line %d: %w", lineNum, parseErr)) {
 					return
 				}
+				continue
 			}
 
-			if err := scanner.Err(); err != nil {
-				yield(Record{}, fmt.Errorf("error reading file: %w", err))
+			record.fields["_line_number"] = int64(lineNum)
+			record.fields["_raw_line"] = line
+
+			lineNum++
+
+			if !yield(record, nil) {
+				return
 			}
 		}
+
+		if err := scanner.Err(); err != nil {
+			yield(Record{}, fmt.Errorf("error reading file: %w", err))
+		}
+	}
 }
 
 // ============================================================================
@@ -1069,78 +1069,78 @@ func ExecCommandSafe(command string, args []string, config ...CommandConfig) ite
 
 	return func(yield func(Record, error) bool) {
 		cmd := exec.Command(command, args...)
-			stdout, err := cmd.StdoutPipe()
-			if err != nil {
-				if !yield(Record{}, fmt.Errorf("failed to create stdout pipe: %w", err)) {
-					return
-				}
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			if !yield(Record{}, fmt.Errorf("failed to create stdout pipe: %w", err)) {
 				return
 			}
+			return
+		}
 
-			if err := cmd.Start(); err != nil {
-				if !yield(Record{}, fmt.Errorf("failed to start command: %w", err)) {
-					return
-				}
+		if err := cmd.Start(); err != nil {
+			if !yield(Record{}, fmt.Errorf("failed to start command: %w", err)) {
 				return
 			}
-			defer func() {
-				if waitErr := cmd.Wait(); waitErr != nil {
-					yield(Record{}, fmt.Errorf("command failed: %w", waitErr))
-				}
-			}()
+			return
+		}
+		defer func() {
+			if waitErr := cmd.Wait(); waitErr != nil {
+				yield(Record{}, fmt.Errorf("command failed: %w", waitErr))
+			}
+		}()
 
-			scanner := bufio.NewScanner(stdout)
+		scanner := bufio.NewScanner(stdout)
 
-			var columnPositions []ColumnInfo
-			lineNum := 0
-			headerProcessed := false
+		var columnPositions []ColumnInfo
+		lineNum := 0
+		headerProcessed := false
 
-			for scanner.Scan() {
-				line := scanner.Text()
+		for scanner.Scan() {
+			line := scanner.Text()
 
-				// Skip empty lines if configured
-				if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
-					continue
-				}
+			// Skip empty lines if configured
+			if cfg.SkipEmpty && strings.TrimSpace(line) == "" {
+				continue
+			}
 
-				// Process header line
-				if cfg.HasHeaders && !headerProcessed {
-					columnPositions = parseHeaderLine(line)
-					if len(columnPositions) == 0 {
-						if !yield(Record{}, fmt.Errorf("failed to parse header line: %s", line)) {
-							return
-						}
-						continue
-					}
-					headerProcessed = true
-					lineNum++
-					continue
-				}
-
-				// Parse data line
-				record, parseErr := parseDataLineSafe(line, columnPositions, cfg.TrimSpaces)
-				if parseErr != nil {
-					if !yield(Record{}, fmt.Errorf("error parsing line %d: %w", lineNum, parseErr)) {
+			// Process header line
+			if cfg.HasHeaders && !headerProcessed {
+				columnPositions = parseHeaderLine(line)
+				if len(columnPositions) == 0 {
+					if !yield(Record{}, fmt.Errorf("failed to parse header line: %s", line)) {
 						return
 					}
 					continue
 				}
-
-				record.fields["_line_number"] = int64(lineNum)
-				record.fields["_raw_line"] = line
-				record.fields["_command"] = command
-
+				headerProcessed = true
 				lineNum++
+				continue
+			}
 
-				if !yield(record, nil) {
+			// Parse data line
+			record, parseErr := parseDataLineSafe(line, columnPositions, cfg.TrimSpaces)
+			if parseErr != nil {
+				if !yield(Record{}, fmt.Errorf("error parsing line %d: %w", lineNum, parseErr)) {
 					return
 				}
+				continue
 			}
 
-			if err := scanner.Err(); err != nil {
-				yield(Record{}, fmt.Errorf("error reading command output: %w", err))
+			record.fields["_line_number"] = int64(lineNum)
+			record.fields["_raw_line"] = line
+			record.fields["_command"] = command
+
+			lineNum++
+
+			if !yield(record, nil) {
+				return
 			}
 		}
+
+		if err := scanner.Err(); err != nil {
+			yield(Record{}, fmt.Errorf("error reading command output: %w", err))
+		}
+	}
 }
 
 // ============================================================================
@@ -1347,6 +1347,7 @@ func FromChannelSafe[T any](itemCh <-chan T, errCh <-chan error) iter.Seq2[T, er
 		}
 	}
 }
+
 // ReadJSONAuto reads JSON from a file, auto-detecting JSON array vs JSONL format
 func ReadJSONAuto(filename string) (iter.Seq[Record], error) {
 	// Read all file content to detect format

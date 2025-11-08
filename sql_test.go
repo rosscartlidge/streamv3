@@ -263,8 +263,8 @@ func TestGroupByFieldsWithComplexValues(t *testing.T) {
 	nestedRecord := Record{fields: map[string]any{"city": "NYC"}}
 
 	input := slices.Values([]Record{
-		{fields: map[string]any{"dept": nestedRecord, "name": "Alice"}},  // Complex dept field - should be skipped
-		{fields: map[string]any{"dept": "Sales", "location": "Boston"}},  // Simple dept - should work
+		{fields: map[string]any{"dept": nestedRecord, "name": "Alice"}}, // Complex dept field - should be skipped
+		{fields: map[string]any{"dept": "Sales", "location": "Boston"}}, // Simple dept - should work
 	})
 
 	filter := GroupByFields("members", "dept")
@@ -296,9 +296,9 @@ func TestAggregate(t *testing.T) {
 
 	// Now aggregate
 	aggregated := Aggregate("employees", map[string]AggregateFunc{
-		"count":       Count(),
-		"total":       Sum("salary"),
-		"avg_salary":  Avg("salary"),
+		"count":      Count(),
+		"total":      Sum("salary"),
+		"avg_salary": Avg("salary"),
 	})(grouped)
 
 	result := slices.Collect(aggregated)

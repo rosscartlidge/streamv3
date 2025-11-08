@@ -108,7 +108,7 @@ func TestFullPipeline(t *testing.T) {
 	}
 
 	outputStr := string(output)
-	
+
 	// Check for expected elements in generated code
 	expectations := []string{
 		"package main",
@@ -261,10 +261,10 @@ func TestAllCommandsSupportGeneration(t *testing.T) {
 	defer os.Remove(tmpFile)
 
 	tests := []struct {
-		name          string
-		cmdLine       string
-		expectFragment bool // false for commands that shouldn't generate (like generate-go)
-		wantSubstring string // substring to verify in generated code
+		name           string
+		cmdLine        string
+		expectFragment bool   // false for commands that shouldn't generate (like generate-go)
+		wantSubstring  string // substring to verify in generated code
 	}{
 		{
 			name:           "read-csv",

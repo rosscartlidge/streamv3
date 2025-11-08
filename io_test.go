@@ -474,7 +474,7 @@ func TestExecCommandSafe(t *testing.T) {
 func TestExecCommandWithConfig(t *testing.T) {
 	config := DefaultCommandConfig()
 	config.TrimSpaces = true
-	config.HasHeaders = false  // Disable headers for echo output
+	config.HasHeaders = false // Disable headers for echo output
 
 	seq, err := ExecCommand("echo", []string{"hello"}, config)
 	if err != nil {

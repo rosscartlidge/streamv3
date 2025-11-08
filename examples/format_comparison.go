@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"time"
 	"github.com/rosscartlidge/streamv3"
+	"time"
 )
 
 func main() {

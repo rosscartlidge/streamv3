@@ -26,23 +26,23 @@ type ChartConfig struct {
 	Title              string            `json:"title"`
 	Width              int               `json:"width"`
 	Height             int               `json:"height"`
-	ChartType          string            `json:"chartType"`          // line, bar, scatter, pie, doughnut, radar, polarArea
-	TimeFormat         string            `json:"timeFormat"`         // For time-based X axis
-	XAxisType          string            `json:"xAxisType"`          // linear, logarithmic, time, category
-	YAxisType          string            `json:"yAxisType"`          // linear, logarithmic
+	ChartType          string            `json:"chartType"`  // line, bar, scatter, pie, doughnut, radar, polarArea
+	TimeFormat         string            `json:"timeFormat"` // For time-based X axis
+	XAxisType          string            `json:"xAxisType"`  // linear, logarithmic, time, category
+	YAxisType          string            `json:"yAxisType"`  // linear, logarithmic
 	ShowLegend         bool              `json:"showLegend"`
 	ShowTooltips       bool              `json:"showTooltips"`
 	EnableZoom         bool              `json:"enableZoom"`
 	EnablePan          bool              `json:"enablePan"`
 	EnableAnimations   bool              `json:"enableAnimations"`
 	ShowDataLabels     bool              `json:"showDataLabels"`
-	EnableInteractive  bool              `json:"enableInteractive"`   // Field selection UI
-	EnableCalculations bool              `json:"enableCalculations"`  // Running averages, etc.
-	ColorScheme        string            `json:"colorScheme"`         // default, vibrant, pastel, monochrome
-	Theme              string            `json:"theme"`               // light, dark
-	ExportFormats      []string          `json:"exportFormats"`       // png, svg, pdf, csv
+	EnableInteractive  bool              `json:"enableInteractive"`  // Field selection UI
+	EnableCalculations bool              `json:"enableCalculations"` // Running averages, etc.
+	ColorScheme        string            `json:"colorScheme"`        // default, vibrant, pastel, monochrome
+	Theme              string            `json:"theme"`              // light, dark
+	ExportFormats      []string          `json:"exportFormats"`      // png, svg, pdf, csv
 	CustomCSS          string            `json:"customCSS"`
-	Fields             map[string]string `json:"fields"`              // field -> data type hints
+	Fields             map[string]string `json:"fields"` // field -> data type hints
 }
 
 // DefaultChartConfig provides sensible defaults for interactive chart generation.
@@ -90,18 +90,18 @@ func DefaultChartConfig() ChartConfig {
 
 // ChartData represents the complete chart data structure
 type ChartData struct {
-	Records    []Record         `json:"records"`
-	Fields     []string         `json:"fields"`
-	NumericFields []string      `json:"numericFields"`
-	DateFields []string         `json:"dateFields"`
-	Categories map[string][]any `json:"categories"`
-	Summary    ChartSummary     `json:"summary"`
+	Records       []Record         `json:"records"`
+	Fields        []string         `json:"fields"`
+	NumericFields []string         `json:"numericFields"`
+	DateFields    []string         `json:"dateFields"`
+	Categories    map[string][]any `json:"categories"`
+	Summary       ChartSummary     `json:"summary"`
 }
 
 // ChartSummary provides statistical summary of the data
 type ChartSummary struct {
-	RecordCount int                    `json:"recordCount"`
-	FieldTypes  map[string]string      `json:"fieldTypes"`
+	RecordCount  int                    `json:"recordCount"`
+	FieldTypes   map[string]string      `json:"fieldTypes"`
 	NumericStats map[string]NumericStat `json:"numericStats"`
 }
 

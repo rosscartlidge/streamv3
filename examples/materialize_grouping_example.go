@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"iter"
 	"slices"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {
@@ -47,9 +47,9 @@ func main() {
 		streamv3.Materialize("tags", "tags_key", ","),
 		streamv3.GroupByFields("group_data", "tags_key"), // Group by materialized content
 		streamv3.Aggregate("group_data", map[string]streamv3.AggregateFunc{
-			"count":      streamv3.Count(),
-			"teams":      streamv3.Collect("team"),
-			"task_ids":   streamv3.Collect("id"),
+			"count":    streamv3.Count(),
+			"teams":    streamv3.Collect("team"),
+			"task_ids": streamv3.Collect("id"),
 		}),
 	)(slices.Values(tasks))
 

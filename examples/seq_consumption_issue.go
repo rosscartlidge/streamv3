@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"iter"
 	"github.com/rosscartlidge/streamv3"
+	"iter"
 )
 
 func main() {

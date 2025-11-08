@@ -552,7 +552,7 @@ func generateLimitCode(n int) error {
 	return lib.WriteCodeFragment(frag)
 }
 
-// generateOffsetCode generates Go code for the offset command  
+// generateOffsetCode generates Go code for the offset command
 func generateOffsetCode(n int) error {
 	fragments, err := lib.ReadAllCodeFragments()
 	if err != nil {

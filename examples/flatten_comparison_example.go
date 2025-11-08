@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/rosscartlidge/streamv3"
 	"iter"
 	"slices"
 	"strings"
-	"github.com/rosscartlidge/streamv3"
 )
 
 func main() {
@@ -33,13 +33,17 @@ func main() {
 	// Show input sequences
 	if colorsSeq, ok := streamv3.Get[iter.Seq[string]](product, "colors"); ok {
 		fmt.Print("  Colors: ")
-		for color := range colorsSeq { fmt.Printf("%s ", color) }
+		for color := range colorsSeq {
+			fmt.Printf("%s ", color)
+		}
 		fmt.Println()
 	}
 
 	if sizesSeq, ok := streamv3.Get[iter.Seq[string]](product, "sizes"); ok {
 		fmt.Print("  Sizes: ")
-		for size := range sizesSeq { fmt.Printf("%s ", size) }
+		for size := range sizesSeq {
+			fmt.Printf("%s ", size)
+		}
 		fmt.Println()
 	}
 
@@ -81,8 +85,8 @@ func main() {
 	task := streamv3.MakeMutableRecord().
 		String("id", "TASK-456").
 		String("assignee", "Alice").
-		StringSeq("tags", shortTags).      // 2 elements
-		IntSeq("scores", longScores).      // 4 elements
+		StringSeq("tags", shortTags). // 2 elements
+		IntSeq("scores", longScores). // 4 elements
 		Freeze()
 
 	fmt.Printf("Input: %s (assignee: %s)\n",
@@ -92,13 +96,17 @@ func main() {
 	// Show input sequences with lengths
 	if tagsSeq, ok := streamv3.Get[iter.Seq[string]](task, "tags"); ok {
 		fmt.Print("  Tags (2 items): ")
-		for tag := range tagsSeq { fmt.Printf("%s ", tag) }
+		for tag := range tagsSeq {
+			fmt.Printf("%s ", tag)
+		}
 		fmt.Println()
 	}
 
 	if scoresSeq, ok := streamv3.Get[iter.Seq[int]](task, "scores"); ok {
 		fmt.Print("  Scores (4 items): ")
-		for score := range scoresSeq { fmt.Printf("%d ", score) }
+		for score := range scoresSeq {
+			fmt.Printf("%d ", score)
+		}
 		fmt.Println()
 	}
 
@@ -143,7 +151,7 @@ func main() {
 
 	userRecord := streamv3.MakeMutableRecord().
 		String("user_id", "USR-789").
-		Nested("profile", userInfo).          // Nested record
+		Nested("profile", userInfo).           // Nested record
 		StringSeq("permissions", permissions). // Sequence
 		Freeze()
 
@@ -157,7 +165,9 @@ func main() {
 
 	if permSeq, ok := streamv3.Get[iter.Seq[string]](userRecord, "permissions"); ok {
 		fmt.Print("  Permissions: ")
-		for perm := range permSeq { fmt.Printf("%s ", perm) }
+		for perm := range permSeq {
+			fmt.Printf("%s ", perm)
+		}
 		fmt.Println()
 	}
 
@@ -171,7 +181,9 @@ func main() {
 			fmt.Printf("    %s: %v\n", key, value)
 		}
 		count++
-		if count > 3 { break } // Limit output
+		if count > 3 {
+			break
+		} // Limit output
 	}
 
 	fmt.Println("\n💡 Key Differences:")

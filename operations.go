@@ -409,8 +409,6 @@ func Reverse[T any]() Filter[T, T] {
 // WINDOW OPERATIONS
 // ============================================================================
 
-
-
 // ============================================================================
 // STREAM UTILITIES
 // ============================================================================
@@ -527,7 +525,9 @@ func RunningSum(fieldName string) Filter[Record, Record] {
 				// Create output record with running sum
 				outputRecord := MakeMutableRecord()
 				// Copy original record
-				for k, v := range record.All() { outputRecord.fields[k] = v }
+				for k, v := range record.All() {
+					outputRecord.fields[k] = v
+				}
 				// Add running sum fields
 				outputRecord.fields["running_sum"] = runningTotal
 				outputRecord.fields["running_count"] = int64(count)
@@ -574,7 +574,9 @@ func RunningAverage(fieldName string, windowSize int) Filter[Record, Record] {
 
 				// Create output record
 				outputRecord := MakeMutableRecord()
-				for k, v := range record.All() { outputRecord.fields[k] = v }
+				for k, v := range record.All() {
+					outputRecord.fields[k] = v
+				}
 				outputRecord.fields["moving_avg"] = avg
 				outputRecord.fields["window_size"] = int64(len(window))
 				outputRecord.fields["total_count"] = int64(count)
@@ -608,7 +610,9 @@ func ExponentialMovingAverage(fieldName string, alpha float64) Filter[Record, Re
 
 				// Create output record
 				outputRecord := MakeMutableRecord()
-				for k, v := range record.All() { outputRecord.fields[k] = v }
+				for k, v := range record.All() {
+					outputRecord.fields[k] = v
+				}
 				outputRecord.fields["ema"] = ema
 				outputRecord.fields["alpha"] = alpha
 
@@ -645,7 +649,9 @@ func RunningMinMax(fieldName string) Filter[Record, Record] {
 
 				// Create output record
 				outputRecord := MakeMutableRecord()
-				for k, v := range record.All() { outputRecord.fields[k] = v }
+				for k, v := range record.All() {
+					outputRecord.fields[k] = v
+				}
 				outputRecord.fields["running_min"] = min
 				outputRecord.fields["running_max"] = max
 				outputRecord.fields["running_range"] = max - min
@@ -674,7 +680,9 @@ func RunningCount(fieldName string) Filter[Record, Record] {
 
 				// Create output record
 				outputRecord := MakeMutableRecord()
-				for k, v := range record.All() { outputRecord.fields[k] = v }
+				for k, v := range record.All() {
+					outputRecord.fields[k] = v
+				}
 				outputRecord.fields["distinct_counts"] = counts
 				outputRecord.fields["total_count"] = totalCount
 				outputRecord.fields["distinct_values"] = int64(len(counts))
@@ -1057,4 +1065,3 @@ func SkipUntil[T any](predicate func(T) bool) Filter[T, T] {
 		}
 	}
 }
-

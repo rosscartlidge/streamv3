@@ -76,7 +76,7 @@ func createSalesDashboard(outputDir string) {
 				seasonality := 1.0 + 0.3*math.Sin(float64(month)*math.Pi/6) // Seasonal variation
 				baseAmount := 50000 + rand.Float64()*100000                 // $50K-$150K base
 				growth := 1.0 + float64(month)*0.02                         // 2% monthly growth
-				noise := 0.8 + rand.Float64()*0.4                          // ±20% random variation
+				noise := 0.8 + rand.Float64()*0.4                           // ±20% random variation
 
 				sales := baseAmount * seasonality * growth * noise
 				profit := sales * (0.15 + rand.Float64()*0.15) // 15-30% profit margin
@@ -194,9 +194,9 @@ func createProcessAnalysis(outputDir string) {
 
 		switch {
 		case user == "postgres":
-			cpuUsage = 5 + rand.Float64()*15     // DB processes use more CPU
-			memUsage = 200 + rand.Float64()*800  // MB
-			memSize = int64(memUsage * 1024)     // KB
+			cpuUsage = 5 + rand.Float64()*15    // DB processes use more CPU
+			memUsage = 200 + rand.Float64()*800 // MB
+			memSize = int64(memUsage * 1024)    // KB
 		case user == "nginx":
 			cpuUsage = 1 + rand.Float64()*5
 			memUsage = 10 + rand.Float64()*50

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"iter"
 	"fmt"
+	"iter"
 	"os"
 	"strings"
 

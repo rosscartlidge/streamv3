@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"slices"
 	"github.com/rosscartlidge/streamv3"
+	"slices"
 )
 
 func main() {

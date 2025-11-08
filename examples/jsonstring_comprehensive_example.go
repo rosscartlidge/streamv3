@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"slices"
 	"github.com/rosscartlidge/streamv3"
+	"slices"
 )
 
 func main() {
@@ -75,8 +75,8 @@ func main() {
 
 	// Create JSONString from complex data
 	userJSON, _ := streamv3.NewJSONString(map[string]any{
-		"name": "Alice",
-		"age":  30,
+		"name":  "Alice",
+		"age":   30,
 		"roles": []string{"admin", "developer"},
 	})
 
