@@ -537,7 +537,7 @@ go run examples/early_termination_example.go
 - **[AI Code Generation](doc/ai-human-guide.md)** - Natural language to code
   - **[For LLMs](doc/ai-code-generation.md)** - Copy this prompt into your LLM
   - **[For Maintainers](doc/AI-PROMPT-README.md)** - Maintaining the AI prompt
-  - **[Testing AI Generation](TESTING.md)** - Validate generated code with automated test suite
+  - **[Testing AI Generation](doc/archive/TESTING.md)** - Validate generated code with automated test suite
 
 ## 🤝 Community
 
