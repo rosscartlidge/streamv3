@@ -13,7 +13,7 @@
 
 ### Learning Path
 - [Quick Start](#quick-start)
-- [What is the ssql CLI?](#what-is-the-streamv3-cli)
+- [What is the ssql CLI?](#what-is-the-ssql-cli)
 - [Basic Pipeline Operations](#basic-pipeline-operations)
 - [Working with Real Data](#working-with-real-data)
 - [Grouping and Aggregations](#grouping-and-aggregations)
@@ -795,7 +795,7 @@ The CLI supports intelligent tab completion for commands, flags, and even field 
 eval "$(ssql -bash-completion)"
 
 # Install permanently
-ssql -bash-completion > ~/.local/share/bash-completion/completions/streamv3
+ssql -bash-completion > ~/.local/share/bash-completion/completions/ssql
 
 # Or add to ~/.bashrc
 echo 'eval "$(ssql -bash-completion)"' >> ~/.bashrc

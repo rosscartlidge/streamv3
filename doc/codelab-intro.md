@@ -10,7 +10,7 @@
 
 ### Learning Path
 - [Quick Demo - See the Power](#quick-demo---see-the-power)
-- [What is ssql?](#what-is-streamv3)
+- [What is ssql?](#what-is-ssql)
 - [Your First Stream](#your-first-stream)
 - [Working with Records](#working-with-records)
 - [Reading Real Data](#reading-real-data)

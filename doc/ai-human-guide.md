@@ -57,7 +57,7 @@ npm install -g @anthropic-ai/claude-code
 
 **Setup for ssql (Option 1: Quick)**:
 ```bash
-cd my-streamv3-project
+cd my-ssql-project
 claude-code
 
 # First message: Copy and paste the entire contents of

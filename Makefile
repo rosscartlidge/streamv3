@@ -1,10 +1,10 @@
-# StreamV3 Makefile
+# ssql Makefile
 
 .PHONY: help test build clean doc-check doc-test doc-verify doc-update fmt vet all ci install-hooks
 
 # Default target
 help:
-	@echo "StreamV3 Makefile Targets:"
+	@echo "ssql Makefile Targets:"
 	@echo ""
 	@echo "Quality Checks:"
 	@echo "  make test         - Run all tests"
@@ -35,10 +35,10 @@ test:
 
 # Build the project
 build:
-	@echo "Building StreamV3..."
+	@echo "Building ssql..."
 	go build ./...
 	@echo "Building CLI tool..."
-	cd cmd/streamv3 && go build
+	cd cmd/ssql && go build
 
 # Format code
 fmt:
@@ -79,7 +79,7 @@ doc-update: fmt
 clean:
 	@echo "Cleaning build artifacts..."
 	go clean ./...
-	rm -f cmd/streamv3/streamv3
+	rm -f cmd/ssql/ssql
 
 # Run all quality checks (pre-push)
 all: fmt vet test doc-check

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Documentation validation script for StreamV3
+# Documentation validation script for ssql
 # Ensures documentation stays in sync with code
 
 # Note: Don't use set -e because we want to collect all errors
@@ -15,7 +15,7 @@ ERRORS=0
 WARNINGS=0
 CHECKS=0
 
-echo -e "${BLUE}StreamV3 Documentation Validation${NC}"
+echo -e "${BLUE}ssql Documentation Validation${NC}"
 echo "======================================"
 echo ""
 
@@ -101,11 +101,11 @@ section "3. Checking for Outdated API Patterns"
 # Patterns that should NOT appear in docs
 bad_patterns=(
     "NewRecord().Build()"
-    "streamv3.Map("
-    "streamv3.Filter("
-    "streamv3.Take("
-    "streamv3.Skip("
-    "streamv3.FlatMap("
+    "ssql.Map("
+    "ssql.Filter("
+    "ssql.Take("
+    "ssql.Skip("
+    "ssql.FlatMap("
 )
 
 for file in "${required_files[@]}"; do
@@ -294,7 +294,7 @@ for file in "${llm_files[@]}"; do
         continue
     fi
 
-    if grep -q "go doc github.com/rosscartlidge/streamv3" "$file"; then
+    if grep -q "go doc github.com/rosscartlidge/ssql" "$file"; then
         pass "$file references go doc"
     else
         warn "$file should reference 'go doc' as source of truth"
@@ -307,10 +307,10 @@ section "7. Checking Critical API Patterns"
 critical_patterns=(
     "MakeMutableRecord"
     "Freeze()"
-    "streamv3.Select"
-    "streamv3.Where"
-    "streamv3.Limit"
-    "streamv3.ReadCSV"
+    "ssql.Select"
+    "ssql.Where"
+    "ssql.Limit"
+    "ssql.ReadCSV"
     "int64(0)"
     "GetOr"
 )
@@ -322,10 +322,10 @@ for file in "${llm_files[@]}"; do
 
     file_has_all=1
     for pattern in "${critical_patterns[@]}"; do
-        # For ai-human-guide.md, allow patterns without streamv3. prefix
+        # For ai-human-guide.md, allow patterns without ssql. prefix
         if [[ "$file" == "doc/ai-human-guide.md" ]]; then
-            # Strip streamv3. prefix for human guide
-            relaxed_pattern="${pattern#streamv3.}"
+            # Strip ssql. prefix for human guide
+            relaxed_pattern="${pattern#ssql.}"
             if ! grep -q "$relaxed_pattern" "$file"; then
                 fail "Missing critical pattern '$pattern' in $file"
                 file_has_all=0

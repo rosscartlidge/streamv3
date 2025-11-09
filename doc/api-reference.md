@@ -74,8 +74,8 @@ go version  # Should show 1.23 or higher
 
 ```bash
 # Create project directory
-mkdir my-streamv3-project
-cd my-streamv3-project
+mkdir my-ssql-project
+cd my-ssql-project
 
 # Initialize Go module (required for dependency management)
 go mod init myproject
@@ -129,7 +129,7 @@ go run main.go
 Or build an executable:
 ```bash
 go build
-./my-streamv3-project  # or my-streamv3-project.exe on Windows
+./my-ssql-project  # or my-ssql-project.exe on Windows
 ```
 
 ---

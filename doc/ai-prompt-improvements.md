@@ -94,7 +94,7 @@ ssql.Max[T]("field")
 
 **What validation detects:**
 ```go
-❌ "github.com/rocketlaunchr/streamv3"
+❌ "github.com/rocketlaunchr/ssql"
 ✅ "github.com/rosscartlidge/ssql"
 ```
 
@@ -113,9 +113,9 @@ import "github.com/rosscartlidge/ssql"  // ✅ CORRECT
 ```
 
 **Common mistakes:**
-- ❌ `github.com/rocketlaunchr/streamv3` - Old/different project
-- ❌ `github.com/streamv3/v3` - Doesn't exist
-- ❌ `streamv3` - Not in stdlib
+- ❌ `github.com/rocketlaunchr/ssql` - Old/different project
+- ❌ `github.com/ssql/v3` - Doesn't exist
+- ❌ `ssql` - Not in stdlib
 
 **Why this matters:** LLMs trained on public code might confuse this with other stream libraries. Always use `github.com/rosscartlidge/ssql`.
 ```

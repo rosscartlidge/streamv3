@@ -51,8 +51,8 @@ import (
 **DO NOT import packages that aren't referenced in the code.**
 
 **⚠️ Common Import Mistakes:**
-- ❌ `github.com/rocketlaunchr/streamv3` - Wrong! Different project
-- ❌ `github.com/streamv3/v3` - Wrong! Doesn't exist
+- ❌ `github.com/rocketlaunchr/ssql` - Wrong! Different project
+- ❌ `github.com/ssql/v3` - Wrong! Doesn't exist
 - ✅ `github.com/rosscartlidge/ssql` - Correct!
 
 ### Core Types & Creation
@@ -152,7 +152,7 @@ count := record.Len()
 - ✅ User code
 - ✅ LLM-generated code
 - ✅ Example programs
-- ✅ Test files that import streamv3
+- ✅ Test files that import ssql
 
 ### Aggregation Functions
 
