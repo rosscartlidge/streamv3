@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/rosscartlidge/ssql"
+	"github.com/rosscartlidge/ssql/v2"
 )
 
 func main() {
