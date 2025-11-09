@@ -31,26 +31,26 @@ func extractNumeric(val any) float64 {
 }
 
 // setTypedValue sets a field with type-safe setters based on the value's type
-// This replaces the deprecated SetAny() method
+// This replaces the deprecated SetAny() method by using ssql.Set() with proper type assertions
 func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableRecord {
 	switch v := val.(type) {
 	case int64:
-		return record.Int(key, v)
+		return ssql.Set(record, key, v)
 	case float64:
-		return record.Float(key, v)
+		return ssql.Set(record, key, v)
 	case bool:
-		return record.Bool(key, v)
+		return ssql.Set(record, key, v)
 	case string:
-		return record.String(key, v)
+		return ssql.Set(record, key, v)
 	case time.Time:
 		return ssql.Set(record, key, v)
 	case ssql.Record:
 		return ssql.Set(record, key, v)
 	case ssql.JSONString:
-		return record.JSONString(key, v)
+		return ssql.Set(record, key, v)
 	default:
-		// For unknown types (sequences, etc.), convert to string
-		return record.String(key, fmt.Sprintf("%v", v))
+		// For unknown types, convert to string
+		return ssql.Set(record, key, fmt.Sprintf("%v", v))
 	}
 }
 

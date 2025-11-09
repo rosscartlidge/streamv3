@@ -251,6 +251,35 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 		code += ")\n\n"
 	}
 
+	// Add helper functions if needed by generated code
+	needsSetTypedValue := false
+	for _, frag := range fragments {
+		if findString(frag.Code, "setTypedValue") != -1 {
+			needsSetTypedValue = true
+			break
+		}
+	}
+
+	if needsSetTypedValue {
+		code += `// setTypedValue sets a field value using appropriate type assertion
+func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableRecord {
+	switch v := val.(type) {
+	case int64:
+		return ssql.Set(record, key, v)
+	case float64:
+		return ssql.Set(record, key, v)
+	case bool:
+		return ssql.Set(record, key, v)
+	case string:
+		return ssql.Set(record, key, v)
+	default:
+		return ssql.Set(record, key, fmt.Sprintf("%v", v))
+	}
+}
+
+`
+	}
+
 	// Add main function
 	code += "func main() {\n"
 
