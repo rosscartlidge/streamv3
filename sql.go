@@ -1,11 +1,17 @@
 package ssql
 
 import (
-	"cmp"
 	"fmt"
 	"iter"
 	"strings"
 )
+
+// OrderedValue represents types that are both orderable and valid Record field values
+// Used for Min/Max aggregations which require comparison operators
+// Note: Must exactly match types from Value constraint that are also comparable with < >
+type OrderedValue interface {
+	~int64 | ~float64 | string
+}
 
 // ============================================================================
 // SQL-STYLE OPERATIONS - JOIN, GROUPBY, AGGREGATION
@@ -799,9 +805,26 @@ func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record
 // AGGREGATION OPERATIONS
 // ============================================================================
 
+// AggregateResult is a sealed interface that can only be created by AggResult[V Value]
+// This ensures at compile time that aggregation results satisfy the Value constraint
+type AggregateResult interface {
+	getValue() any
+	sealed() // Prevents external implementations
+}
+
+// AggResult wraps an aggregation result with compile-time type safety
+// The generic constraint V Value ensures only valid types can be wrapped
+type AggResult[V Value] struct {
+	val V
+}
+
+func (a AggResult[V]) getValue() any { return a.val }
+func (a AggResult[V]) sealed()       {}
+
 // AggregateFunc defines an aggregation function over a group of records.
-// Takes a slice of records and returns an aggregated value.
-type AggregateFunc func([]Record) any
+// Takes a slice of records and returns an AggregateResult.
+// The result is guaranteed at compile time to contain a type satisfying Value.
+type AggregateFunc func([]Record) AggregateResult
 
 // Aggregate applies aggregation functions to records containing sequence fields.
 // Use after GroupBy or GroupByFields to compute summary statistics.
@@ -847,9 +870,10 @@ func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filt
 							records = append(records, r)
 						}
 
-						// Apply all aggregation functions (with type validation)
+						// Apply all aggregation functions (type-safe at compile time)
 						for name, aggFn := range aggregations {
-							result.setValidated(name, aggFn(records))
+							aggResult := aggFn(records)
+							result.fields[name] = aggResult.getValue()
 						}
 					}
 				}
@@ -874,8 +898,8 @@ func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filt
 //	    "total": ssql.Count(),
 //	}
 func Count() AggregateFunc {
-	return func(records []Record) any {
-		return int64(len(records))
+	return func(records []Record) AggregateResult {
+		return AggResult[int64]{val: int64(len(records))}
 	}
 }
 
@@ -888,7 +912,7 @@ func Count() AggregateFunc {
 //	    "total_revenue": ssql.Sum("amount"),
 //	}
 func Sum(field string) AggregateFunc {
-	return func(records []Record) any {
+	return func(records []Record) AggregateResult {
 		var sum float64
 		for _, record := range records {
 			// Use type-safe Get with automatic conversion to float64
@@ -896,7 +920,7 @@ func Sum(field string) AggregateFunc {
 				sum += value
 			}
 		}
-		return sum
+		return AggResult[float64]{val: sum}
 	}
 }
 
@@ -909,7 +933,7 @@ func Sum(field string) AggregateFunc {
 //	    "avg_salary": ssql.Avg("salary"),
 //	}
 func Avg(field string) AggregateFunc {
-	return func(records []Record) any {
+	return func(records []Record) AggregateResult {
 		var sum float64
 		var count int64
 		for _, record := range records {
@@ -920,9 +944,9 @@ func Avg(field string) AggregateFunc {
 			}
 		}
 		if count == 0 {
-			return 0.0
+			return AggResult[float64]{val: 0.0}
 		}
-		return sum / float64(count)
+		return AggResult[float64]{val: sum / float64(count)}
 	}
 }
 
@@ -935,11 +959,11 @@ func Avg(field string) AggregateFunc {
 //	    "min_age":    ssql.Min[int64]("age"),
 //	    "min_salary": ssql.Min[float64]("salary"),
 //	}
-func Min[T cmp.Ordered](field string) AggregateFunc {
-	return func(records []Record) any {
+func Min[T OrderedValue](field string) AggregateFunc {
+	return func(records []Record) AggregateResult {
 		if len(records) == 0 {
 			var zero T
-			return zero
+			return AggResult[T]{val: zero}
 		}
 
 		var min T
@@ -953,7 +977,7 @@ func Min[T cmp.Ordered](field string) AggregateFunc {
 				}
 			}
 		}
-		return min
+		return AggResult[T]{val: min}
 	}
 }
 
@@ -966,11 +990,11 @@ func Min[T cmp.Ordered](field string) AggregateFunc {
 //	    "max_age":    ssql.Max[int64]("age"),
 //	    "max_salary": ssql.Max[float64]("salary"),
 //	}
-func Max[T cmp.Ordered](field string) AggregateFunc {
-	return func(records []Record) any {
+func Max[T OrderedValue](field string) AggregateFunc {
+	return func(records []Record) AggregateResult {
 		if len(records) == 0 {
 			var zero T
-			return zero
+			return AggResult[T]{val: zero}
 		}
 
 		var max T
@@ -984,44 +1008,41 @@ func Max[T cmp.Ordered](field string) AggregateFunc {
 				}
 			}
 		}
-		return max
+		return AggResult[T]{val: max}
 	}
 }
 
 // First returns the first non-nil value from a field
-func First(field string) AggregateFunc {
-	return func(records []Record) any {
+// Requires specifying the type parameter for compile-time type safety
+func First[T Value](field string) AggregateFunc {
+	return func(records []Record) AggregateResult {
 		for _, record := range records {
-			if val, exists := record.fields[field]; exists {
-				return val
+			if val, ok := Get[T](record, field); ok {
+				return AggResult[T]{val: val}
 			}
 		}
-		return nil
+		var zero T
+		return AggResult[T]{val: zero}
 	}
 }
 
 // Last returns the last non-nil value from a field
-func Last(field string) AggregateFunc {
-	return func(records []Record) any {
-		var lastVal any
+// Requires specifying the type parameter for compile-time type safety
+func Last[T Value](field string) AggregateFunc {
+	return func(records []Record) AggregateResult {
+		var lastVal T
+		found := false
 		for _, record := range records {
-			if val, exists := record.fields[field]; exists {
+			if val, ok := Get[T](record, field); ok {
 				lastVal = val
+				found = true
 			}
 		}
-		return lastVal
+		if !found {
+			var zero T
+			return AggResult[T]{val: zero}
+		}
+		return AggResult[T]{val: lastVal}
 	}
 }
 
-// Collect gathers all values from a field into a slice
-func Collect(field string) AggregateFunc {
-	return func(records []Record) any {
-		var values []any
-		for _, record := range records {
-			if val, exists := record.fields[field]; exists {
-				values = append(values, val)
-			}
-		}
-		return values
-	}
-}

@@ -331,7 +331,7 @@ func TestCount(t *testing.T) {
 	}
 
 	countFn := Count()
-	result := countFn(records)
+	result := countFn(records).getValue()
 
 	if result != int64(3) {
 		t.Errorf("Count should return 3, got %v", result)
@@ -346,7 +346,7 @@ func TestSum(t *testing.T) {
 	}
 
 	sumFn := Sum("value")
-	result := sumFn(records)
+	result := sumFn(records).getValue()
 
 	if result != float64(60) {
 		t.Errorf("Sum should return 60, got %v", result)
@@ -361,7 +361,7 @@ func TestSumMixedTypes(t *testing.T) {
 	}
 
 	sumFn := Sum("value")
-	result := sumFn(records)
+	result := sumFn(records).getValue()
 
 	if result != float64(60.5) {
 		t.Errorf("Sum should handle mixed types and return 60.5, got %v", result)
@@ -376,7 +376,7 @@ func TestAvg(t *testing.T) {
 	}
 
 	avgFn := Avg("score")
-	result := avgFn(records)
+	result := avgFn(records).getValue()
 
 	if result != float64(90) {
 		t.Errorf("Avg should return 90, got %v", result)
@@ -387,7 +387,7 @@ func TestAvgEmpty(t *testing.T) {
 	records := []Record{}
 
 	avgFn := Avg("score")
-	result := avgFn(records)
+	result := avgFn(records).getValue()
 
 	if result != 0.0 {
 		t.Errorf("Avg of empty should return 0, got %v", result)
@@ -402,7 +402,7 @@ func TestMin(t *testing.T) {
 	}
 
 	minFn := Min[int64]("value")
-	result := minFn(records)
+	result := minFn(records).getValue()
 
 	if result != int64(10) {
 		t.Errorf("Min should return 10, got %v", result)
@@ -417,7 +417,7 @@ func TestMinFloat(t *testing.T) {
 	}
 
 	minFn := Min[float64]("value")
-	result := minFn(records)
+	result := minFn(records).getValue()
 
 	if result != 2.3 {
 		t.Errorf("Min should return 2.3, got %v", result)
@@ -432,7 +432,7 @@ func TestMax(t *testing.T) {
 	}
 
 	maxFn := Max[int64]("value")
-	result := maxFn(records)
+	result := maxFn(records).getValue()
 
 	if result != int64(100) {
 		t.Errorf("Max should return 100, got %v", result)
@@ -447,7 +447,7 @@ func TestMaxString(t *testing.T) {
 	}
 
 	maxFn := Max[string]("name")
-	result := maxFn(records)
+	result := maxFn(records).getValue()
 
 	if result != "Charlie" {
 		t.Errorf("Max should return Charlie, got %v", result)
@@ -461,8 +461,8 @@ func TestFirst(t *testing.T) {
 		{fields: map[string]any{"value": "third"}},
 	}
 
-	firstFn := First("value")
-	result := firstFn(records)
+	firstFn := First[string]("value")
+	result := firstFn(records).getValue()
 
 	if result != "first" {
 		t.Errorf("First should return 'first', got %v", result)
@@ -472,11 +472,11 @@ func TestFirst(t *testing.T) {
 func TestFirstEmpty(t *testing.T) {
 	records := []Record{}
 
-	firstFn := First("value")
-	result := firstFn(records)
+	firstFn := First[string]("value")
+	result := firstFn(records).getValue()
 
-	if result != nil {
-		t.Errorf("First of empty should return nil, got %v", result)
+	if result != "" {
+		t.Errorf("First of empty should return empty string, got %v", result)
 	}
 }
 
@@ -487,8 +487,8 @@ func TestLast(t *testing.T) {
 		{fields: map[string]any{"value": "third"}},
 	}
 
-	lastFn := Last("value")
-	result := lastFn(records)
+	lastFn := Last[string]("value")
+	result := lastFn(records).getValue()
 
 	if result != "third" {
 		t.Errorf("Last should return 'third', got %v", result)
@@ -498,35 +498,11 @@ func TestLast(t *testing.T) {
 func TestLastEmpty(t *testing.T) {
 	records := []Record{}
 
-	lastFn := Last("value")
-	result := lastFn(records)
+	lastFn := Last[string]("value")
+	result := lastFn(records).getValue()
 
-	if result != nil {
-		t.Errorf("Last of empty should return nil, got %v", result)
-	}
-}
-
-func TestCollect(t *testing.T) {
-	records := []Record{
-		{fields: map[string]any{"name": "Alice"}},
-		{fields: map[string]any{"name": "Bob"}},
-		{fields: map[string]any{"name": "Charlie"}},
-	}
-
-	collectFn := Collect("name")
-	result := collectFn(records)
-
-	values, ok := result.([]any)
-	if !ok {
-		t.Fatal("Collect should return []any")
-	}
-
-	if len(values) != 3 {
-		t.Fatalf("Collect should return 3 values, got %d", len(values))
-	}
-
-	if values[0] != "Alice" || values[1] != "Bob" || values[2] != "Charlie" {
-		t.Errorf("Collect values incorrect: %v", values)
+	if result != "" {
+		t.Errorf("Last of empty should return empty string, got %v", result)
 	}
 }
 
@@ -599,7 +575,6 @@ func TestJoinThenGroup(t *testing.T) {
 		GroupByFields("members", "dept_name"),
 		Aggregate("members", map[string]AggregateFunc{
 			"count": Count(),
-			"names": Collect("name"),
 		}),
 	)
 
@@ -614,11 +589,6 @@ func TestJoinThenGroup(t *testing.T) {
 		if r.fields["dept_name"] == "Engineering" {
 			if r.fields["count"] != int64(2) {
 				t.Errorf("Engineering should have 2 employees, got %v", r.fields["count"])
-			}
-
-			names, ok := r.fields["names"].([]any)
-			if !ok || len(names) != 2 {
-				t.Errorf("Engineering should have 2 names, got %v", r.fields["names"])
 			}
 		}
 	}
