@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TestGenerationWithEnvVar tests that STREAMV3_GENERATE_GO env var works
+// TestGenerationWithEnvVar tests that SSQLGO env var works
 func TestGenerationWithEnvVar(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "/tmp/ssql_test", ".")
@@ -23,17 +23,17 @@ func TestGenerationWithEnvVar(t *testing.T) {
 	}{
 		{
 			name:    "read-csv generation",
-			cmdLine: "export STREAMV3_GENERATE_GO=1 && /tmp/ssql_test read-csv test.csv",
+			cmdLine: "export SSQLGO=1 && /tmp/ssql_test read-csv test.csv",
 			want:    `"type":"init"`,
 		},
 		{
 			name:    "where generation",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test where -match age gt 18`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test where -match age gt 18`,
 			want:    `"type":"stmt"`,
 		},
 		{
 			name:    "write-csv generation",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test write-csv out.csv`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test write-csv out.csv`,
 			want:    `"type":"final"`,
 		},
 	}
@@ -100,7 +100,7 @@ func TestFullPipeline(t *testing.T) {
 	defer os.Remove("/tmp/ssql_test")
 
 	// Run pipeline: read-csv | where | generate-go
-	pipeline := `export STREAMV3_GENERATE_GO=1 && /tmp/ssql_test read-csv ` + tmpFile + ` | /tmp/ssql_test where -match age gt 25 | /tmp/ssql_test generate-go`
+	pipeline := `export SSQLGO=1 && /tmp/ssql_test read-csv ` + tmpFile + ` | /tmp/ssql_test where -match age gt 25 | /tmp/ssql_test generate-go`
 	cmd := exec.Command("bash", "-c", pipeline)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -143,7 +143,7 @@ func TestGeneratedCodeCompiles(t *testing.T) {
 	defer os.Remove(tmpFile)
 
 	// Generate code
-	pipeline := `export STREAMV3_GENERATE_GO=1 && /tmp/ssql_test read-csv ` + tmpFile + ` | /tmp/ssql_test where -match age gt 25 | /tmp/ssql_test generate-go`
+	pipeline := `export SSQLGO=1 && /tmp/ssql_test read-csv ` + tmpFile + ` | /tmp/ssql_test where -match age gt 25 | /tmp/ssql_test generate-go`
 	cmd := exec.Command("bash", "-c", pipeline)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -199,27 +199,27 @@ func TestLimitOffsetSortDistinct(t *testing.T) {
 	}{
 		{
 			name:    "limit command",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test limit -n 5`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test limit -n 5`,
 			want:    []string{`"type":"stmt"`, `"var":"limited"`, `Limit[ssql.Record](5)`},
 		},
 		{
 			name:    "offset command",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test offset -n 10`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test offset -n 10`,
 			want:    []string{`"type":"stmt"`, `"var":"skipped"`, `Offset[ssql.Record](10)`},
 		},
 		{
 			name:    "sort command",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test sort -field age`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test sort -field age`,
 			want:    []string{`"type":"stmt"`, `"var":"sorted"`, `SortBy`, `age`},
 		},
 		{
 			name:    "distinct command",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test distinct`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test distinct`,
 			want:    []string{`"type":"stmt"`, `"var":"distinct"`, `DistinctBy`},
 		},
 		{
 			name:    "pipeline with all commands",
-			cmdLine: `export STREAMV3_GENERATE_GO=1 && /tmp/ssql_test read-csv ` + tmpFile + ` | /tmp/ssql_test where -match age gt 25 | /tmp/ssql_test limit -n 5 | /tmp/ssql_test offset -n 1 | /tmp/ssql_test sort -field age -desc | /tmp/ssql_test distinct | /tmp/ssql_test generate-go`,
+			cmdLine: `export SSQLGO=1 && /tmp/ssql_test read-csv ` + tmpFile + ` | /tmp/ssql_test where -match age gt 25 | /tmp/ssql_test limit -n 5 | /tmp/ssql_test offset -n 1 | /tmp/ssql_test sort -field age -desc | /tmp/ssql_test distinct | /tmp/ssql_test generate-go`,
 			want:    []string{"package main", "ssql.ReadCSV", "ssql.Where", "ssql.Limit", "ssql.Offset", "ssql.SortBy", "ssql.DistinctBy"},
 		},
 	}
@@ -268,55 +268,55 @@ func TestAllCommandsSupportGeneration(t *testing.T) {
 	}{
 		{
 			name:           "read-csv",
-			cmdLine:        "STREAMV3_GENERATE_GO=1 /tmp/ssql_test read-csv " + tmpFile,
+			cmdLine:        "SSQLGO=1 /tmp/ssql_test read-csv " + tmpFile,
 			expectFragment: true,
 			wantSubstring:  `"type":"init"`,
 		},
 		{
 			name:           "where",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test where -match age gt 25`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test where -match age gt 25`,
 			expectFragment: true,
 			wantSubstring:  `ssql.Where`,
 		},
 		{
 			name:           "limit",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test limit -n 10`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test limit -n 10`,
 			expectFragment: true,
 			wantSubstring:  `ssql.Limit`,
 		},
 		{
 			name:           "offset",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test offset -n 5`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test offset -n 5`,
 			expectFragment: true,
 			wantSubstring:  `ssql.Offset`,
 		},
 		{
 			name:           "sort",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test sort -field age`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test sort -field age`,
 			expectFragment: true,
 			wantSubstring:  `ssql.SortBy`,
 		},
 		{
 			name:           "distinct",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test distinct`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test distinct`,
 			expectFragment: true,
 			wantSubstring:  `ssql.DistinctBy`,
 		},
 		{
 			name:           "group-by",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test group-by -by dept -func count -result count`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test group-by -by dept -func count -result count`,
 			expectFragment: true,
 			wantSubstring:  `ssql.GroupByFields`,
 		},
 		{
 			name:           "write-csv",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test write-csv /tmp/out.csv`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test write-csv /tmp/out.csv`,
 			expectFragment: true,
 			wantSubstring:  `ssql.WriteCSV`,
 		},
 		{
 			name:           "chart",
-			cmdLine:        `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test chart -x age -y salary`,
+			cmdLine:        `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test chart -x age -y salary`,
 			expectFragment: true,
 			wantSubstring:  `ssql.QuickChart`,
 		},
@@ -358,8 +358,8 @@ func TestChartGeneration(t *testing.T) {
 	}
 	defer os.Remove("/tmp/ssql_test")
 
-	// Test that chart generates code when STREAMV3_GENERATE_GO=1
-	cmdLine := `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test chart -x z_kind -y count`
+	// Test that chart generates code when SSQLGO=1
+	cmdLine := `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test chart -x z_kind -y count`
 	cmd := exec.Command("bash", "-c", cmdLine)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -401,7 +401,7 @@ func TestUpdateGeneration(t *testing.T) {
 	}{
 		{
 			name:    "single field update",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -set status processed`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -set status processed`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`"var":"updated"`,
@@ -411,7 +411,7 @@ func TestUpdateGeneration(t *testing.T) {
 		},
 		{
 			name:    "multiple field update",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -set status done -set count 42`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -set status done -set count 42`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`ssql.Update`,
@@ -421,14 +421,14 @@ func TestUpdateGeneration(t *testing.T) {
 		},
 		{
 			name:    "type inference - bool",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -set active true`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -set active true`,
 			wantStrs: []string{
 				`mut = mut.Bool(\"active\", true)`,
 			},
 		},
 		{
 			name:    "type inference - float",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -set price 99.99`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -set price 99.99`,
 			wantStrs: []string{
 				`mut = mut.Float(\"price\", 99.9`,
 			},
@@ -470,7 +470,7 @@ func TestUpdateConditionalGeneration(t *testing.T) {
 	}{
 		{
 			name:    "simple conditional - single clause",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -match age gt 30 -set priority high`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -match age gt 30 -set priority high`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`ssql.Update`,
@@ -481,7 +481,7 @@ func TestUpdateConditionalGeneration(t *testing.T) {
 		},
 		{
 			name:    "multiple clauses - first match wins",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -match purchases gt 5000 -set tier Gold + -match purchases gt 1000 -set tier Silver + -set tier Bronze`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -match purchases gt 5000 -set tier Gold + -match purchases gt 1000 -set tier Silver + -set tier Bronze`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`ssql.Update`,
@@ -494,7 +494,7 @@ func TestUpdateConditionalGeneration(t *testing.T) {
 		},
 		{
 			name:    "AND logic within clause",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -match status eq active -match age gt 30 -set priority high`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -match status eq active -match age gt 30 -set priority high`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`ssql.Update`,
@@ -506,7 +506,7 @@ func TestUpdateConditionalGeneration(t *testing.T) {
 		},
 		{
 			name:    "multiple updates per clause",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test update -match tier eq Gold -set discount 0.2 -set priority high`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test update -match tier eq Gold -set discount 0.2 -set priority high`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`ssql.Update`,
@@ -553,7 +553,7 @@ func TestTableGeneration(t *testing.T) {
 	}{
 		{
 			name:    "basic table generation",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test table`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test table`,
 			wantStrs: []string{
 				`"type":"final"`,
 				`ssql.DisplayTable`,
@@ -563,7 +563,7 @@ func TestTableGeneration(t *testing.T) {
 		},
 		{
 			name:    "table with max-width",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test table -max-width 30`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test table -max-width 30`,
 			wantStrs: []string{
 				`"type":"final"`,
 				`ssql.DisplayTable`,
@@ -606,7 +606,7 @@ func TestIncludeGeneration(t *testing.T) {
 	}{
 		{
 			name:    "include basic",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test include name age`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test include name age`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`"var":"included"`,
@@ -616,7 +616,7 @@ func TestIncludeGeneration(t *testing.T) {
 		},
 		{
 			name:    "include multiple fields",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test include field1 field2 field3`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test include field1 field2 field3`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`"var":"included"`,
@@ -659,7 +659,7 @@ func TestExcludeGeneration(t *testing.T) {
 	}{
 		{
 			name:    "exclude basic",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test exclude salary city`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test exclude salary city`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`"var":"excluded"`,
@@ -669,7 +669,7 @@ func TestExcludeGeneration(t *testing.T) {
 		},
 		{
 			name:    "exclude multiple fields",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test exclude field1 field2 field3`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test exclude field1 field2 field3`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`"var":"excluded"`,
@@ -714,7 +714,7 @@ func TestRenameGeneration(t *testing.T) {
 	}{
 		{
 			name:    "rename basic",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test rename -as name full_name -as age years`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test rename -as name full_name -as age years`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`"var":"renamed"`,
@@ -726,7 +726,7 @@ func TestRenameGeneration(t *testing.T) {
 		},
 		{
 			name:    "rename single field",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test rename -as old new`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test rename -as old new`,
 			wantStrs: []string{
 				`"type":"stmt"`,
 				`"var":"renamed"`,
@@ -769,7 +769,7 @@ func TestReadJSONGeneration(t *testing.T) {
 	}{
 		{
 			name:    "read-json basic",
-			cmdLine: `STREAMV3_GENERATE_GO=1 /tmp/ssql_test read-json /tmp/test.json`,
+			cmdLine: `SSQLGO=1 /tmp/ssql_test read-json /tmp/test.json`,
 			wantStrs: []string{
 				`"type":"init"`,
 				`"var":"records"`,
@@ -813,7 +813,7 @@ func TestWriteJSONGeneration(t *testing.T) {
 	}{
 		{
 			name:    "write-json JSONL mode",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test write-json /tmp/output.jsonl`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test write-json /tmp/output.jsonl`,
 			wantStrs: []string{
 				`"type":"final"`,
 				`ssql.WriteJSON`,
@@ -822,7 +822,7 @@ func TestWriteJSONGeneration(t *testing.T) {
 		},
 		{
 			name:    "write-json pretty mode",
-			cmdLine: `echo '{"type":"init","var":"records"}' | STREAMV3_GENERATE_GO=1 /tmp/ssql_test write-json -pretty /tmp/output.json`,
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test write-json -pretty /tmp/output.json`,
 			wantStrs: []string{
 				`"type":"final"`,
 				`ssql.WriteJSONPretty`,

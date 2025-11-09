@@ -392,7 +392,7 @@ The CLI command will be limited to constant value updates. For computed field up
 The `update` command should support the `-generate` flag:
 
 ```bash
-export STREAMV3_GENERATE_GO=1
+export SSQLGO=1
 ssql read-csv data.csv | \
   ssql update -set status active | \
   ssql generate-go > program.go

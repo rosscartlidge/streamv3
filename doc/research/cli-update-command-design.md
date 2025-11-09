@@ -194,7 +194,7 @@ ssql update -set processed "true" orders.jsonl > updated.jsonl
 cat data.jsonl | ssql where -match amount gt 100 | ssql update -set priority "high"
 
 # With code generation
-export STREAMV3_GENERATE_GO=1
+export SSQLGO=1
 ssql read-csv data.csv | ssql update -set status "done" | ssql generate-go > program.go
 ```
 

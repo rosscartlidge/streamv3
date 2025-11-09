@@ -1615,7 +1615,7 @@ func buildRootCommand() *cf.Command {
 		Subcommand("generate-go").
 		Description("Generate Go code from StreamV3 CLI pipeline").
 		Example("ssql read-csv -g data.csv | ssql where -g -match age gt 18 | ssql generate-go", "Generate Go code from pipeline").
-		Example("(export STREAMV3_GENERATE_GO=1 && ssql read-csv data.csv | ssql limit 10 | ssql generate-go) > prog.go", "Generate using environment variable").
+		Example("(export SSQLGO=1 && ssql read-csv data.csv | ssql limit 10 | ssql generate-go) > prog.go", "Generate using environment variable").
 		Flag("OUTPUT").
 		String().
 		Completer(&cf.FileCompleter{Pattern: "*.go"}).

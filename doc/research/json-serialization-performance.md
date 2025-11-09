@@ -237,7 +237,7 @@ go build prog.go && ./prog > /dev/null
 ssql read-csv data.csv | ssql group-by ... | ssql write-csv
 
 # Generated: 2.7s (single process, direct function composition)
-export STREAMV3_GENERATE_GO=1
+export SSQLGO=1
 ssql read-csv data.csv | ssql group-by ... | ssql write-csv | \
   ssql generate-go > prog.go
 go build prog.go && ./prog
