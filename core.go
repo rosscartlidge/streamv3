@@ -522,6 +522,46 @@ func (m MutableRecord) Delete(field string) MutableRecord {
 	return m
 }
 
+// setValidated sets a field after validating it satisfies the Value constraint
+// This is for internal use where we receive any but need to ensure type safety
+// Panics if the value doesn't satisfy Value - this indicates a bug in ssql code
+func (m MutableRecord) setValidated(field string, value any) MutableRecord {
+	switch v := value.(type) {
+	case int64:
+		m.fields[field] = v
+	case float64:
+		m.fields[field] = v
+	case bool:
+		m.fields[field] = v
+	case string:
+		m.fields[field] = v
+	case time.Time:
+		m.fields[field] = v
+	case Record:
+		m.fields[field] = v
+	case JSONString:
+		m.fields[field] = v
+	// Iterator types (less common in aggregations, but valid)
+	case iter.Seq[Record]:
+		m.fields[field] = v
+	case iter.Seq[int]:
+		m.fields[field] = v
+	case iter.Seq[int64]:
+		m.fields[field] = v
+	case iter.Seq[float64]:
+		m.fields[field] = v
+	case iter.Seq[string]:
+		m.fields[field] = v
+	case iter.Seq[bool]:
+		m.fields[field] = v
+	case iter.Seq[time.Time]:
+		m.fields[field] = v
+	default:
+		panic(fmt.Sprintf("BUG: value type %T does not satisfy Value constraint (field: %s)", value, field))
+	}
+	return m
+}
+
 // Rename renames a field (mutates in place)
 // If the old field doesn't exist, this is a no-op.
 // If the new field name already exists, it will be overwritten.

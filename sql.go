@@ -847,9 +847,9 @@ func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filt
 							records = append(records, r)
 						}
 
-						// Apply all aggregation functions
+						// Apply all aggregation functions (with type validation)
 						for name, aggFn := range aggregations {
-							result.fields[name] = aggFn(records)
+							result.setValidated(name, aggFn(records))
 						}
 					}
 				}
