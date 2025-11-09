@@ -512,11 +512,18 @@ func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
 // SetTypedValue sets a field value with runtime type checking (mutates in place)
 //
 // This function handles values of type any by using a type switch to call Set[V]()
-// with the appropriate concrete type. It supports all types that satisfy the Value
-// interface, including scalars (int64, float64, bool, string), special types
-// (time.Time, Record, JSONString), and common iterator types (iter.Seq[T]).
+// with the appropriate concrete type. It supports scalars (int64, float64, bool, string),
+// special types (time.Time, Record, JSONString), and common iterator types.
 //
-// For unknown or less common types, the value is converted to a string.
+// Supported iterator types:
+//   - iter.Seq[Record] - sequences of records
+//   - iter.Seq[int64] - numeric sequences
+//   - iter.Seq[float64] - numeric sequences
+//   - iter.Seq[string] - string sequences
+//   - iter.Seq[bool] - boolean sequences
+//   - iter.Seq[time.Time] - time series sequences
+//
+// For other types, the value is converted to a string representation.
 //
 // This is the recommended replacement for the deprecated SetAny() method.
 func SetTypedValue(record MutableRecord, key string, val any) MutableRecord {
@@ -536,20 +543,20 @@ func SetTypedValue(record MutableRecord, key string, val any) MutableRecord {
 	case JSONString:
 		return Set(record, key, v)
 	// Common iterator types
+	case iter.Seq[Record]:
+		return Set(record, key, v)
 	case iter.Seq[int64]:
 		return Set(record, key, v)
 	case iter.Seq[float64]:
 		return Set(record, key, v)
-	case iter.Seq[bool]:
-		return Set(record, key, v)
 	case iter.Seq[string]:
+		return Set(record, key, v)
+	case iter.Seq[bool]:
 		return Set(record, key, v)
 	case iter.Seq[time.Time]:
 		return Set(record, key, v)
-	case iter.Seq[Record]:
-		return Set(record, key, v)
 	default:
-		// For other iterator types or unknown types, convert to string
+		// For other types, convert to string
 		return Set(record, key, fmt.Sprintf("%v", v))
 	}
 }
