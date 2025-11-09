@@ -629,7 +629,7 @@ func generateGroupByCode(ctx *cf.Context, groupByFields []string) error {
 		return fmt.Errorf("no group-by field specified (use -by)")
 	}
 
-	// Parse aggregation specifications from clauses
+	// Parse aggregation specifications from new flag format
 	type aggSpec struct {
 		function string
 		field    string
@@ -637,46 +637,96 @@ func generateGroupByCode(ctx *cf.Context, groupByFields []string) error {
 	}
 
 	var aggSpecs []aggSpec
-	for _, clause := range ctx.Clauses {
-		function, _ := clause.Flags["-function"].(string)
-		field, _ := clause.Flags["-field"].(string)
-		result, _ := clause.Flags["-result"].(string)
 
-		// Skip empty clauses
-		if function == "" && result == "" {
-			continue
+	// Parse -count flags (only result name)
+	if countVals, ok := ctx.GlobalFlags["-count"]; ok {
+		counts, _ := countVals.([]any)
+		for _, countVal := range counts {
+			// When there's only 1 Arg(), autocli doesn't wrap in a slice
+			if resultName, ok := countVal.(string); ok {
+				aggSpecs = append(aggSpecs, aggSpec{
+					function: "count",
+					field:    "",
+					result:   resultName,
+				})
+			}
 		}
+	}
 
-		if function == "" {
-			return fmt.Errorf("aggregation missing -function")
+	// Parse -sum flags (field and result name)
+	if sumVals, ok := ctx.GlobalFlags["-sum"]; ok {
+		sums, _ := sumVals.([]any)
+		for _, sumVal := range sums {
+			if argsMap, ok := sumVal.(map[string]any); ok {
+				field, _ := argsMap["field"].(string)
+				result, _ := argsMap["result-name"].(string)
+				if field != "" && result != "" {
+					aggSpecs = append(aggSpecs, aggSpec{
+						function: "sum",
+						field:    field,
+						result:   result,
+					})
+				}
+			}
 		}
+	}
 
-		if result == "" {
-			return fmt.Errorf("aggregation missing -result")
+	// Parse -avg flags (field and result name)
+	if avgVals, ok := ctx.GlobalFlags["-avg"]; ok {
+		avgs, _ := avgVals.([]any)
+		for _, avgVal := range avgs {
+			if argsMap, ok := avgVal.(map[string]any); ok {
+				field, _ := argsMap["field"].(string)
+				result, _ := argsMap["result-name"].(string)
+				if field != "" && result != "" {
+					aggSpecs = append(aggSpecs, aggSpec{
+						function: "avg",
+						field:    field,
+						result:   result,
+					})
+				}
+			}
 		}
+	}
 
-		// Validate function
-		switch function {
-		case "count", "sum", "avg", "min", "max":
-			// Valid
-		default:
-			return fmt.Errorf("unknown aggregation function: %s", function)
+	// Parse -min flags (field and result name)
+	if minVals, ok := ctx.GlobalFlags["-min"]; ok {
+		mins, _ := minVals.([]any)
+		for _, minVal := range mins {
+			if argsMap, ok := minVal.(map[string]any); ok {
+				field, _ := argsMap["field"].(string)
+				result, _ := argsMap["result-name"].(string)
+				if field != "" && result != "" {
+					aggSpecs = append(aggSpecs, aggSpec{
+						function: "min",
+						field:    field,
+						result:   result,
+					})
+				}
+			}
 		}
+	}
 
-		// For non-count functions, field is required
-		if function != "count" && field == "" {
-			return fmt.Errorf("aggregation function %s requires -field", function)
+	// Parse -max flags (field and result name)
+	if maxVals, ok := ctx.GlobalFlags["-max"]; ok {
+		maxs, _ := maxVals.([]any)
+		for _, maxVal := range maxs {
+			if argsMap, ok := maxVal.(map[string]any); ok {
+				field, _ := argsMap["field"].(string)
+				result, _ := argsMap["result-name"].(string)
+				if field != "" && result != "" {
+					aggSpecs = append(aggSpecs, aggSpec{
+						function: "max",
+						field:    field,
+						result:   result,
+					})
+				}
+			}
 		}
-
-		aggSpecs = append(aggSpecs, aggSpec{
-			function: function,
-			field:    field,
-			result:   result,
-		})
 	}
 
 	if len(aggSpecs) == 0 {
-		return fmt.Errorf("no aggregations specified (use -function and -result)")
+		return fmt.Errorf("no aggregations specified (use -count, -sum, -avg, -min, or -max)")
 	}
 
 	// Generate TWO fragments: one for GroupByFields, one for Aggregate
