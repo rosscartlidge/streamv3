@@ -30,6 +30,30 @@ func extractNumeric(val any) float64 {
 	}
 }
 
+// setTypedValue sets a field with type-safe setters based on the value's type
+// This replaces the deprecated SetAny() method
+func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableRecord {
+	switch v := val.(type) {
+	case int64:
+		return record.Int(key, v)
+	case float64:
+		return record.Float(key, v)
+	case bool:
+		return record.Bool(key, v)
+	case string:
+		return record.String(key, v)
+	case time.Time:
+		return ssql.Set(record, key, v)
+	case ssql.Record:
+		return ssql.Set(record, key, v)
+	case ssql.JSONString:
+		return record.JSONString(key, v)
+	default:
+		// For unknown types (sequences, etc.), convert to string
+		return record.String(key, fmt.Sprintf("%v", v))
+	}
+}
+
 // applyOperator applies a comparison operator for where command
 func applyOperator(fieldValue any, op string, compareValue string) bool {
 	switch op {
@@ -1201,7 +1225,7 @@ func generateIncludeCode(fields []string) error {
 		mut := ssql.MakeMutableRecord()
 		for _, field := range fields {
 			if val, ok := ssql.Get[any](r, field); ok {
-				mut = mut.SetAny(field, val)
+				mut = setTypedValue(mut, field, val)
 			}
 		}
 		return mut.Freeze()
@@ -1253,7 +1277,7 @@ func generateExcludeCode(fields []string) error {
 		mut := ssql.MakeMutableRecord()
 		for k, v := range r.All() {
 			if !excluded[k] {
-				mut = mut.SetAny(k, v)
+				mut = setTypedValue(mut, k, v)
 			}
 		}
 		return mut.Freeze()
@@ -1305,9 +1329,9 @@ func generateRenameCode(renames []struct{ oldField, newField string }) error {
 		mut := ssql.MakeMutableRecord()
 		for k, v := range r.All() {
 			if newName, ok := renames[k]; ok {
-				mut = mut.SetAny(newName, v)
+				mut = setTypedValue(mut, newName, v)
 			} else {
-				mut = mut.SetAny(k, v)
+				mut = setTypedValue(mut, k, v)
 			}
 		}
 		return mut.Freeze()
