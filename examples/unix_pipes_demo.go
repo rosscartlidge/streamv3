@@ -20,10 +20,8 @@ func main() {
 
 		// Process the stream - add calculated fields
 		processedStream := ssql.Select(func(record ssql.Record) ssql.Record {
-			// Create a new mutable record and copy all fields from the input
-			result := ssql.MakeMutableRecord()
-			for k, v := range record.All() {
-				result = result.SetAny(k, v)
+			// Create a mutable copy with all fields from the input
+			result := record.ToMutable()
 			}
 
 			// Add processed timestamp
@@ -108,10 +106,13 @@ func main() {
 	var processedRecords []ssql.Record
 	for record := range stream1 {
 		// Create new record with category field added
-		result := ssql.MakeMutableRecord()
-		for k, v := range record.All() {
-			result = result.SetAny(k, v)
-		}
+		// Create new record with category field added
+		result := record.ToMutable()
+		result := record.ToMutable()
+		// Create new record with category field added
+		result := record.ToMutable()
+		// Create new record with category field added
+		result := record.ToMutable()
 
 		// Add processing
 		if age, ok := ssql.Get[int64](record, "age"); ok && age >= 30 {

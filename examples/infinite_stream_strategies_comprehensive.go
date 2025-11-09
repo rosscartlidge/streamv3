@@ -49,7 +49,7 @@ func testIntegratedStrategies() {
 				String("sensor_id", fmt.Sprintf("SENSOR-%03d", (i%10)+1)).
 				Float("temperature", 20.0+float64(i%50)*0.5).
 				Float("humidity", 45.0+float64(i%30)*1.2).
-				SetAny("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
+				Time("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
 				Int("batch_id", int64(i)).
 				String("status", getRandomStatus(i)).
 				Freeze()
@@ -157,7 +157,7 @@ func testWindowingStrategy() {
 			record := ssql.MakeMutableRecord().
 				String("metric_id", fmt.Sprintf("M%03d", i+1)).
 				Float("value", float64(100+i*5)).
-				SetAny("timestamp", baseTime.Add(time.Duration(i*30)*time.Second)).
+				Time("timestamp", baseTime.Add(time.Duration(i*30)*time.Second)).
 				Freeze()
 			if !yield(record) {
 				return
@@ -236,7 +236,7 @@ func testStreamingAggregationsStrategy() {
 			record := ssql.MakeMutableRecord().
 				String("metric_id", fmt.Sprintf("SYS%03d", i+1)).
 				Float("cpu_load", metric).
-				SetAny("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
+				Time("timestamp", time.Now().Add(time.Duration(i)*time.Second)).
 				Freeze()
 			if !yield(record) {
 				return

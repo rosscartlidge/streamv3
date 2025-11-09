@@ -144,10 +144,8 @@ func filterData() {
 			totalValue := price * float64(quantity)
 
 			// Create new record with additional fields
-			mutable := ssql.MakeMutableRecord()
-			for k, v := range record.All() {
-				mutable.SetAny(k, v)
-			}
+			// Create new record with additional fields
+			mutable := record.ToMutable()
 			mutable.Float("total_value", totalValue)
 			mutable.String("tier", "premium")
 			records = append(records, mutable.Freeze())
@@ -283,10 +281,8 @@ func runChainDemo() {
 			totalValue := price * float64(quantity)
 
 			// Create new record with additional fields
-			mutable := ssql.MakeMutableRecord()
-			for k, v := range record.All() {
-				mutable.SetAny(k, v)
-			}
+			// Create new record with additional fields
+			mutable := record.ToMutable()
 			mutable.Float("total_value", totalValue)
 			mutable.String("tier", "premium")
 			filteredRecords = append(filteredRecords, mutable.Freeze())

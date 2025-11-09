@@ -1375,7 +1375,7 @@ func ReadJSONAuto(filename string) (iter.Seq[Record], error) {
 			for _, rec := range records {
 				record := MakeMutableRecord()
 				for k, v := range rec {
-					record = record.SetAny(k, convertJSONValue(v))
+					record = addJSONField(record, k, v)
 				}
 				if !yield(record.Freeze()) {
 					return
@@ -1414,31 +1414,35 @@ func WriteJSONPretty(sb iter.Seq[Record], filename string) error {
 	return nil
 }
 
-// convertJSONValue converts JSON values to StreamV3 canonical types
-func convertJSONValue(v interface{}) interface{} {
-	switch val := v.(type) {
+// addJSONField adds a JSON field to a MutableRecord using type-safe methods
+// Skips nil values. Converts arrays/objects to JSONString for type safety.
+func addJSONField(record MutableRecord, key string, value interface{}) MutableRecord {
+	switch val := value.(type) {
 	case float64:
 		// JSON numbers are always float64
 		// Check if it's actually an integer
 		if val == float64(int64(val)) {
-			return int64(val)
+			return record.Int(key, int64(val))
 		}
-		return val
-	case bool, string:
-		return val
+		return record.Float(key, val)
+	case bool:
+		return record.Bool(key, val)
+	case string:
+		return record.String(key, val)
 	case nil:
-		return nil
-	case []interface{}:
-		return val
-	case map[string]interface{}:
-		// Nested object - convert to Record
-		record := MakeMutableRecord()
-		for k, subv := range val {
-			record = record.SetAny(k, convertJSONValue(subv))
+		// Skip nil values - don't add field
+		return record
+	case []interface{}, map[string]interface{}:
+		// Convert arrays/objects to JSONString for type safety
+		jsonBytes, err := json.Marshal(val)
+		if err != nil {
+			// On error, store as string representation
+			return record.String(key, fmt.Sprintf("%v", val))
 		}
-		return record.Freeze()
+		return record.JSONString(key, JSONString(jsonBytes))
 	default:
-		return fmt.Sprintf("%v", v)
+		// Convert unknown types to string
+		return record.String(key, fmt.Sprintf("%v", val))
 	}
 }
 

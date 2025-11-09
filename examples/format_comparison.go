@@ -24,7 +24,7 @@ func main() {
 			Float("price", 1199.99).
 			Int("stock", int64(150)).
 			String("description", "Latest flagship smartphone with advanced camera system and A17 Pro chip").
-			SetAny("tags", []interface{}{"electronics", "mobile", "premium"}).
+			JSON("tags", ssql.NewJSONString([]string{"electronics", "mobile", "premium"})).
 			Int("_line_number", int64(0)).
 			Freeze(),
 		ssql.MakeMutableRecord().
@@ -34,7 +34,7 @@ func main() {
 			Float("price", 2499.99).
 			Int("stock", int64(75)).
 			String("description", "Professional laptop with M3 Max chip, 32GB RAM, and 1TB SSD storage").
-			SetAny("tags", []interface{}{"electronics", "computer", "professional"}).
+			JSON("tags", ssql.NewJSONString([]string{"electronics", "computer", "professional"})).
 			Int("_line_number", int64(1)).
 			Freeze(),
 	}

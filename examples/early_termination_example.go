@@ -216,7 +216,7 @@ func testTimeBasedTimeout() {
 			record := ssql.MakeMutableRecord().
 				String("event_id", fmt.Sprintf("EVT-%03d", i+1)).
 				Float("value", float64(100+i*5)).
-				SetAny("timestamp", baseTime.Add(time.Duration(i)*time.Second)).
+				Time("timestamp", baseTime.Add(time.Duration(i)*time.Second)).
 				Freeze()
 
 			if !yield(record) {

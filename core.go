@@ -507,15 +507,6 @@ func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
 	return m
 }
 
-// SetAny adds a field without type constraints (mutates in place)
-//
-// Deprecated: SetAny bypasses type safety and will be removed in v2.0.0.
-// Use Set[V Value]() for compile-time type safety, or typed methods (Int, String, etc.).
-func (m MutableRecord) SetAny(field string, value any) MutableRecord {
-	m.fields[field] = value
-	return m
-}
-
 // Delete removes a field (mutates in place)
 func (m MutableRecord) Delete(field string) MutableRecord {
 	delete(m.fields, field)
