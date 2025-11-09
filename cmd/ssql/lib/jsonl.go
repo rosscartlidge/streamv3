@@ -116,7 +116,7 @@ func OpenOutput(filename string) (io.WriteCloser, error) {
 }
 
 // setValueFromJSON sets a field on a MutableRecord from a JSON value
-// Handles JSON-specific edge cases (nil, arrays, nested objects) then delegates to SetTypedValue
+// Handles JSON-specific type conversions (nil, arrays, nested objects, numbers, bools, strings)
 func setValueFromJSON(record ssql.MutableRecord, key string, v interface{}) ssql.MutableRecord {
 	switch val := v.(type) {
 	case nil:

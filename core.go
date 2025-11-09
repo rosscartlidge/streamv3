@@ -507,65 +507,10 @@ func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
 	return m
 }
 
-// SetTypedValue sets a field value with runtime type checking (mutates in place)
-//
-// This function handles values of type any by using a type switch to call Set[V]()
-// with the appropriate concrete type. It supports scalars (int64, float64, bool, string),
-// special types (time.Time, Record, JSONString), and common iterator types.
-//
-// Supported iterator types:
-//   - iter.Seq[Record] - sequences of records
-//   - iter.Seq[int] - integer sequences (natural Go type)
-//   - iter.Seq[int64] - canonical integer sequences
-//   - iter.Seq[float64] - numeric sequences
-//   - iter.Seq[string] - string sequences
-//   - iter.Seq[bool] - boolean sequences
-//   - iter.Seq[time.Time] - time series sequences
-//
-// For other types, the value is converted to a string representation.
-//
-// This is the recommended replacement for the deprecated SetAny() method.
-func SetTypedValue(record MutableRecord, key string, val any) MutableRecord {
-	switch v := val.(type) {
-	case int64:
-		return Set(record, key, v)
-	case float64:
-		return Set(record, key, v)
-	case bool:
-		return Set(record, key, v)
-	case string:
-		return Set(record, key, v)
-	case time.Time:
-		return Set(record, key, v)
-	case Record:
-		return Set(record, key, v)
-	case JSONString:
-		return Set(record, key, v)
-	// Common iterator types
-	case iter.Seq[Record]:
-		return Set(record, key, v)
-	case iter.Seq[int]:
-		return Set(record, key, v)
-	case iter.Seq[int64]:
-		return Set(record, key, v)
-	case iter.Seq[float64]:
-		return Set(record, key, v)
-	case iter.Seq[string]:
-		return Set(record, key, v)
-	case iter.Seq[bool]:
-		return Set(record, key, v)
-	case iter.Seq[time.Time]:
-		return Set(record, key, v)
-	default:
-		// For other types, convert to string
-		return Set(record, key, fmt.Sprintf("%v", v))
-	}
-}
-
 // SetAny adds a field without type constraints (mutates in place)
 //
 // Deprecated: SetAny bypasses type safety and will be removed in v2.0.0.
-// Use SetTypedValue() for runtime type handling, or Set[V Value]() for compile-time safety.
+// Use Set[V Value]() for compile-time type safety, or typed methods (Int, String, etc.).
 func (m MutableRecord) SetAny(field string, value any) MutableRecord {
 	m.fields[field] = value
 	return m
