@@ -240,10 +240,8 @@ type Value interface {
 		// JSON and Record types for structured data
 		JSONString | Record |
 
-		// Iterator types - allow all numeric variants for ergonomics with slices.Values()
-		iter.Seq[int] | iter.Seq[int8] | iter.Seq[int16] | iter.Seq[int32] | iter.Seq[int64] |
-		iter.Seq[uint] | iter.Seq[uint8] | iter.Seq[uint16] | iter.Seq[uint32] | iter.Seq[uint64] |
-		iter.Seq[float32] | iter.Seq[float64] |
+		// Iterator types - common types for ergonomics with slices.Values()
+		iter.Seq[int] | iter.Seq[int64] | iter.Seq[float64] |
 		iter.Seq[bool] | iter.Seq[string] | iter.Seq[time.Time] |
 		iter.Seq[Record]
 }
@@ -517,7 +515,8 @@ func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
 //
 // Supported iterator types:
 //   - iter.Seq[Record] - sequences of records
-//   - iter.Seq[int64] - numeric sequences
+//   - iter.Seq[int] - integer sequences (natural Go type)
+//   - iter.Seq[int64] - canonical integer sequences
 //   - iter.Seq[float64] - numeric sequences
 //   - iter.Seq[string] - string sequences
 //   - iter.Seq[bool] - boolean sequences
@@ -544,6 +543,8 @@ func SetTypedValue(record MutableRecord, key string, val any) MutableRecord {
 		return Set(record, key, v)
 	// Common iterator types
 	case iter.Seq[Record]:
+		return Set(record, key, v)
+	case iter.Seq[int]:
 		return Set(record, key, v)
 	case iter.Seq[int64]:
 		return Set(record, key, v)
@@ -672,53 +673,8 @@ func (m MutableRecord) IntSeq(field string, value iter.Seq[int]) MutableRecord {
 	return Set(m, field, value)
 }
 
-// Int8Seq adds an iter.Seq[int8] field (mutates in place)
-func (m MutableRecord) Int8Seq(field string, value iter.Seq[int8]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// Int16Seq adds an iter.Seq[int16] field (mutates in place)
-func (m MutableRecord) Int16Seq(field string, value iter.Seq[int16]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// Int32Seq adds an iter.Seq[int32] field (mutates in place)
-func (m MutableRecord) Int32Seq(field string, value iter.Seq[int32]) MutableRecord {
-	return Set(m, field, value)
-}
-
 // Int64Seq adds an iter.Seq[int64] field (mutates in place)
 func (m MutableRecord) Int64Seq(field string, value iter.Seq[int64]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// UintSeq adds an iter.Seq[uint] field (mutates in place)
-func (m MutableRecord) UintSeq(field string, value iter.Seq[uint]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// Uint8Seq adds an iter.Seq[uint8] field (mutates in place)
-func (m MutableRecord) Uint8Seq(field string, value iter.Seq[uint8]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// Uint16Seq adds an iter.Seq[uint16] field (mutates in place)
-func (m MutableRecord) Uint16Seq(field string, value iter.Seq[uint16]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// Uint32Seq adds an iter.Seq[uint32] field (mutates in place)
-func (m MutableRecord) Uint32Seq(field string, value iter.Seq[uint32]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// Uint64Seq adds an iter.Seq[uint64] field (mutates in place)
-func (m MutableRecord) Uint64Seq(field string, value iter.Seq[uint64]) MutableRecord {
-	return Set(m, field, value)
-}
-
-// Float32Seq adds an iter.Seq[float32] field (mutates in place)
-func (m MutableRecord) Float32Seq(field string, value iter.Seq[float32]) MutableRecord {
 	return Set(m, field, value)
 }
 
@@ -756,53 +712,8 @@ func (r Record) IntSeq(field string, value iter.Seq[int]) Record {
 	return SetImmutable(r, field, value)
 }
 
-// Int8Seq adds an iter.Seq[int8] field (creates new Record)
-func (r Record) Int8Seq(field string, value iter.Seq[int8]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// Int16Seq adds an iter.Seq[int16] field (creates new Record)
-func (r Record) Int16Seq(field string, value iter.Seq[int16]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// Int32Seq adds an iter.Seq[int32] field (creates new Record)
-func (r Record) Int32Seq(field string, value iter.Seq[int32]) Record {
-	return SetImmutable(r, field, value)
-}
-
 // Int64Seq adds an iter.Seq[int64] field (creates new Record)
 func (r Record) Int64Seq(field string, value iter.Seq[int64]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// UintSeq adds an iter.Seq[uint] field (creates new Record)
-func (r Record) UintSeq(field string, value iter.Seq[uint]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// Uint8Seq adds an iter.Seq[uint8] field (creates new Record)
-func (r Record) Uint8Seq(field string, value iter.Seq[uint8]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// Uint16Seq adds an iter.Seq[uint16] field (creates new Record)
-func (r Record) Uint16Seq(field string, value iter.Seq[uint16]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// Uint32Seq adds an iter.Seq[uint32] field (creates new Record)
-func (r Record) Uint32Seq(field string, value iter.Seq[uint32]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// Uint64Seq adds an iter.Seq[uint64] field (creates new Record)
-func (r Record) Uint64Seq(field string, value iter.Seq[uint64]) Record {
-	return SetImmutable(r, field, value)
-}
-
-// Float32Seq adds an iter.Seq[float32] field (creates new Record)
-func (r Record) Float32Seq(field string, value iter.Seq[float32]) Record {
 	return SetImmutable(r, field, value)
 }
 
