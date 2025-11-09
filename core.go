@@ -510,7 +510,23 @@ func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
 }
 
 // SetAny adds a field without type constraints (mutates in place)
-// Use this when parsing from external sources like JSON where types aren't known at compile time
+//
+// Deprecated: SetAny bypasses type safety and will be removed in v2.0.0.
+// Use typed setters (Int, Float, Bool, String) or ssql.Set[V Value]() instead.
+// For dynamic types, use a type switch to determine the appropriate setter:
+//
+//	switch v := val.(type) {
+//	case int64:
+//	    record = record.Int(key, v)
+//	case float64:
+//	    record = record.Float(key, v)
+//	case bool:
+//	    record = record.Bool(key, v)
+//	case string:
+//	    record = record.String(key, v)
+//	default:
+//	    record = record.String(key, fmt.Sprintf("%v", v))
+//	}
 func (m MutableRecord) SetAny(field string, value any) MutableRecord {
 	m.fields[field] = value
 	return m

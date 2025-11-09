@@ -230,7 +230,7 @@ records := []ssql.Record{
 - `.FloatSeq(field, value)` - Set float sequence (Float32Seq, Float64Seq)
 - `.StringSeq(field, value)` - Set string sequence
 - `.RecordSeq(field, value)` - Set Record sequence
-- `.SetAny(field, value)` - Set any value type
+- `.SetAny(field, value)` - **DEPRECATED** (bypasses type safety, will be removed in v2.0.0)
 - `.Delete(field)` - Remove a field
 - `.Freeze()` - Convert to immutable Record
 - `.Len()` - Get number of fields
