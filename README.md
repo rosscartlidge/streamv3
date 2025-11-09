@@ -4,6 +4,12 @@
 
 Built on Go 1.23+ with first-class support for iterators, generics, and functional composition.
 
+> **⚠️ Important:** ssql v2 introduces compile-time type safety improvements. Use `/v2` import path:
+> ```go
+> import "github.com/rosscartlidge/ssql/v2"
+> ```
+> **v1 users:** See [migration guide](#migrating-from-v1-to-v2) below.
+
 ## ✨ What Makes ssql Special
 
 ### 🎯 **Simple Yet Powerful**
@@ -39,7 +45,7 @@ package main
 import (
     "log"
     "os"
-    "github.com/rosscartlidge/ssql"
+    "github.com/rosscartlidge/ssql/v2"
 )
 
 func main() {
@@ -137,11 +143,11 @@ ssql.QuickChart(data, "month", "revenue", "chart.html")  // One line = full dash
 #### Option 1: CLI Tool (for rapid prototyping)
 
 ```bash
-# Install the command-line tool
-go install github.com/rosscartlidge/ssql/cmd/ssql@latest
+# Install the command-line tool (v2)
+go install github.com/rosscartlidge/ssql/v2/cmd/ssql@latest
 
 # Verify installation
-ssql -version
+ssql version
 
 # Try it out
 echo "name,age,salary
@@ -160,9 +166,9 @@ cd my-project
 go mod init myproject  # Initialize Go module (required!)
 ```
 
-**Step 2: Install ssql**
+**Step 2: Install ssql v2**
 ```bash
-go get github.com/rosscartlidge/ssql
+go get github.com/rosscartlidge/ssql/v2
 ```
 
 ### Hello ssql
@@ -172,7 +178,7 @@ package main
 import (
     "fmt"
     "slices"
-    "github.com/rosscartlidge/ssql"
+    "github.com/rosscartlidge/ssql/v2"
 )
 
 func main() {
@@ -527,6 +533,82 @@ go run examples/early_termination_example.go
 3. **[Follow the Getting Started Guide](doc/codelab-intro.md)** for library fundamentals
 4. **[Try the AI Assistant](doc/ai-human-guide.md)** for code generation
 5. **[Explore Advanced Patterns](doc/advanced-tutorial.md)** for production use
+
+## 🔄 Migrating from v1 to v2
+
+ssql v2 introduces **complete compile-time type safety** with breaking changes. Migration is straightforward:
+
+### Installation
+
+**v1 (old):**
+```bash
+go get github.com/rosscartlidge/ssql
+go install github.com/rosscartlidge/ssql/cmd/ssql@latest
+```
+
+**v2 (new):**
+```bash
+go get github.com/rosscartlidge/ssql/v2
+go install github.com/rosscartlidge/ssql/v2/cmd/ssql@latest
+```
+
+### Import Path
+
+Update all imports to include `/v2`:
+
+```go
+// v1 (old)
+import "github.com/rosscartlidge/ssql"
+
+// v2 (new)
+import "github.com/rosscartlidge/ssql/v2"
+```
+
+### Breaking Changes
+
+1. **Removed `SetAny()` method** - Use typed methods instead:
+   ```go
+   // v1 (old)
+   record.SetAny("name", "Alice")
+   record.SetAny("age", 30)
+
+   // v2 (new)
+   record.String("name", "Alice")
+   record.Int("age", int64(30))
+   ```
+
+2. **Aggregation functions require type parameters:**
+   ```go
+   // v1 (old)
+   First("name")
+   Last("status")
+
+   // v2 (new)
+   First[string]("name")
+   Last[string]("status")
+   ```
+
+3. **Copying record fields:**
+   ```go
+   // v1 (old)
+   result := ssql.MakeMutableRecord()
+   for k, v := range record.All() {
+       result.SetAny(k, v)
+   }
+
+   // v2 (new)
+   result := record.ToMutable()  // One line!
+   ```
+
+### Benefits of v2
+
+- ✅ **All type errors caught at compile time** (no runtime panics)
+- ✅ **Better IDE autocomplete and type inference**
+- ✅ **Impossible to add invalid types to records**
+- ✅ **Zero runtime type checking overhead**
+- ✅ **More maintainable and refactorable code**
+
+**Note:** v1.x remains available at `github.com/rosscartlidge/ssql` (without `/v2`), but v2 is recommended for all new projects.
 
 ## 📚 Documentation
 
