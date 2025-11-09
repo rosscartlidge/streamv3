@@ -309,7 +309,7 @@ Group data and calculate statistics:
 ```bash
 # Count records by department
 ssql read-csv employees.csv | \
-  ssql group-by department -function count -result total
+  ssql group-by department -count total
 ```
 
 Output:
@@ -321,14 +321,14 @@ Output:
 
 ### Multiple Aggregations
 
-Use `+` to separate multiple aggregation functions:
+Specify multiple aggregations in one command:
 
 ```bash
 ssql read-csv employees.csv | \
   ssql group-by department \
-    -function count -result employee_count + \
-    -function avg -field salary -result avg_salary + \
-    -function max -field salary -result max_salary
+    -count employee_count \
+    -avg salary avg_salary \
+    -max salary max_salary
 ```
 
 Output:
@@ -461,8 +461,7 @@ Opens `salary_chart.html` with an interactive chart featuring:
 
 ```bash
 ssql read-csv employees.csv | \
-  ssql group-by department \
-    -function avg -field salary -result avg_salary | \
+  ssql group-by department -avg salary avg_salary | \
   ssql chart -x department -y avg_salary -output dept_salaries.html
 ```
 
@@ -510,7 +509,7 @@ func main() {
 ```bash
 # Generate code to file
 ssql read-csv -generate data.csv | \
-  ssql group -generate -by region -function sum -field sales -result total | \
+  ssql group-by -generate region -sum sales total | \
   ssql generate-go > analysis.go
 
 # Add package initialization
@@ -628,11 +627,11 @@ Generate code for GROUP BY with multiple aggregations:
 
 ```bash
 ssql read-csv -generate sales.csv | \
-  ssql group-by region \
-    -function count -result num_sales + \
-    -function sum -field revenue -result total_revenue + \
-    -function avg -field revenue -result avg_revenue -generate | \
-  ssql sort total_revenue -desc -generate | \
+  ssql group-by -generate region \
+    -count num_sales \
+    -sum revenue total_revenue \
+    -avg revenue avg_revenue | \
+  ssql sort -generate total_revenue -desc | \
   ssql write-csv -generate region_report.csv | \
   ssql generate-go > region_analysis.go
 ```
@@ -654,24 +653,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	grouped := ssql.GroupByFields("_group", "region")(records)
-
-	aggregated := ssql.Aggregate("_group", map[string]ssql.AggregateFunc{
-		"num_sales": ssql.Count(),
-		"total_revenue": ssql.Sum("revenue"),
-		"avg_revenue": ssql.Avg("revenue"),
-	})(grouped)
+	aggregated := ssql.Chain(
+		ssql.GroupByFields("_group", "region"),
+		ssql.Aggregate("_group", map[string]ssql.AggregateFunc{
+			"num_sales": ssql.Count(),
+			"total_revenue": ssql.Sum("revenue"),
+			"avg_revenue": ssql.Avg("revenue"),
+		}),
+	)(records)
 
 	sorted := ssql.SortBy(func(r ssql.Record) float64 {
-		val, _ := r["total_revenue"]
-		switch v := val.(type) {
-		case int64:
-			return -float64(v)
-		case float64:
-			return -v
-		default:
-			return 0
-		}
+		return -ssql.GetOr(r, "total_revenue", float64(0))
 	})(aggregated)
 
 	ssql.WriteCSV(sorted, "region_report.csv")
@@ -691,7 +683,7 @@ Let's build a comprehensive data analysis pipeline:
 ```bash
 # Execute the pipeline
 ssql exec -- ps -efl | \
-  ssql group-by UID -function count -result process_count | \
+  ssql group-by UID -count process_count | \
   ssql chart -x UID -y process_count -output /tmp/processes_by_user.html
 ```
 
@@ -709,7 +701,7 @@ Now convert the same pipeline to Go code:
 
 ```bash
 ssql exec -generate -- ps -efl | \
-  ssql group -generate -by UID -function count -result process_count | \
+  ssql group-by -generate UID -count process_count | \
   ssql chart -generate -x UID -y process_count -output processes.html | \
   ssql generate-go > monitor.go
 ```
@@ -820,35 +812,40 @@ Commands that support multiple items use `+` as a separator to create "clauses".
 # Multiple WHERE conditions (OR logic) - each clause after + is independent
 ssql where -match age gt 30 + -match salary gt 100000
 
-# Multiple aggregations - each + starts a new aggregation
+# Multiple aggregations - specify multiple flags
 ssql group-by department \
-  -function count -result total + \
-  -function avg -field salary -result avg_salary + \
-  -function max -field salary -result max_salary
+  -count total \
+  -avg salary avg_salary \
+  -max salary max_salary
 ```
 
 **How it works:**
-- **Before `+`**: First clause with its flags
-- **After `+`**: New clause starts, can have different flags
-- **Framework**: Automatically parses and validates all flags
+- **Accumulate pattern**: Use the same flag multiple times for multiple operations
+- **Self-documenting**: Flag names show the operation (-count, -sum, -avg)
+- **Framework**: Automatically parses and validates all arguments
 - **Benefits**: Type safety, auto-completion, consistent error messages
 
 **Example breakdown:**
 ```bash
 ssql group-by department \
-  -function count -result total + \
-  #     └─ Clause 1 ─────────┘   │
-  -function avg -field salary -result avg_salary
-  #     └────────── Clause 2 ───────────────────┘
+  -count total \
+  #  └─ count aggregation ─┘
+  -avg salary avg_salary \
+  #  └─ average aggregation ─┘
+  -sum hours total_hours
+  #  └─ sum aggregation ─┘
 ```
 
-Each clause is independently validated, so you get clear error messages if flags are missing or incorrect.
+Each aggregation is independently specified and validated, giving clear error messages if arguments are missing or incorrect.
 
-**Global vs Local Flags:**
-- **Global flags** apply to the entire command: `-by department`, `-generate`
-- **Local flags** belong to specific clauses: `-function`, `-field`, `-result`
+**Flag patterns:**
+- `-count result-name` - Count records (1 argument)
+- `-sum field result-name` - Sum field values (2 arguments)
+- `-avg field result-name` - Average field values (2 arguments)
+- `-min field result-name` - Minimum field value (2 arguments)
+- `-max field result-name` - Maximum field value (2 arguments)
 
-This pattern makes complex commands readable while maintaining type safety and completion support.
+This pattern makes complex aggregations readable while maintaining type safety and completion support.
 
 ---
 
