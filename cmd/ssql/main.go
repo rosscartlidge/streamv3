@@ -1719,6 +1719,21 @@ func buildRootCommand() *cf.Command {
 }
 
 func main() {
+	// Print deprecation warning
+	fmt.Fprintln(os.Stderr, "\n⚠️  DEPRECATION WARNING: ssql v1.x is deprecated")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Please upgrade to ssql v2 for:")
+	fmt.Fprintln(os.Stderr, "  • Complete compile-time type safety")
+	fmt.Fprintln(os.Stderr, "  • Better IDE support and autocomplete")
+	fmt.Fprintln(os.Stderr, "  • Zero runtime type checking overhead")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Installation:")
+	fmt.Fprintln(os.Stderr, "  go install github.com/rosscartlidge/ssql/v2/cmd/ssql@latest")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Migration guide:")
+	fmt.Fprintln(os.Stderr, "  https://github.com/rosscartlidge/ssql#migrating-from-v1-to-v2")
+	fmt.Fprintln(os.Stderr, "")
+
 	cmd := buildRootCommand()
 	if err := cmd.Execute(os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
