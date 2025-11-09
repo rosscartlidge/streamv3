@@ -48,8 +48,21 @@ func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableR
 		return ssql.Set(record, key, v)
 	case ssql.JSONString:
 		return ssql.Set(record, key, v)
+	// Common iterator types
+	case iter.Seq[int64]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[float64]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[bool]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[string]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[time.Time]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[ssql.Record]:
+		return ssql.Set(record, key, v)
 	default:
-		// For unknown types, convert to string
+		// For other iterator types or unknown types, convert to string
 		return ssql.Set(record, key, fmt.Sprintf("%v", v))
 	}
 }

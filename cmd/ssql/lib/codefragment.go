@@ -209,6 +209,21 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 		}
 	}
 
+	// Detect if we need setTypedValue helper (before building imports)
+	needsSetTypedValue := false
+	for _, frag := range fragments {
+		if findString(frag.Code, "setTypedValue") != -1 {
+			needsSetTypedValue = true
+			break
+		}
+	}
+
+	// Add imports needed by setTypedValue helper
+	if needsSetTypedValue {
+		importSet["time"] = true
+		importSet["iter"] = true
+	}
+
 	// Build imports section
 	var imports []string
 	for imp := range importSet {
@@ -252,14 +267,6 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 	}
 
 	// Add helper functions if needed by generated code
-	needsSetTypedValue := false
-	for _, frag := range fragments {
-		if findString(frag.Code, "setTypedValue") != -1 {
-			needsSetTypedValue = true
-			break
-		}
-	}
-
 	if needsSetTypedValue {
 		code += `// setTypedValue sets a field value using appropriate type assertion
 func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableRecord {
@@ -272,7 +279,27 @@ func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableR
 		return ssql.Set(record, key, v)
 	case string:
 		return ssql.Set(record, key, v)
+	case time.Time:
+		return ssql.Set(record, key, v)
+	case ssql.Record:
+		return ssql.Set(record, key, v)
+	case ssql.JSONString:
+		return ssql.Set(record, key, v)
+	// Common iterator types
+	case iter.Seq[int64]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[float64]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[bool]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[string]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[time.Time]:
+		return ssql.Set(record, key, v)
+	case iter.Seq[ssql.Record]:
+		return ssql.Set(record, key, v)
 	default:
+		// For other iterator types or unknown types, convert to string
 		return ssql.Set(record, key, fmt.Sprintf("%v", v))
 	}
 }
