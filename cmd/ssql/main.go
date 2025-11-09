@@ -900,15 +900,21 @@ func buildRootCommand() *cf.Command {
 			// Read JSONL from stdin
 			records := lib.ReadJSONL(os.Stdin)
 
-			// Build inclusion function
+			// Build included fields map
+			includedMap := make(map[string]bool)
+			for _, field := range fields {
+				includedMap[field] = true
+			}
+
+			// Build inclusion function - delete fields not in the included list
 			includer := func(r ssql.Record) ssql.Record {
-				result := ssql.MakeMutableRecord()
-				for _, field := range fields {
-					if val, exists := ssql.Get[any](r, field); exists {
-						result = ssql.SetTypedValue(result, field, val)
+				mut := r.ToMutable()
+				for k := range r.All() {
+					if !includedMap[k] {
+						mut = mut.Delete(k)
 					}
 				}
-				return result.Freeze()
+				return mut.Freeze()
 			}
 
 			// Apply inclusion
@@ -975,21 +981,13 @@ func buildRootCommand() *cf.Command {
 			// Read JSONL from stdin
 			records := lib.ReadJSONL(os.Stdin)
 
-			// Build exclusion map
-			excluded := make(map[string]bool)
-			for _, field := range fields {
-				excluded[field] = true
-			}
-
-			// Build exclusion function
+			// Build exclusion function - delete excluded fields
 			excluder := func(r ssql.Record) ssql.Record {
-				result := ssql.MakeMutableRecord()
-				for k, v := range r.All() {
-					if !excluded[k] {
-						result = ssql.SetTypedValue(result, k, v)
-					}
+				mut := r.ToMutable()
+				for _, field := range fields {
+					mut = mut.Delete(field)
 				}
-				return result.Freeze()
+				return mut.Freeze()
 			}
 
 			// Apply exclusion
@@ -1061,23 +1059,13 @@ func buildRootCommand() *cf.Command {
 			// Read JSONL from stdin
 			records := lib.ReadJSONL(os.Stdin)
 
-			// Build rename map
-			renameMap := make(map[string]string)
-			for _, r := range renames {
-				renameMap[r.oldField] = r.newField
-			}
-
-			// Build renamer function
+			// Build renamer function using Rename()
 			renamer := func(r ssql.Record) ssql.Record {
-				result := ssql.MakeMutableRecord()
-				for k, v := range r.All() {
-					if newName, ok := renameMap[k]; ok {
-						result = ssql.SetTypedValue(result, newName, v)
-					} else {
-						result = ssql.SetTypedValue(result, k, v)
-					}
+				mut := r.ToMutable()
+				for _, ren := range renames {
+					mut = mut.Rename(ren.oldField, ren.newField)
 				}
-				return result.Freeze()
+				return mut.Freeze()
 			}
 
 			// Apply rename

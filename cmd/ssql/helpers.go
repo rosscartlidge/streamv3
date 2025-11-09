@@ -1185,28 +1185,29 @@ func generateIncludeCode(fields []string) error {
 	}
 
 	// Generate field list
-	var fieldsList strings.Builder
-	fieldsList.WriteString("[]string{")
+	// Build included fields map
+	var includedMap strings.Builder
+	includedMap.WriteString("map[string]bool{")
 	for i, field := range fields {
 		if i > 0 {
-			fieldsList.WriteString(", ")
+			includedMap.WriteString(", ")
 		}
-		fieldsList.WriteString(fmt.Sprintf("%q", field))
+		includedMap.WriteString(fmt.Sprintf("%q: true", field))
 	}
-	fieldsList.WriteString("}")
+	includedMap.WriteString("}")
 
 	// Generate code
 	outputVar := "included"
 	code := fmt.Sprintf(`%s := ssql.Select(func(r ssql.Record) ssql.Record {
-		fields := %s
-		mut := ssql.MakeMutableRecord()
-		for _, field := range fields {
-			if val, ok := ssql.Get[any](r, field); ok {
-				mut = ssql.SetTypedValue(mut, field, val)
+		includedMap := %s
+		mut := r.ToMutable()
+		for k := range r.All() {
+			if !includedMap[k] {
+				mut = mut.Delete(k)
 			}
 		}
 		return mut.Freeze()
-	})(%s)`, outputVar, fieldsList.String(), inputVar)
+	})(%s)`, outputVar, includedMap.String(), inputVar)
 
 	// Create stmt fragment
 	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
@@ -1236,29 +1237,18 @@ func generateExcludeCode(fields []string) error {
 		inputVar = "records"
 	}
 
-	// Generate excluded map
-	var excludedMap strings.Builder
-	excludedMap.WriteString("map[string]bool{")
-	for i, field := range fields {
-		if i > 0 {
-			excludedMap.WriteString(", ")
-		}
-		excludedMap.WriteString(fmt.Sprintf("%q: true", field))
+	// Generate delete statements
+	var deleteStmts strings.Builder
+	for _, field := range fields {
+		deleteStmts.WriteString(fmt.Sprintf("\n\t\tmut = mut.Delete(%q)", field))
 	}
-	excludedMap.WriteString("}")
 
 	// Generate code
 	outputVar := "excluded"
 	code := fmt.Sprintf(`%s := ssql.Select(func(r ssql.Record) ssql.Record {
-		excluded := %s
-		mut := ssql.MakeMutableRecord()
-		for k, v := range r.All() {
-			if !excluded[k] {
-				mut = ssql.SetTypedValue(mut, k, v)
-			}
-		}
+		mut := r.ToMutable()%s
 		return mut.Freeze()
-	})(%s)`, outputVar, excludedMap.String(), inputVar)
+	})(%s)`, outputVar, deleteStmts.String(), inputVar)
 
 	// Create stmt fragment
 	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
@@ -1288,31 +1278,18 @@ func generateRenameCode(renames []struct{ oldField, newField string }) error {
 		inputVar = "records"
 	}
 
-	// Generate rename map
-	var renameMap strings.Builder
-	renameMap.WriteString("map[string]string{")
-	for i, r := range renames {
-		if i > 0 {
-			renameMap.WriteString(", ")
-		}
-		renameMap.WriteString(fmt.Sprintf("%q: %q", r.oldField, r.newField))
+	// Generate rename statements
+	var renameStmts strings.Builder
+	for _, r := range renames {
+		renameStmts.WriteString(fmt.Sprintf("\n\t\tmut = mut.Rename(%q, %q)", r.oldField, r.newField))
 	}
-	renameMap.WriteString("}")
 
 	// Generate code
 	outputVar := "renamed"
 	code := fmt.Sprintf(`%s := ssql.Select(func(r ssql.Record) ssql.Record {
-		renames := %s
-		mut := ssql.MakeMutableRecord()
-		for k, v := range r.All() {
-			if newName, ok := renames[k]; ok {
-				mut = ssql.SetTypedValue(mut, newName, v)
-			} else {
-				mut = ssql.SetTypedValue(mut, k, v)
-			}
-		}
+		mut := r.ToMutable()%s
 		return mut.Freeze()
-	})(%s)`, outputVar, renameMap.String(), inputVar)
+	})(%s)`, outputVar, renameStmts.String(), inputVar)
 
 	// Create stmt fragment
 	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())

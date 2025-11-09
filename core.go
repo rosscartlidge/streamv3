@@ -577,6 +577,17 @@ func (m MutableRecord) Delete(field string) MutableRecord {
 	return m
 }
 
+// Rename renames a field (mutates in place)
+// If the old field doesn't exist, this is a no-op.
+// If the new field name already exists, it will be overwritten.
+func (m MutableRecord) Rename(oldField, newField string) MutableRecord {
+	if val, exists := m.fields[oldField]; exists {
+		m.fields[newField] = val
+		delete(m.fields, oldField)
+	}
+	return m
+}
+
 // Len returns the number of fields
 func (m MutableRecord) Len() int {
 	return len(m.fields)
