@@ -1003,8 +1003,6 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	needsStrings := false
 	needsRegexp := false
 
-	codeBody.WriteString("\t\tfrozen := mut.Freeze()\n\n")
-
 	// Generate clause evaluation (first-match-wins)
 	for i, clause := range clauses {
 		indent := "\t\t"
