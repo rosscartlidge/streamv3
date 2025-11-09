@@ -30,19 +30,19 @@ echo
 # Run the pipeline
 echo "Pipeline: Select name & salary, sort by salary descending, take top 3"
 echo "Command:"
-echo "  streamv3 read-csv /tmp/employees.csv | \\"
-echo "    streamv3 select -field name + -field salary | \\"
-echo "    streamv3 sort -field salary -desc | \\"
-echo "    streamv3 limit -n 3 | \\"
-echo "    streamv3 write-csv"
+echo "  ssql read-csv /tmp/employees.csv | \\"
+echo "    ssql select -field name + -field salary | \\"
+echo "    ssql sort -field salary -desc | \\"
+echo "    ssql limit -n 3 | \\"
+echo "    ssql write-csv"
 echo
 echo "Results:"
 
-streamv3 read-csv /tmp/employees.csv | \
-  streamv3 select -field name + -field salary | \
-  streamv3 sort -field salary -desc | \
-  streamv3 limit -n 3 | \
-  streamv3 write-csv
+ssql read-csv /tmp/employees.csv | \
+  ssql select -field name + -field salary | \
+  ssql sort -field salary -desc | \
+  ssql limit -n 3 | \
+  ssql write-csv
 
 echo
 echo "Top 3 earners:"

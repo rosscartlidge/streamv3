@@ -28,15 +28,15 @@ echo
 # Example 1: contains operator
 echo "Example 6a: Find emails containing 'engineering'"
 echo "Command:"
-echo "  streamv3 read-csv /tmp/users.csv | \\"
-echo "    streamv3 where -match email contains engineering | \\"
-echo "    streamv3 write-csv"
+echo "  ssql read-csv /tmp/users.csv | \\"
+echo "    ssql where -match email contains engineering | \\"
+echo "    ssql write-csv"
 echo
 echo "Results:"
 
-streamv3 read-csv /tmp/users.csv | \
-  streamv3 where -match email contains engineering | \
-  streamv3 write-csv
+ssql read-csv /tmp/users.csv | \
+  ssql where -match email contains engineering | \
+  ssql write-csv
 
 echo
 echo "---"
@@ -45,15 +45,15 @@ echo
 # Example 2: endswith operator
 echo "Example 6b: Find emails ending with '.org'"
 echo "Command:"
-echo "  streamv3 read-csv /tmp/users.csv | \\"
-echo "    streamv3 where -match email endswith .org | \\"
-echo "    streamv3 write-csv"
+echo "  ssql read-csv /tmp/users.csv | \\"
+echo "    ssql where -match email endswith .org | \\"
+echo "    ssql write-csv"
 echo
 echo "Results:"
 
-streamv3 read-csv /tmp/users.csv | \
-  streamv3 where -match email endswith .org | \
-  streamv3 write-csv
+ssql read-csv /tmp/users.csv | \
+  ssql where -match email endswith .org | \
+  ssql write-csv
 
 echo
 echo "---"
@@ -62,15 +62,15 @@ echo
 # Example 3: startswith operator
 echo "Example 6c: Find names starting with 'C'"
 echo "Command:"
-echo "  streamv3 read-csv /tmp/users.csv | \\"
-echo "    streamv3 where -match name startswith C | \\"
-echo "    streamv3 write-csv"
+echo "  ssql read-csv /tmp/users.csv | \\"
+echo "    ssql where -match name startswith C | \\"
+echo "    ssql write-csv"
 echo
 echo "Results:"
 
-streamv3 read-csv /tmp/users.csv | \
-  streamv3 where -match name startswith C | \
-  streamv3 write-csv
+ssql read-csv /tmp/users.csv | \
+  ssql where -match name startswith C | \
+  ssql write-csv
 
 echo
 echo "String operators available:"

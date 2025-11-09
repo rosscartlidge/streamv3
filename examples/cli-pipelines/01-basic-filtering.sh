@@ -30,15 +30,15 @@ echo
 # Run the pipeline
 echo "Pipeline: Find Engineering employees over 30"
 echo "Command:"
-echo "  streamv3 read-csv /tmp/employees.csv | \\"
-echo "    streamv3 where -match age gt 30 -match department eq Engineering | \\"
-echo "    streamv3 write-csv"
+echo "  ssql read-csv /tmp/employees.csv | \\"
+echo "    ssql where -match age gt 30 -match department eq Engineering | \\"
+echo "    ssql write-csv"
 echo
 echo "Results:"
 
-streamv3 read-csv /tmp/employees.csv | \
-  streamv3 where -match age gt 30 -match department eq Engineering | \
-  streamv3 write-csv
+ssql read-csv /tmp/employees.csv | \
+  ssql where -match age gt 30 -match department eq Engineering | \
+  ssql write-csv
 
 echo
 echo "This filters to:"
