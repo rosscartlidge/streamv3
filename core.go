@@ -28,7 +28,7 @@ import (
 //
 //	// Create a filter that doubles integers
 //	double := func(input iter.Seq[int]) iter.Seq[int] {
-//	    return streamv3.Select(func(x int) int { return x * 2 })(input)
+//	    return ssql.Select(func(x int) int { return x * 2 })(input)
 //	}
 //
 //	// Use it in a pipeline
@@ -42,7 +42,7 @@ type Filter[T, U any] func(iter.Seq[T]) iter.Seq[U]
 //
 //	// Create a filter that safely parses strings to integers
 //	parseInt := func(input iter.Seq2[string, error]) iter.Seq2[int, error] {
-//	    return streamv3.SelectSafe(func(s string) (int, error) {
+//	    return ssql.SelectSafe(func(s string) (int, error) {
 //	        return strconv.Atoi(s)
 //	    })(input)
 //	}
@@ -58,11 +58,11 @@ type FilterWithErrors[T, U any] func(iter.Seq2[T, error]) iter.Seq2[U, error]
 // Example:
 //
 //	// Compose a filter that parses strings to ints, then doubles them
-//	parseInt := streamv3.SelectSafe(func(s string) (int, error) {
+//	parseInt := ssql.SelectSafe(func(s string) (int, error) {
 //	    return strconv.Atoi(s)
 //	})
-//	double := streamv3.Select(func(x int) int { return x * 2 })
-//	pipeline := streamv3.Pipe(parseInt, double)
+//	double := ssql.Select(func(x int) int { return x * 2 })
+//	pipeline := ssql.Pipe(parseInt, double)
 //
 //	// Use the composed filter
 //	result := pipeline(slices.Values([]string{"1", "2", "3"}))
@@ -78,10 +78,10 @@ func Pipe[T, U, V any](f1 Filter[T, U], f2 Filter[U, V]) Filter[T, V] {
 // Example:
 //
 //	// Parse strings → ints → floats → formatted strings
-//	parseInt := streamv3.Select(strconv.Atoi)
-//	toFloat := streamv3.Select(func(i int) float64 { return float64(i) })
-//	format := streamv3.Select(func(f float64) string { return fmt.Sprintf("%.2f", f) })
-//	pipeline := streamv3.Pipe3(parseInt, toFloat, format)
+//	parseInt := ssql.Select(strconv.Atoi)
+//	toFloat := ssql.Select(func(i int) float64 { return float64(i) })
+//	format := ssql.Select(func(f float64) string { return fmt.Sprintf("%.2f", f) })
+//	pipeline := ssql.Pipe3(parseInt, toFloat, format)
 func Pipe3[T, U, V, W any](f1 Filter[T, U], f2 Filter[U, V], f3 Filter[V, W]) Filter[T, W] {
 	return func(input iter.Seq[T]) iter.Seq[W] {
 		return f3(f2(f1(input)))
@@ -94,10 +94,10 @@ func Pipe3[T, U, V, W any](f1 Filter[T, U], f2 Filter[U, V], f3 Filter[V, W]) Fi
 // Example:
 //
 //	// Apply multiple filtering operations in sequence
-//	pipeline := streamv3.Chain(
-//	    streamv3.Where(func(x int) bool { return x > 0 }),  // Keep positive
-//	    streamv3.Where(func(x int) bool { return x%2 == 0 }), // Keep even
-//	    streamv3.Take[int](10),                              // Limit to 10
+//	pipeline := ssql.Chain(
+//	    ssql.Where(func(x int) bool { return x > 0 }),  // Keep positive
+//	    ssql.Where(func(x int) bool { return x%2 == 0 }), // Keep even
+//	    ssql.Take[int](10),                              // Limit to 10
 //	)
 //	result := pipeline(slices.Values([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}))
 func Chain[T any](filters ...Filter[T, T]) Filter[T, T] {
@@ -152,15 +152,15 @@ func ChainWithErrors[T any](filters ...FilterWithErrors[T, T]) FilterWithErrors[
 // Example:
 //
 //	// Create a record
-//	record := streamv3.MakeMutableRecord().
+//	record := ssql.MakeMutableRecord().
 //	    String("name", "Alice").
 //	    Int("age", int64(30)).
 //	    Float("salary", 95000.50).
 //	    Freeze()
 //
 //	// Access fields with type conversion
-//	name := streamv3.GetOr(record, "name", "")
-//	age := streamv3.GetOr(record, "age", int64(0))
+//	name := ssql.GetOr(record, "name", "")
+//	age := ssql.GetOr(record, "age", int64(0))
 //
 //	// Iterate over fields
 //	for key, value := range record.All() {
@@ -263,7 +263,7 @@ type Value interface {
 // Example:
 //
 //	// Efficient building with MutableRecord
-//	record := streamv3.MakeMutableRecord().
+//	record := ssql.MakeMutableRecord().
 //	    String("name", "Alice").
 //	    Int("age", int64(30)).
 //	    Float("salary", 95000.50).
@@ -281,7 +281,7 @@ type MutableRecord struct {
 //
 // Example:
 //
-//	record := streamv3.MakeMutableRecord().
+//	record := ssql.MakeMutableRecord().
 //	    String("city", "San Francisco").
 //	    Int("population", int64(873965)).
 //	    Freeze()
@@ -334,19 +334,19 @@ func (r Record) ToMutable() MutableRecord {
 //
 // Example:
 //
-//	record := streamv3.MakeMutableRecord().
+//	record := ssql.MakeMutableRecord().
 //	    String("age_str", "30").
 //	    Int("count", int64(42)).
 //	    Freeze()
 //
 //	// Direct type match
-//	count, ok := streamv3.Get[int64](record, "count")  // 42, true
+//	count, ok := ssql.Get[int64](record, "count")  // 42, true
 //
 //	// Smart conversion from string to int64
-//	age, ok := streamv3.Get[int64](record, "age_str")  // 30, true
+//	age, ok := ssql.Get[int64](record, "age_str")  // 30, true
 //
 //	// Field doesn't exist
-//	missing, ok := streamv3.Get[string](record, "missing")  // "", false
+//	missing, ok := ssql.Get[string](record, "missing")  // "", false
 func Get[T any](r Record, field string) (T, bool) {
 	val, exists := r.fields[field]
 	if !exists {
@@ -378,12 +378,12 @@ func Get[T any](r Record, field string) (T, bool) {
 // Example:
 //
 //	// CSV data (auto-parsed to int64/float64)
-//	data, _ := streamv3.ReadCSV("people.csv")
+//	data, _ := ssql.ReadCSV("people.csv")
 //	for record := range data {
 //	    // Always use int64 with CSV data
-//	    age := streamv3.GetOr(record, "age", int64(0))
-//	    salary := streamv3.GetOr(record, "salary", float64(0.0))
-//	    name := streamv3.GetOr(record, "name", "Unknown")
+//	    age := ssql.GetOr(record, "age", int64(0))
+//	    salary := ssql.GetOr(record, "salary", float64(0.0))
+//	    name := ssql.GetOr(record, "name", "Unknown")
 //
 //	    // Convert to int if needed
 //	    ageInt := int(age)
@@ -1008,10 +1008,10 @@ type Comparable interface {
 //	numbers := slices.Values([]int{1, 2, 3, 4, 5})
 //
 //	// Convert to error-aware for operations that might fail
-//	numbersSafe := streamv3.Safe(numbers)
+//	numbersSafe := ssql.Safe(numbers)
 //
 //	// Use with error-aware operations
-//	results := streamv3.SelectSafe(func(x int) (string, error) {
+//	results := ssql.SelectSafe(func(x int) (string, error) {
 //	    if x == 0 {
 //	        return "", errors.New("cannot process zero")
 //	    }
@@ -1033,14 +1033,14 @@ func Safe[T any](seq iter.Seq[T]) iter.Seq2[T, error] {
 // Example:
 //
 //	// Read CSV data (returns iter.Seq2[Record, error])
-//	data, _ := streamv3.ReadCSV("data.csv")
+//	data, _ := ssql.ReadCSV("data.csv")
 //
 //	// Convert to simple iterator - panics if any error occurs
-//	dataUnsafe := streamv3.Unsafe(data)
+//	dataUnsafe := ssql.Unsafe(data)
 //
 //	// Use with simple operations
-//	filtered := streamv3.Where(func(r streamv3.Record) bool {
-//	    age := streamv3.GetOr(r, "age", int64(0))
+//	filtered := ssql.Where(func(r ssql.Record) bool {
+//	    age := ssql.GetOr(r, "age", int64(0))
 //	    return age > 25
 //	})(dataUnsafe)
 func Unsafe[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
@@ -1062,14 +1062,14 @@ func Unsafe[T any](seq iter.Seq2[T, error]) iter.Seq[T] {
 // Example:
 //
 //	// Read CSV with some malformed rows
-//	data, _ := streamv3.ReadCSV("messy_data.csv")
+//	data, _ := ssql.ReadCSV("messy_data.csv")
 //
 //	// Process valid records, skip errors silently
-//	validData := streamv3.IgnoreErrors(data)
+//	validData := ssql.IgnoreErrors(data)
 //
 //	// Continue with normal processing
-//	results := streamv3.Where(func(r streamv3.Record) bool {
-//	    age := streamv3.GetOr(r, "age", int64(0))
+//	results := ssql.Where(func(r ssql.Record) bool {
+//	    age := ssql.GetOr(r, "age", int64(0))
 //	    return age > 0
 //	})(validData)
 func IgnoreErrors[T any](seq iter.Seq2[T, error]) iter.Seq[T] {

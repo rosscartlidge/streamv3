@@ -132,21 +132,21 @@ func innerJoinHash(
 // Example:
 //
 //	// Join customers with their orders
-//	customers, _ := streamv3.ReadCSV("customers.csv")
-//	orders, _ := streamv3.ReadCSV("orders.csv")
+//	customers, _ := ssql.ReadCSV("customers.csv")
+//	orders, _ := ssql.ReadCSV("orders.csv")
 //
-//	customerOrders := streamv3.InnerJoin(
+//	customerOrders := ssql.InnerJoin(
 //	    orders,
-//	    streamv3.OnFields("customer_id"),
+//	    ssql.OnFields("customer_id"),
 //	)(customers)
 //
 //	// Custom join condition
-//	highValueOrders := streamv3.InnerJoin(
+//	highValueOrders := ssql.InnerJoin(
 //	    orders,
-//	    streamv3.OnCondition(func(customer, order streamv3.Record) bool {
-//	        customerID := streamv3.GetOr(customer, "id", "")
-//	        orderCustomerID := streamv3.GetOr(order, "customer_id", "")
-//	        orderAmount := streamv3.GetOr(order, "amount", float64(0))
+//	    ssql.OnCondition(func(customer, order ssql.Record) bool {
+//	        customerID := ssql.GetOr(customer, "id", "")
+//	        orderCustomerID := ssql.GetOr(order, "customer_id", "")
+//	        orderAmount := ssql.GetOr(order, "amount", float64(0))
 //	        return customerID == orderCustomerID && orderAmount > 1000.0
 //	    }),
 //	)(customers)
@@ -576,15 +576,15 @@ func FullJoin(rightSeq iter.Seq[Record], predicate JoinPredicate) Filter[Record,
 // Example:
 //
 //	// Join on single field
-//	joined := streamv3.InnerJoin(
+//	joined := ssql.InnerJoin(
 //	    orders,
-//	    streamv3.OnFields("customer_id"),
+//	    ssql.OnFields("customer_id"),
 //	)(customers)
 //
 //	// Join on multiple fields
-//	joined := streamv3.InnerJoin(
+//	joined := ssql.InnerJoin(
 //	    orderDetails,
-//	    streamv3.OnFields("order_id", "product_id"),
+//	    ssql.OnFields("order_id", "product_id"),
 //	)(orders)
 func OnFields(fields ...string) JoinPredicate {
 	return &fieldsJoinPredicate{fields: fields}
@@ -641,12 +641,12 @@ func OnCondition(condition func(left, right Record) bool) JoinPredicate {
 // Example:
 //
 //	// Group by age bracket
-//	data, _ := streamv3.ReadCSV("people.csv")
-//	grouped := streamv3.GroupBy[string](
+//	data, _ := ssql.ReadCSV("people.csv")
+//	grouped := ssql.GroupBy[string](
 //	    "group_members",
 //	    "age_bracket",
-//	    func(r streamv3.Record) string {
-//	        age := streamv3.GetOr(r, "age", int64(0))
+//	    func(r ssql.Record) string {
+//	        age := ssql.GetOr(r, "age", int64(0))
 //	        if age < 30 {
 //	            return "young"
 //	        } else if age < 60 {
@@ -657,9 +657,9 @@ func OnCondition(condition func(left, right Record) bool) JoinPredicate {
 //	)(data)
 //
 //	// Apply aggregations
-//	summary := streamv3.Aggregate("group_members", map[string]streamv3.AggregateFunc{
-//	    "count":      streamv3.Count(),
-//	    "avg_salary": streamv3.Avg("salary"),
+//	summary := ssql.Aggregate("group_members", map[string]ssql.AggregateFunc{
+//	    "count":      ssql.Count(),
+//	    "avg_salary": ssql.Avg("salary"),
 //	})(grouped)
 func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Record) K) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
@@ -712,18 +712,18 @@ func GroupBy[K comparable](sequenceField string, keyField string, keyFn func(Rec
 // Example:
 //
 //	// Group sales by region
-//	sales, _ := streamv3.ReadCSV("sales.csv")
-//	grouped := streamv3.GroupByFields("sales", "region")(sales)
+//	sales, _ := ssql.ReadCSV("sales.csv")
+//	grouped := ssql.GroupByFields("sales", "region")(sales)
 //
 //	// Compute aggregations
-//	summary := streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
-//	    "total_revenue": streamv3.Sum("amount"),
-//	    "count":         streamv3.Count(),
-//	    "avg_amount":    streamv3.Avg("amount"),
+//	summary := ssql.Aggregate("sales", map[string]ssql.AggregateFunc{
+//	    "total_revenue": ssql.Sum("amount"),
+//	    "count":         ssql.Count(),
+//	    "avg_amount":    ssql.Avg("amount"),
 //	})(grouped)
 //
 //	// Group by multiple fields
-//	grouped := streamv3.GroupByFields("orders", "region", "product_category")(sales)
+//	grouped := ssql.GroupByFields("orders", "region", "product_category")(sales)
 func GroupByFields(sequenceField string, fields ...string) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
 		return func(yield func(Record) bool) {
@@ -809,21 +809,21 @@ type AggregateFunc func([]Record) any
 // Example:
 //
 //	// Complete GROUP BY + Aggregate pipeline
-//	sales, _ := streamv3.ReadCSV("sales.csv")
+//	sales, _ := ssql.ReadCSV("sales.csv")
 //
 //	// Group and aggregate in one pipeline
-//	summary := streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
-//	    "total_revenue": streamv3.Sum("amount"),
-//	    "count":         streamv3.Count(),
-//	    "avg_amount":    streamv3.Avg("amount"),
-//	    "min_amount":    streamv3.Min[float64]("amount"),
-//	    "max_amount":    streamv3.Max[float64]("amount"),
-//	})(streamv3.GroupByFields("sales", "region")(sales))
+//	summary := ssql.Aggregate("sales", map[string]ssql.AggregateFunc{
+//	    "total_revenue": ssql.Sum("amount"),
+//	    "count":         ssql.Count(),
+//	    "avg_amount":    ssql.Avg("amount"),
+//	    "min_amount":    ssql.Min[float64]("amount"),
+//	    "max_amount":    ssql.Max[float64]("amount"),
+//	})(ssql.GroupByFields("sales", "region")(sales))
 //
 //	// Get top 5 regions by revenue
-//	top5 := streamv3.Limit[streamv3.Record](5)(
-//	    streamv3.SortBy(func(r streamv3.Record) float64 {
-//	        return -streamv3.GetOr(r, "total_revenue", float64(0))
+//	top5 := ssql.Limit[ssql.Record](5)(
+//	    ssql.SortBy(func(r ssql.Record) float64 {
+//	        return -ssql.GetOr(r, "total_revenue", float64(0))
 //	    })(summary))
 func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filter[Record, Record] {
 	return func(input iter.Seq[Record]) iter.Seq[Record] {
@@ -870,8 +870,8 @@ func Aggregate(sequenceField string, aggregations map[string]AggregateFunc) Filt
 //
 // Example:
 //
-//	aggregations := map[string]streamv3.AggregateFunc{
-//	    "total": streamv3.Count(),
+//	aggregations := map[string]ssql.AggregateFunc{
+//	    "total": ssql.Count(),
 //	}
 func Count() AggregateFunc {
 	return func(records []Record) any {
@@ -884,8 +884,8 @@ func Count() AggregateFunc {
 //
 // Example:
 //
-//	aggregations := map[string]streamv3.AggregateFunc{
-//	    "total_revenue": streamv3.Sum("amount"),
+//	aggregations := map[string]ssql.AggregateFunc{
+//	    "total_revenue": ssql.Sum("amount"),
 //	}
 func Sum(field string) AggregateFunc {
 	return func(records []Record) any {
@@ -905,8 +905,8 @@ func Sum(field string) AggregateFunc {
 //
 // Example:
 //
-//	aggregations := map[string]streamv3.AggregateFunc{
-//	    "avg_salary": streamv3.Avg("salary"),
+//	aggregations := map[string]ssql.AggregateFunc{
+//	    "avg_salary": ssql.Avg("salary"),
 //	}
 func Avg(field string) AggregateFunc {
 	return func(records []Record) any {
@@ -931,9 +931,9 @@ func Avg(field string) AggregateFunc {
 //
 // Example:
 //
-//	aggregations := map[string]streamv3.AggregateFunc{
-//	    "min_age":    streamv3.Min[int64]("age"),
-//	    "min_salary": streamv3.Min[float64]("salary"),
+//	aggregations := map[string]ssql.AggregateFunc{
+//	    "min_age":    ssql.Min[int64]("age"),
+//	    "min_salary": ssql.Min[float64]("salary"),
 //	}
 func Min[T cmp.Ordered](field string) AggregateFunc {
 	return func(records []Record) any {
@@ -962,9 +962,9 @@ func Min[T cmp.Ordered](field string) AggregateFunc {
 //
 // Example:
 //
-//	aggregations := map[string]streamv3.AggregateFunc{
-//	    "max_age":    streamv3.Max[int64]("age"),
-//	    "max_salary": streamv3.Max[float64]("salary"),
+//	aggregations := map[string]ssql.AggregateFunc{
+//	    "max_age":    ssql.Max[int64]("age"),
+//	    "max_salary": ssql.Max[float64]("salary"),
 //	}
 func Max[T cmp.Ordered](field string) AggregateFunc {
 	return func(records []Record) any {

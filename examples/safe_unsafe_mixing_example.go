@@ -116,7 +116,7 @@ David,28,
 Eve,35,eve@example.com
 Frank,abc,frank@example.com`
 
-	tmpFile := "/tmp/streamv3_safe_example.csv"
+	tmpFile := "/tmp/ssql_safe_example.csv"
 	err := os.WriteFile(tmpFile, []byte(csvContent), 0644)
 	if err != nil {
 		fmt.Printf("❌ Error writing CSV: %v\n", err)
@@ -180,7 +180,7 @@ ACC001,1250.50,active
 ACC002,3400.75,active
 ACC003,890.25,active`
 
-	tmpFile := "/tmp/streamv3_failfast_example.csv"
+	tmpFile := "/tmp/ssql_failfast_example.csv"
 	err := os.WriteFile(tmpFile, []byte(csvContent), 0644)
 	if err != nil {
 		fmt.Printf("❌ Error writing CSV: %v\n", err)
@@ -205,7 +205,7 @@ ACC001,1250.50,active
 ACC002,CORRUPTED,active
 ACC003,890.25,active`
 
-	tmpFile2 := "/tmp/streamv3_corrupted_example.csv"
+	tmpFile2 := "/tmp/ssql_corrupted_example.csv"
 	err = os.WriteFile(tmpFile2, []byte(corruptedContent), 0644)
 	if err != nil {
 		fmt.Printf("❌ Error writing CSV: %v\n", err)
@@ -268,15 +268,15 @@ func demonstrateBestEffort() {
 
 	// Create multiple CSV files with varying quality
 	sources := map[string]string{
-		"/tmp/streamv3_source1.csv": `product,price,stock
+		"/tmp/ssql_source1.csv": `product,price,stock
 Laptop,999.99,15
 Phone,599.99,25
 Tablet,399.99,10`,
-		"/tmp/streamv3_source2.csv": `product,price,stock
+		"/tmp/ssql_source2.csv": `product,price,stock
 Monitor,299.99,8
 Keyboard,invalid,20
 Mouse,49.99,50`,
-		"/tmp/streamv3_source3.csv": `product,price,stock
+		"/tmp/ssql_source3.csv": `product,price,stock
 Headphones,149.99,30
 Speaker,bad_price,12
 Webcam,89.99,18`,
@@ -296,7 +296,7 @@ Webcam,89.99,18`,
 	var allProducts []ssql.Record
 
 	for path, _ := range sources {
-		filename := strings.TrimPrefix(path, "/tmp/streamv3_")
+		filename := strings.TrimPrefix(path, "/tmp/ssql_")
 		fmt.Printf("\n📂 Processing %s...\n", filename)
 
 		// Read CSV with Safe version

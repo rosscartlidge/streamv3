@@ -260,24 +260,24 @@ func WriteCSVToWriter(sb iter.Seq[Record], writer io.Writer, config ...CSVConfig
 // Example:
 //
 //	// Read CSV with default settings (has headers, comma delimiter)
-//	data, err := streamv3.ReadCSV("sales.csv")
+//	data, err := ssql.ReadCSV("sales.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //
 //	// Process the data
 //	for record := range data {
-//	    region := streamv3.GetOr(record, "region", "")
-//	    amount := streamv3.GetOr(record, "amount", float64(0))
+//	    region := ssql.GetOr(record, "region", "")
+//	    amount := ssql.GetOr(record, "amount", float64(0))
 //	    fmt.Printf("%s: %.2f\n", region, amount)
 //	}
 //
 //	// Custom configuration
-//	config := streamv3.CSVConfig{
+//	config := ssql.CSVConfig{
 //	    HasHeaders: false,
 //	    Delimiter:  '\t',
 //	}
-//	data, err := streamv3.ReadCSV("data.tsv", config)
+//	data, err := ssql.ReadCSV("data.tsv", config)
 func ReadCSV(filename string, config ...CSVConfig) (iter.Seq[Record], error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -325,21 +325,21 @@ func ReadCSVSafe(filename string, config ...CSVConfig) iter.Seq2[Record, error] 
 // Example:
 //
 //	// Write processed data to CSV
-//	result := streamv3.Where(func(r streamv3.Record) bool {
-//	    age := streamv3.GetOr(r, "age", int64(0))
+//	result := ssql.Where(func(r ssql.Record) bool {
+//	    age := ssql.GetOr(r, "age", int64(0))
 //	    return age > 25
 //	})(data)
 //
-//	err := streamv3.WriteCSV(result, "filtered.csv")
+//	err := ssql.WriteCSV(result, "filtered.csv")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //
 //	// Custom field order
-//	config := streamv3.CSVConfig{
+//	config := ssql.CSVConfig{
 //	    Fields: []string{"name", "age", "salary"},
 //	}
-//	err := streamv3.WriteCSV(result, "output.csv", config)
+//	err := ssql.WriteCSV(result, "output.csv", config)
 func WriteCSV(sb iter.Seq[Record], filename string, config ...CSVConfig) error {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -477,15 +477,15 @@ func WriteJSONToWriter(sb iter.Seq[Record], writer io.Writer) error {
 // Example:
 //
 //	// Read JSONL file
-//	data, err := streamv3.ReadJSON("events.jsonl")
+//	data, err := ssql.ReadJSON("events.jsonl")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //
 //	// Process events
 //	for record := range data {
-//	    eventType := streamv3.GetOr(record, "type", "")
-//	    timestamp := streamv3.GetOr(record, "timestamp", "")
+//	    eventType := ssql.GetOr(record, "type", "")
+//	    timestamp := ssql.GetOr(record, "timestamp", "")
 //	    fmt.Printf("%s: %s\n", timestamp, eventType)
 //	}
 func ReadJSON(filename string) (iter.Seq[Record], error) {
@@ -886,8 +886,8 @@ func ReadCommandOutputSafe(filename string, config ...CommandConfig) iter.Seq2[R
 //
 // Example:
 //
-//	records := streamv3.ReadCSV("data.csv")
-//	streamv3.DisplayTable(records, 50)
+//	records := ssql.ReadCSV("data.csv")
+//	ssql.DisplayTable(records, 50)
 func DisplayTable(records iter.Seq[Record], maxWidth int) {
 	// Collect records and determine columns
 	var allRecords []Record
@@ -987,21 +987,21 @@ func DisplayTable(records iter.Seq[Record], maxWidth int) {
 // Example:
 //
 //	// Get process information
-//	data, err := streamv3.ExecCommand("ps", []string{"-efl"})
+//	data, err := ssql.ExecCommand("ps", []string{"-efl"})
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //
 //	// Find processes using lots of memory
-//	highMem := streamv3.Where(func(r streamv3.Record) bool {
-//	    rss := streamv3.GetOr(r, "RSS", int64(0))
+//	highMem := ssql.Where(func(r ssql.Record) bool {
+//	    rss := ssql.GetOr(r, "RSS", int64(0))
 //	    return rss > 100000  // More than 100MB
 //	})(data)
 //
 //	// Count by user
-//	byUser := streamv3.Aggregate("procs", map[string]streamv3.AggregateFunc{
-//	    "count": streamv3.Count(),
-//	})(streamv3.GroupByFields("procs", "UID")(data))
+//	byUser := ssql.Aggregate("procs", map[string]ssql.AggregateFunc{
+//	    "count": ssql.Count(),
+//	})(ssql.GroupByFields("procs", "UID")(data))
 func ExecCommand(command string, args []string, config ...CommandConfig) (iter.Seq[Record], error) {
 	cfg := DefaultCommandConfig()
 	if len(config) > 0 {

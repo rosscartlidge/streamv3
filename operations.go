@@ -24,14 +24,14 @@ import (
 //
 //	// Transform integers to strings
 //	numbers := slices.Values([]int{1, 2, 3, 4, 5})
-//	strings := streamv3.Select(func(n int) string {
+//	strings := ssql.Select(func(n int) string {
 //	    return fmt.Sprintf("Number: %d", n)
 //	})(numbers)
 //
 //	// Transform records
-//	data, _ := streamv3.ReadCSV("people.csv")
-//	names := streamv3.Select(func(r streamv3.Record) string {
-//	    return streamv3.GetOr(r, "name", "")
+//	data, _ := ssql.ReadCSV("people.csv")
+//	names := ssql.Select(func(r ssql.Record) string {
+//	    return ssql.GetOr(r, "name", "")
 //	})(data)
 func Select[T, U any](fn func(T) U) Filter[T, U] {
 	return func(input iter.Seq[T]) iter.Seq[U] {
@@ -54,13 +54,13 @@ func Select[T, U any](fn func(T) U) Filter[T, U] {
 //
 // Example - Update single field:
 //
-//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	updated := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 //	    return mut.String("status", "processed")
 //	})(records)
 //
 // Example - Update multiple fields with chaining:
 //
-//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	updated := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 //	    return mut.
 //	        String("status", "processed").
 //	        Time("updated_at", time.Now())
@@ -68,18 +68,18 @@ func Select[T, U any](fn func(T) U) Filter[T, U] {
 //
 // Example - Computed field update:
 //
-//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	updated := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 //	    frozen := mut.Freeze()
-//	    price := streamv3.GetOr(frozen, "price", float64(0))
-//	    qty := streamv3.GetOr(frozen, "quantity", int64(0))
+//	    price := ssql.GetOr(frozen, "price", float64(0))
+//	    qty := ssql.GetOr(frozen, "quantity", int64(0))
 //	    return mut.Float("total", price * float64(qty))
 //	})(records)
 //
 // Example - Conditional update:
 //
-//	updated := streamv3.Update(func(mut streamv3.MutableRecord) streamv3.MutableRecord {
+//	updated := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 //	    frozen := mut.Freeze()
-//	    if streamv3.GetOr(frozen, "age", int64(0)) >= 18 {
+//	    if ssql.GetOr(frozen, "age", int64(0)) >= 18 {
 //	        return mut.String("category", "adult")
 //	    }
 //	    return mut.String("category", "minor")
@@ -126,23 +126,23 @@ func SelectSafe[T, U any](fn func(T) (U, error)) FilterWithErrors[T, U] {
 //
 //	// Split strings into individual words
 //	sentences := slices.Values([]string{"hello world", "foo bar"})
-//	words := streamv3.SelectMany(func(s string) iter.Seq[string] {
+//	words := ssql.SelectMany(func(s string) iter.Seq[string] {
 //	    return slices.Values(strings.Fields(s))
 //	})(sentences)
 //	// Result: ["hello", "world", "foo", "bar"]
 //
 //	// Expand records with iter.Seq fields
-//	data := []streamv3.Record{
-//	    streamv3.MakeMutableRecord().
+//	data := []ssql.Record{
+//	    ssql.MakeMutableRecord().
 //	        String("user", "Alice").
 //	        IntSeq("scores", slices.Values([]int{90, 85, 95})).
 //	        Freeze(),
 //	}
-//	expanded := streamv3.SelectMany(func(r streamv3.Record) iter.Seq[streamv3.Record] {
-//	    scores := streamv3.Get[iter.Seq[int]](r, "scores")
-//	    return streamv3.Select(func(score int) streamv3.Record {
-//	        return streamv3.MakeMutableRecord().
-//	            String("user", streamv3.GetOr(r, "user", "")).
+//	expanded := ssql.SelectMany(func(r ssql.Record) iter.Seq[ssql.Record] {
+//	    scores := ssql.Get[iter.Seq[int]](r, "scores")
+//	    return ssql.Select(func(score int) ssql.Record {
+//	        return ssql.MakeMutableRecord().
+//	            String("user", ssql.GetOr(r, "user", "")).
 //	            Int("score", int64(score)).
 //	            Freeze()
 //	    })(scores)
@@ -172,15 +172,15 @@ func SelectMany[T, U any](fn func(T) iter.Seq[U]) Filter[T, U] {
 //
 //	// Filter positive integers
 //	numbers := slices.Values([]int{-2, -1, 0, 1, 2, 3})
-//	positive := streamv3.Where(func(n int) bool {
+//	positive := ssql.Where(func(n int) bool {
 //	    return n > 0
 //	})(numbers)
 //	// Result: [1, 2, 3]
 //
 //	// Filter CSV data
-//	data, _ := streamv3.ReadCSV("people.csv")
-//	adults := streamv3.Where(func(r streamv3.Record) bool {
-//	    age := streamv3.GetOr(r, "age", int64(0))
+//	data, _ := ssql.ReadCSV("people.csv")
+//	adults := ssql.Where(func(r ssql.Record) bool {
+//	    age := ssql.GetOr(r, "age", int64(0))
 //	    return age >= 18
 //	})(data)
 func Where[T any](predicate func(T) bool) Filter[T, T] {
@@ -231,13 +231,13 @@ func WhereSafe[T any](predicate func(T) (bool, error)) FilterWithErrors[T, T] {
 // Example:
 //
 //	// Get first 10 records
-//	data, _ := streamv3.ReadCSV("large_file.csv")
-//	first10 := streamv3.Limit[streamv3.Record](10)(data)
+//	data, _ := ssql.ReadCSV("large_file.csv")
+//	first10 := ssql.Limit[ssql.Record](10)(data)
 //
 //	// Combined with other operations
-//	topCustomers := streamv3.Limit[streamv3.Record](5)(
-//	    streamv3.SortBy(func(r streamv3.Record) float64 {
-//	        return -streamv3.GetOr(r, "revenue", float64(0))
+//	topCustomers := ssql.Limit[ssql.Record](5)(
+//	    ssql.SortBy(func(r ssql.Record) float64 {
+//	        return -ssql.GetOr(r, "revenue", float64(0))
 //	    })(data))
 func Limit[T any](n int) Filter[T, T] {
 	return func(input iter.Seq[T]) iter.Seq[T] {

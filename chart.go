@@ -57,14 +57,14 @@ type ChartConfig struct {
 // Example:
 //
 //	// Use defaults as-is
-//	streamv3.InteractiveChart(data, "chart.html")
+//	ssql.InteractiveChart(data, "chart.html")
 //
 //	// Customize from defaults
-//	config := streamv3.DefaultChartConfig()
+//	config := ssql.DefaultChartConfig()
 //	config.Title = "Sales Dashboard"
 //	config.ChartType = "bar"
 //	config.Theme = "dark"
-//	streamv3.InteractiveChart(data, "chart.html", config)
+//	ssql.InteractiveChart(data, "chart.html", config)
 func DefaultChartConfig() ChartConfig {
 	return ChartConfig{
 		Title:              "Data Visualization",
@@ -130,21 +130,21 @@ type NumericStat struct {
 // Example:
 //
 //	// Create interactive chart with default settings
-//	sales, _ := streamv3.ReadCSV("sales.csv")
-//	streamv3.InteractiveChart(sales, "sales_dashboard.html")
+//	sales, _ := ssql.ReadCSV("sales.csv")
+//	ssql.InteractiveChart(sales, "sales_dashboard.html")
 //
 //	// Customize appearance and behavior
-//	config := streamv3.DefaultChartConfig()
+//	config := ssql.DefaultChartConfig()
 //	config.Title = "Q4 Revenue Analysis"
 //	config.ChartType = "bar"
 //	config.Theme = "dark"
 //	config.EnableCalculations = true  // Show trend lines and moving averages
-//	streamv3.InteractiveChart(sales, "dashboard.html", config)
+//	ssql.InteractiveChart(sales, "dashboard.html", config)
 //
 //	// Time-based data with custom axis settings
 //	config.XAxisType = "time"
 //	config.TimeFormat = "YYYY-MM-DD"
-//	streamv3.InteractiveChart(timeSeries, "timeseries.html", config)
+//	ssql.InteractiveChart(timeSeries, "timeseries.html", config)
 func InteractiveChart(sb iter.Seq[Record], filename string, config ...ChartConfig) error {
 	cfg := DefaultChartConfig()
 	if len(config) > 0 {
@@ -176,18 +176,18 @@ func InteractiveChart(sb iter.Seq[Record], filename string, config ...ChartConfi
 // Example:
 //
 //	// One-line chart creation
-//	sales, _ := streamv3.ReadCSV("sales.csv")
-//	streamv3.QuickChart(sales, "month", "revenue", "revenue_chart.html")
+//	sales, _ := ssql.ReadCSV("sales.csv")
+//	ssql.QuickChart(sales, "month", "revenue", "revenue_chart.html")
 //
 //	// Visualize aggregated data
-//	topRegions := streamv3.Limit[streamv3.Record](5)(
-//	    streamv3.SortBy(func(r streamv3.Record) float64 {
-//	        return -streamv3.GetOr(r, "total_sales", 0.0)
-//	    })(streamv3.Aggregate("sales", map[string]streamv3.AggregateFunc{
-//	        "total_sales": streamv3.Sum("amount"),
-//	    })(streamv3.GroupByFields("sales", "region")(sales))))
+//	topRegions := ssql.Limit[ssql.Record](5)(
+//	    ssql.SortBy(func(r ssql.Record) float64 {
+//	        return -ssql.GetOr(r, "total_sales", 0.0)
+//	    })(ssql.Aggregate("sales", map[string]ssql.AggregateFunc{
+//	        "total_sales": ssql.Sum("amount"),
+//	    })(ssql.GroupByFields("sales", "region")(sales))))
 //
-//	streamv3.QuickChart(topRegions, "region", "total_sales", "top_regions.html")
+//	ssql.QuickChart(topRegions, "region", "total_sales", "top_regions.html")
 //
 // The generated HTML file includes all interactive features (zoom, pan, export).
 func QuickChart(sb iter.Seq[Record], xField, yField, filename string) error {
@@ -220,8 +220,8 @@ func QuickChart(sb iter.Seq[Record], xField, yField, filename string) error {
 // Example:
 //
 //	// Single metric over time
-//	metrics, _ := streamv3.ReadCSV("metrics.csv")
-//	streamv3.TimeSeriesChart(
+//	metrics, _ := ssql.ReadCSV("metrics.csv")
+//	ssql.TimeSeriesChart(
 //	    metrics,
 //	    "timestamp",
 //	    []string{"cpu_usage"},
@@ -229,7 +229,7 @@ func QuickChart(sb iter.Seq[Record], xField, yField, filename string) error {
 //	)
 //
 //	// Multiple metrics on one chart
-//	streamv3.TimeSeriesChart(
+//	ssql.TimeSeriesChart(
 //	    metrics,
 //	    "timestamp",
 //	    []string{"cpu_usage", "memory_usage", "disk_io"},
@@ -237,10 +237,10 @@ func QuickChart(sb iter.Seq[Record], xField, yField, filename string) error {
 //	)
 //
 //	// Customize time axis format
-//	config := streamv3.DefaultChartConfig()
+//	config := ssql.DefaultChartConfig()
 //	config.TimeFormat = "YYYY-MM-DD HH:mm"
 //	config.Title = "Hourly Sales Data"
-//	streamv3.TimeSeriesChart(
+//	ssql.TimeSeriesChart(
 //	    sales,
 //	    "timestamp",
 //	    []string{"revenue", "orders"},
