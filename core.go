@@ -509,24 +509,55 @@ func Set[V Value](m MutableRecord, field string, value V) MutableRecord {
 	return m
 }
 
+// SetTypedValue sets a field value with runtime type checking (mutates in place)
+//
+// This function handles values of type any by using a type switch to call Set[V]()
+// with the appropriate concrete type. It supports all types that satisfy the Value
+// interface, including scalars (int64, float64, bool, string), special types
+// (time.Time, Record, JSONString), and common iterator types (iter.Seq[T]).
+//
+// For unknown or less common types, the value is converted to a string.
+//
+// This is the recommended replacement for the deprecated SetAny() method.
+func SetTypedValue(record MutableRecord, key string, val any) MutableRecord {
+	switch v := val.(type) {
+	case int64:
+		return Set(record, key, v)
+	case float64:
+		return Set(record, key, v)
+	case bool:
+		return Set(record, key, v)
+	case string:
+		return Set(record, key, v)
+	case time.Time:
+		return Set(record, key, v)
+	case Record:
+		return Set(record, key, v)
+	case JSONString:
+		return Set(record, key, v)
+	// Common iterator types
+	case iter.Seq[int64]:
+		return Set(record, key, v)
+	case iter.Seq[float64]:
+		return Set(record, key, v)
+	case iter.Seq[bool]:
+		return Set(record, key, v)
+	case iter.Seq[string]:
+		return Set(record, key, v)
+	case iter.Seq[time.Time]:
+		return Set(record, key, v)
+	case iter.Seq[Record]:
+		return Set(record, key, v)
+	default:
+		// For other iterator types or unknown types, convert to string
+		return Set(record, key, fmt.Sprintf("%v", v))
+	}
+}
+
 // SetAny adds a field without type constraints (mutates in place)
 //
 // Deprecated: SetAny bypasses type safety and will be removed in v2.0.0.
-// Use typed setters (Int, Float, Bool, String) or ssql.Set[V Value]() instead.
-// For dynamic types, use a type switch to determine the appropriate setter:
-//
-//	switch v := val.(type) {
-//	case int64:
-//	    record = record.Int(key, v)
-//	case float64:
-//	    record = record.Float(key, v)
-//	case bool:
-//	    record = record.Bool(key, v)
-//	case string:
-//	    record = record.String(key, v)
-//	default:
-//	    record = record.String(key, fmt.Sprintf("%v", v))
-//	}
+// Use SetTypedValue() for runtime type handling, or Set[V Value]() for compile-time safety.
 func (m MutableRecord) SetAny(field string, value any) MutableRecord {
 	m.fields[field] = value
 	return m

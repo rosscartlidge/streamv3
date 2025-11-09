@@ -30,42 +30,6 @@ func extractNumeric(val any) float64 {
 	}
 }
 
-// setTypedValue sets a field with type-safe setters based on the value's type
-// This replaces the deprecated SetAny() method by using ssql.Set() with proper type assertions
-func setTypedValue(record ssql.MutableRecord, key string, val any) ssql.MutableRecord {
-	switch v := val.(type) {
-	case int64:
-		return ssql.Set(record, key, v)
-	case float64:
-		return ssql.Set(record, key, v)
-	case bool:
-		return ssql.Set(record, key, v)
-	case string:
-		return ssql.Set(record, key, v)
-	case time.Time:
-		return ssql.Set(record, key, v)
-	case ssql.Record:
-		return ssql.Set(record, key, v)
-	case ssql.JSONString:
-		return ssql.Set(record, key, v)
-	// Common iterator types
-	case iter.Seq[int64]:
-		return ssql.Set(record, key, v)
-	case iter.Seq[float64]:
-		return ssql.Set(record, key, v)
-	case iter.Seq[bool]:
-		return ssql.Set(record, key, v)
-	case iter.Seq[string]:
-		return ssql.Set(record, key, v)
-	case iter.Seq[time.Time]:
-		return ssql.Set(record, key, v)
-	case iter.Seq[ssql.Record]:
-		return ssql.Set(record, key, v)
-	default:
-		// For other iterator types or unknown types, convert to string
-		return ssql.Set(record, key, fmt.Sprintf("%v", v))
-	}
-}
 
 // applyOperator applies a comparison operator for where command
 func applyOperator(fieldValue any, op string, compareValue string) bool {
@@ -1238,7 +1202,7 @@ func generateIncludeCode(fields []string) error {
 		mut := ssql.MakeMutableRecord()
 		for _, field := range fields {
 			if val, ok := ssql.Get[any](r, field); ok {
-				mut = setTypedValue(mut, field, val)
+				mut = ssql.SetTypedValue(mut, field, val)
 			}
 		}
 		return mut.Freeze()
@@ -1290,7 +1254,7 @@ func generateExcludeCode(fields []string) error {
 		mut := ssql.MakeMutableRecord()
 		for k, v := range r.All() {
 			if !excluded[k] {
-				mut = setTypedValue(mut, k, v)
+				mut = ssql.SetTypedValue(mut, k, v)
 			}
 		}
 		return mut.Freeze()
@@ -1342,9 +1306,9 @@ func generateRenameCode(renames []struct{ oldField, newField string }) error {
 		mut := ssql.MakeMutableRecord()
 		for k, v := range r.All() {
 			if newName, ok := renames[k]; ok {
-				mut = setTypedValue(mut, newName, v)
+				mut = ssql.SetTypedValue(mut, newName, v)
 			} else {
-				mut = setTypedValue(mut, k, v)
+				mut = ssql.SetTypedValue(mut, k, v)
 			}
 		}
 		return mut.Freeze()

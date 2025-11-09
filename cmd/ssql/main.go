@@ -905,7 +905,7 @@ func buildRootCommand() *cf.Command {
 				result := ssql.MakeMutableRecord()
 				for _, field := range fields {
 					if val, exists := ssql.Get[any](r, field); exists {
-						result = setTypedValue(result, field, val)
+						result = ssql.SetTypedValue(result, field, val)
 					}
 				}
 				return result.Freeze()
@@ -986,7 +986,7 @@ func buildRootCommand() *cf.Command {
 				result := ssql.MakeMutableRecord()
 				for k, v := range r.All() {
 					if !excluded[k] {
-						result = setTypedValue(result, k, v)
+						result = ssql.SetTypedValue(result, k, v)
 					}
 				}
 				return result.Freeze()
@@ -1072,9 +1072,9 @@ func buildRootCommand() *cf.Command {
 				result := ssql.MakeMutableRecord()
 				for k, v := range r.All() {
 					if newName, ok := renameMap[k]; ok {
-						result = setTypedValue(result, newName, v)
+						result = ssql.SetTypedValue(result, newName, v)
 					} else {
-						result = setTypedValue(result, k, v)
+						result = ssql.SetTypedValue(result, k, v)
 					}
 				}
 				return result.Freeze()
