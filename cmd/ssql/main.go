@@ -8,9 +8,9 @@ import (
 	"time"
 
 	cf "github.com/rosscartlidge/autocli/v3"
-	"github.com/rosscartlidge/ssql"
-	"github.com/rosscartlidge/ssql/cmd/ssql/lib"
-	"github.com/rosscartlidge/ssql/cmd/ssql/version"
+	"github.com/rosscartlidge/ssql/v2"
+	"github.com/rosscartlidge/ssql/v2/cmd/ssql/lib"
+	"github.com/rosscartlidge/ssql/v2/cmd/ssql/version"
 )
 
 func buildRootCommand() *cf.Command {

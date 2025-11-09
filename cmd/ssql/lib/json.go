@@ -7,7 +7,7 @@ import (
 	"io"
 	"iter"
 
-	"github.com/rosscartlidge/ssql"
+	"github.com/rosscartlidge/ssql/v2"
 )
 
 // ReadJSON reads JSON from a reader and returns an iterator of Records.

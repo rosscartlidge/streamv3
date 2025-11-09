@@ -8,7 +8,7 @@ import (
 	"iter"
 	"os"
 
-	"github.com/rosscartlidge/ssql"
+	"github.com/rosscartlidge/ssql/v2"
 )
 
 // Stdout is a convenience variable for writing to stdout
