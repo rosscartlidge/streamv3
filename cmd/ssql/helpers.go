@@ -1003,6 +1003,19 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	needsStrings := false
 	needsRegexp := false
 
+	// Check if we need frozen (for reading in conditions)
+	hasConditions := false
+	for _, clause := range clauses {
+		if len(clause.conditions) > 0 {
+			hasConditions = true
+			break
+		}
+	}
+
+	if hasConditions {
+		codeBody.WriteString("\t\tfrozen := mut.Freeze()\n\n")
+	}
+
 	// Generate clause evaluation (first-match-wins)
 	for i, clause := range clauses {
 		indent := "\t\t"
