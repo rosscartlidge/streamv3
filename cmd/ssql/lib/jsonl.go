@@ -39,7 +39,7 @@ func ReadJSONL(r io.Reader) iter.Seq[ssql.Record] {
 			// Convert to Record directly (not using TypedRecord builder)
 			record := ssql.MakeMutableRecord()
 			for k, v := range data {
-				record = record.SetAny(k, convertJSONValue(v))
+				record = setValueFromJSON(record, k, v)
 			}
 
 			if !yield(record.Freeze()) {
@@ -115,33 +115,44 @@ func OpenOutput(filename string) (io.WriteCloser, error) {
 	return file, nil
 }
 
-// convertJSONValue converts JSON values to StreamV3 canonical types
-func convertJSONValue(v interface{}) interface{} {
+// setValueFromJSON sets a field on a MutableRecord from a JSON value
+// Handles JSON-specific edge cases (nil, arrays, nested objects) then delegates to SetTypedValue
+func setValueFromJSON(record ssql.MutableRecord, key string, v interface{}) ssql.MutableRecord {
 	switch val := v.(type) {
-	case float64:
-		// JSON numbers are always float64
-		// Check if it's actually an integer
-		if val == float64(int64(val)) {
-			return int64(val)
-		}
-		return val
-	case bool, string:
-		return val
 	case nil:
-		return nil
+		// Skip nil values - don't set the field
+		return record
 	case []interface{}:
-		// Convert array to slice for Record
-		return val
-	case map[string]interface{}:
-		// Nested object - convert to Record
-		record := ssql.MakeMutableRecord()
-		for k, subv := range val {
-			record = record.SetAny(k, convertJSONValue(subv))
+		// Convert array to JSON string for storage
+		jsonBytes, err := json.Marshal(val)
+		if err != nil {
+			return record.String(key, fmt.Sprintf("%v", val))
 		}
-		return record.Freeze()
+		jsonStr, err := ssql.NewJSONString(jsonBytes)
+		if err != nil {
+			return record.String(key, string(jsonBytes))
+		}
+		return record.JSONString(key, jsonStr)
+	case map[string]interface{}:
+		// Nested object - convert to Record recursively
+		nested := ssql.MakeMutableRecord()
+		for k, subv := range val {
+			nested = setValueFromJSON(nested, k, subv)
+		}
+		return ssql.Set(record, key, nested.Freeze())
+	case float64:
+		// JSON numbers are always float64 - check if it's actually an integer
+		if val == float64(int64(val)) {
+			return record.Int(key, int64(val))
+		}
+		return record.Float(key, val)
+	case bool:
+		return record.Bool(key, val)
+	case string:
+		return record.String(key, val)
 	default:
-		// For sequences and other types, try to convert to simple representation
-		return fmt.Sprintf("%v", v)
+		// Unknown type (shouldn't happen with valid JSON) - convert to string
+		return record.String(key, fmt.Sprintf("%v", v))
 	}
 }
 

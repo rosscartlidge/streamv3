@@ -37,7 +37,7 @@ func ReadJSON(r io.Reader) iter.Seq[ssql.Record] {
 			for _, rec := range records {
 				record := ssql.MakeMutableRecord()
 				for k, v := range rec {
-					record = record.SetAny(k, convertJSONValue(v))
+					record = setValueFromJSON(record, k, v)
 				}
 
 				if !yield(record.Freeze()) {
@@ -60,7 +60,7 @@ func ReadJSON(r io.Reader) iter.Seq[ssql.Record] {
 
 				record := ssql.MakeMutableRecord()
 				for k, v := range rec {
-					record = record.SetAny(k, convertJSONValue(v))
+					record = setValueFromJSON(record, k, v)
 				}
 
 				if !yield(record.Freeze()) {
