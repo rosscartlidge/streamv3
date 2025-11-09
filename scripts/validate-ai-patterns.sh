@@ -28,11 +28,11 @@ WARNINGS=0
 
 # Check 1: Correct import path
 echo -n "Checking import path... "
-if grep -q '"github.com/rosscartlidge/streamv3"' "$FILE"; then
+if grep -q '"github.com/rosscartlidge/ssql"' "$FILE"; then
     echo -e "${GREEN}✓${NC}"
 else
     echo -e "${RED}✗${NC}"
-    echo "  Error: Must import github.com/rosscartlidge/streamv3"
+    echo "  Error: Must import github.com/rosscartlidge/ssql"
     ((ERRORS++))
 fi
 
@@ -51,7 +51,7 @@ echo -n "Checking SQL-style API usage... "
 FILTER_USAGE=$(grep -c "streamv3\.Filter(" "$FILE" || true)
 if [ "$FILTER_USAGE" -gt 0 ]; then
     echo -e "${YELLOW}⚠${NC}"
-    echo "  Warning: Found streamv3.Filter() - should use streamv3.Where() for filtering"
+    echo "  Warning: Found ssql.Filter() - should use ssql.Where() for filtering"
     ((WARNINGS++))
 else
     echo -e "${GREEN}✓${NC}"
@@ -100,7 +100,7 @@ if grep -q "Aggregate(" "$FILE"; then
             echo -e "${GREEN}✓${NC}"
         else
             echo -e "${YELLOW}⚠${NC}"
-            echo "  Warning: Should use map[string]streamv3.AggregateFunc{...}"
+            echo "  Warning: Should use map[string]ssql.AggregateFunc{...}"
             ((WARNINGS++))
         fi
     fi

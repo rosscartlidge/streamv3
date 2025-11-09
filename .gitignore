@@ -15,9 +15,9 @@
 go.work
 
 # Build artifacts
-/streamv3
-/cmd/streamv3/streamv3
-/streamv3_poc
+/ssql
+/cmd/ssql/ssql
+/ssql_poc
 
 # Compiled examples (built from examples/)
 /*_example

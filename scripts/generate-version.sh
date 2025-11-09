@@ -8,6 +8,6 @@ set -e
 VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-dev")
 
 # Write to version package
-echo "$VERSION" > cmd/streamv3/version/version.txt
+echo "$VERSION" > cmd/ssql/version/version.txt
 
 echo "Version updated to: $VERSION" >&2

@@ -105,7 +105,7 @@ section "2. Cross-Referencing Documented Functions"
 doc_funcs=$(grep -oh "streamv3\.[A-Z][a-zA-Z]*" doc/ai-code-generation.md doc/ai-human-guide.md | sort -u | sed 's/streamv3\.//')
 
 # Get actual exported functions and types (use -all to include all exports)
-actual_funcs=$(go doc -all github.com/rosscartlidge/streamv3 2>/dev/null | grep -E "^(func|type) " | awk '{print $2}' | cut -d'(' -f1 | cut -d'[' -f1 | cut -d' ' -f1 | sort -u)
+actual_funcs=$(go doc -all github.com/rosscartlidge/ssql 2>/dev/null | grep -E "^(func|type) " | awk '{print $2}' | cut -d'(' -f1 | cut -d'[' -f1 | cut -d' ' -f1 | sort -u)
 
 for func in $doc_funcs; do
     if echo "$actual_funcs" | grep -q "^${func}$"; then
@@ -126,7 +126,7 @@ else
     fail "README may use outdated Record API"
 fi
 
-if grep -q "streamv3.Select\|streamv3.Where\|streamv3.Limit" README.md; then
+if grep -q "ssql.Select\|ssql.Where\|ssql.Limit" README.md; then
     pass "README uses SQL-style naming"
 else
     fail "README may use outdated function names"
@@ -185,7 +185,7 @@ for example in "$TEMP_DIR"/example_*.go "$TEMP_DIR"/api_example_*.go; do
 
     # Check for correct import path
     if grep -q "import" "$example"; then
-        if grep "import" "$example" | grep -q "github.com/rosscartlidge/streamv3"; then
+        if grep "import" "$example" | grep -q "github.com/rosscartlidge/ssql"; then
             continue  # Good
         else
             if grep -q "streamv3\." "$example"; then
