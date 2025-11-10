@@ -261,10 +261,10 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 
 	// Build Chain() call if we have multiple stmt fragments
 	if len(stmtFragments) > 1 {
-		// Extract the input variable (from first stmt fragment or last init fragment)
+		// Extract the input variable (from first init fragment, which is the main data source)
 		var inputVar string
 		if len(initFragments) > 0 {
-			inputVar = initFragments[len(initFragments)-1].Var
+			inputVar = initFragments[0].Var
 		} else {
 			inputVar = "records"
 		}

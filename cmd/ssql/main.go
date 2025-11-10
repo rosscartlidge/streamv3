@@ -1299,6 +1299,11 @@ func buildRootCommand() *cf.Command {
 																						Description("Join records from two data sources (SQL JOIN)").
 																						Example("ssql read-csv users.csv | ssql join -right orders.csv -on user_id", "Inner join users and orders on user_id").
 																						Example("ssql read-csv employees.csv | ssql join -type left -right departments.csv -on dept_id", "Left join employees with departments").
+																						Flag("-generate", "-g").
+																							Bool().
+																							Global().
+																							Help("Generate Go code instead of executing").
+																						Done().
 																						Flag("-type", "-t").
 																							String().
 																							Completer(&cf.StaticCompleter{Options: []string{"inner", "left", "right", "full"}}).
@@ -1340,6 +1345,7 @@ func buildRootCommand() *cf.Command {
 																						Done().
 																						Handler(func(ctx *cf.Context) error {
 			var inputFile, rightFile, joinType string
+			var generate bool
 
 			if fileVal, ok := ctx.GlobalFlags["FILE"]; ok {
 				inputFile = fileVal.(string)
@@ -1351,6 +1357,9 @@ func buildRootCommand() *cf.Command {
 				joinType = typeVal.(string)
 			} else {
 				joinType = "inner" // default
+			}
+			if genVal, ok := ctx.GlobalFlags["-generate"]; ok {
+				generate = genVal.(bool)
 			}
 
 																						// Validate required flags
@@ -1391,6 +1400,11 @@ func buildRootCommand() *cf.Command {
 			}
 			if len(onFields) > 0 && (leftField != "" || rightField != "") {
 				return fmt.Errorf("cannot use both -on and -left-field/-right-field")
+			}
+
+																						// Check if generation mode is enabled
+			if shouldGenerate(generate) {
+				return generateJoinCode(rightFile, joinType, onFields, leftField, rightField)
 			}
 
 																						// Read left-side input (stdin or file)

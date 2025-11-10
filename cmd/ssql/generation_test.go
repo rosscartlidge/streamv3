@@ -849,3 +849,153 @@ func TestWriteJSONGeneration(t *testing.T) {
 		})
 	}
 }
+
+// TestJoinGeneration tests code generation for the join command
+func TestJoinGeneration(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/ssql_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build ssql: %v", err)
+	}
+	defer os.Remove("/tmp/ssql_test")
+
+	// Create test CSV files for join operations
+	users := "id,name\n1,Alice\n2,Bob\n"
+	orders := "id,user_id,amount\n101,1,50\n102,2,75\n"
+
+	if err := os.WriteFile("/tmp/test_users.csv", []byte(users), 0644); err != nil {
+		t.Fatalf("Failed to create users CSV: %v", err)
+	}
+	defer os.Remove("/tmp/test_users.csv")
+
+	if err := os.WriteFile("/tmp/test_orders.csv", []byte(orders), 0644); err != nil {
+		t.Fatalf("Failed to create orders CSV: %v", err)
+	}
+	defer os.Remove("/tmp/test_orders.csv")
+
+	tests := []struct {
+		name     string
+		cmdLine  string
+		wantStrs []string
+	}{
+		{
+			name:    "join basic with -on",
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test join -right /tmp/test_orders.csv -on user_id`,
+			wantStrs: []string{
+				`"type":"init"`,
+				`rightRecords`,
+				`ssql.ReadCSV`,
+				`/tmp/test_orders.csv`,
+				`"type":"stmt"`,
+				`"var":"joined"`,
+				`ssql.InnerJoin`,
+				`ssql.OnFields`,
+				`user_id`,
+			},
+		},
+		{
+			name:    "join with -type left",
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test join -type left -right /tmp/test_orders.csv -on user_id`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`ssql.LeftJoin`,
+			},
+		},
+		{
+			name:    "join with -type right",
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test join -type right -right /tmp/test_orders.csv -on user_id`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`ssql.RightJoin`,
+			},
+		},
+		{
+			name:    "join with -type full",
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test join -type full -right /tmp/test_orders.csv -on user_id`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`ssql.FullJoin`,
+			},
+		},
+		{
+			name:    "join with multiple -on fields",
+			cmdLine: `echo '{"type":"init","var":"records"}' | SSQLGO=1 /tmp/ssql_test join -right /tmp/test_orders.csv -on field1 -on field2`,
+			wantStrs: []string{
+				`"type":"stmt"`,
+				`ssql.OnFields`,
+				`field1`,
+				`field2`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("bash", "-c", tt.cmdLine)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Logf("Command output: %s", output)
+			}
+
+			outputStr := string(output)
+
+			for _, want := range tt.wantStrs {
+				if !strings.Contains(outputStr, want) {
+					t.Errorf("Expected output to contain %q, got: %s", want, outputStr)
+				}
+			}
+		})
+	}
+}
+
+// TestJoinGenerationFullPipeline tests that join works in a complete pipeline
+func TestJoinGenerationFullPipeline(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "/tmp/ssql_test", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build ssql: %v", err)
+	}
+	defer os.Remove("/tmp/ssql_test")
+
+	// Create test CSV files
+	users := "id,name\n1,Alice\n2,Bob\n"
+	orders := "user_id,amount\n1,50\n2,75\n"
+
+	if err := os.WriteFile("/tmp/test_users.csv", []byte(users), 0644); err != nil {
+		t.Fatalf("Failed to create users CSV: %v", err)
+	}
+	defer os.Remove("/tmp/test_users.csv")
+
+	if err := os.WriteFile("/tmp/test_orders.csv", []byte(orders), 0644); err != nil {
+		t.Fatalf("Failed to create orders CSV: %v", err)
+	}
+	defer os.Remove("/tmp/test_orders.csv")
+
+	// Test full pipeline with join
+	pipeline := `export SSQLGO=1 && /tmp/ssql_test read-csv /tmp/test_users.csv | /tmp/ssql_test join -right /tmp/test_orders.csv -on user_id | /tmp/ssql_test generate-go`
+	cmd := exec.Command("bash", "-c", pipeline)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Pipeline failed: %v\nOutput: %s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Check for expected elements in generated code
+	expectations := []string{
+		"package main",
+		"ssql.ReadCSV",
+		"rightRecords",
+		"ssql.InnerJoin",
+		"func main()",
+	}
+
+	for _, expected := range expectations {
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Generated code missing expected element: %q\nGot: %s", expected, outputStr)
+		}
+	}
+
+	// Verify the generated code has proper structure
+	if !strings.Contains(outputStr, "rightRecords, err := ssql.ReadCSV") {
+		t.Error("Generated code should read right-side CSV file")
+	}
+}
