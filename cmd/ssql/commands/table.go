@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 
 	cf "github.com/rosscartlidge/autocli/v3"
@@ -49,4 +50,35 @@ func RegisterTable(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		}).
 		Done()
 	return cmd
+}
+
+// generateTableCode generates Go code for the table command
+func generateTableCode(maxWidth int) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate simple call to DisplayTable
+	code := fmt.Sprintf("\tssql.DisplayTable(%s, %d)\n", inputVar, maxWidth)
+
+	// Create final fragment (table is a sink - no output variable)
+	frag := lib.NewFinalFragment(inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
 }

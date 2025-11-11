@@ -90,3 +90,36 @@ func RegisterSort(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		Done()
 	return cmd
 }
+
+// generateSortCode generates Go code for the sort command
+func generateSortCode(field string, desc bool) error {
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+	outputVar := "sorted"
+	var sortFunc string
+	if desc {
+		sortFunc = fmt.Sprintf(`ssql.SortBy(func(r ssql.Record) float64 {
+		return -ssql.GetOr(r, %q, 0.0)
+	})`, field)
+	} else {
+		sortFunc = fmt.Sprintf(`ssql.SortBy(func(r ssql.Record) float64 {
+		return ssql.GetOr(r, %q, 0.0)
+	})`, field)
+	}
+	code := fmt.Sprintf("%s := %s(%s)", outputVar, sortFunc, inputVar)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}

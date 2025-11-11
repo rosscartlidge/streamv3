@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	cf "github.com/rosscartlidge/autocli/v3"
 	"github.com/rosscartlidge/ssql/v2"
@@ -83,4 +84,45 @@ func RegisterExclude(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		}).
 		Done()
 	return cmd
+}
+
+// generateExcludeCode generates Go code for the exclude command
+func generateExcludeCode(fields []string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate delete statements
+	var deleteStmts strings.Builder
+	for _, field := range fields {
+		deleteStmts.WriteString(fmt.Sprintf("\n\t\tmut = mut.Delete(%q)", field))
+	}
+
+	// Generate code
+	outputVar := "excluded"
+	code := fmt.Sprintf(`%s := ssql.Select(func(r ssql.Record) ssql.Record {
+		mut := r.ToMutable()%s
+		return mut.Freeze()
+	})(%s)`, outputVar, deleteStmts.String(), inputVar)
+
+	// Create stmt fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
 }

@@ -66,3 +66,26 @@ func RegisterLimit(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		Done()
 	return cmd
 }
+
+// generateLimitCode generates Go code for the limit command
+func generateLimitCode(n int) error {
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+	outputVar := "limited"
+	code := fmt.Sprintf("%s := ssql.Limit[ssql.Record](%d)(%s)", outputVar, n, inputVar)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}

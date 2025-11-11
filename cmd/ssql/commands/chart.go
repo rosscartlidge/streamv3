@@ -101,3 +101,49 @@ func RegisterChart(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		Done()
 	return cmd
 }
+
+// generateChartCode generates Go code for the chart command
+func generateChartCode(xField, yField, outputFile string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Validate required fields
+	if xField == "" {
+		return fmt.Errorf("X-axis field required (use -x)")
+	}
+	if yField == "" {
+		return fmt.Errorf("Y-axis field required (use -y)")
+	}
+
+	if outputFile == "" {
+		outputFile = "chart.html"
+	}
+
+	// Generate QuickChart call
+	code := fmt.Sprintf(`if err := ssql.QuickChart(%s, %q, %q, %q); err != nil {
+		return fmt.Errorf("creating chart: %%w", err)
+	}
+	fmt.Printf("Chart created: %%s\n", %q)`, inputVar, xField, yField, outputFile, outputFile)
+
+	// Create final fragment (chart is a terminal operation with side effects)
+	frag := lib.NewFinalFragment(inputVar, code, []string{"fmt"}, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}

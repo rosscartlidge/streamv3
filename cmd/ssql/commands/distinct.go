@@ -71,3 +71,28 @@ func RegisterDistinct(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		Done()
 	return cmd
 }
+
+// generateDistinctCode generates Go code for the distinct command
+func generateDistinctCode() error {
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+	outputVar := "distinct"
+	code := fmt.Sprintf(`%s := ssql.DistinctBy(func(r ssql.Record) string {
+		return fmt.Sprintf("%%v", r)
+	})(%s)`, outputVar, inputVar)
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, []string{"fmt"}, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}

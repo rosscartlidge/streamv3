@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	cf "github.com/rosscartlidge/autocli/v3"
 	"github.com/rosscartlidge/ssql/v2"
@@ -88,4 +89,45 @@ func RegisterRename(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		}).
 		Done()
 	return cmd
+}
+
+// generateRenameCode generates Go code for the rename command
+func generateRenameCode(renames []struct{ oldField, newField string }) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate rename statements
+	var renameStmts strings.Builder
+	for _, r := range renames {
+		renameStmts.WriteString(fmt.Sprintf("\n\t\tmut = mut.Rename(%q, %q)", r.oldField, r.newField))
+	}
+
+	// Generate code
+	outputVar := "renamed"
+	code := fmt.Sprintf(`%s := ssql.Select(func(r ssql.Record) ssql.Record {
+		mut := r.ToMutable()%s
+		return mut.Freeze()
+	})(%s)`, outputVar, renameStmts.String(), inputVar)
+
+	// Create stmt fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
 }

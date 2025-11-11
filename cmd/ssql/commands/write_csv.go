@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 
 	cf "github.com/rosscartlidge/autocli/v3"
@@ -55,4 +56,44 @@ func RegisterWriteCSV(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		}).
 		Done()
 	return cmd
+}
+
+// generateWriteCSVCode generates Go code for the write-csv command
+func generateWriteCSVCode(filename string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable name from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate WriteCSV call
+	var code string
+	var imports []string
+	if filename == "" {
+		code = fmt.Sprintf(`ssql.WriteCSVToWriter(%s, os.Stdout)`, inputVar)
+		imports = append(imports, "os")
+	} else {
+		code = fmt.Sprintf(`ssql.WriteCSV(%s, %q)`, inputVar, filename)
+	}
+
+	// Create final fragment (no output variable)
+	frag := lib.NewFinalFragment(inputVar, code, imports, getCommandString())
+
+	// Write to stdout
+	return lib.WriteCodeFragment(frag)
 }

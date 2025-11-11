@@ -194,3 +194,115 @@ func RegisterJoin(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		Done()
 	return cmd
 }
+
+// generateJoinCode generates Go code for the join command
+// Generates TWO fragments: one init fragment for reading the right file,
+// and one stmt fragment for the join operation
+func generateJoinCode(rightFile, joinType string, onFields []string, leftField, rightField string) error {
+	// Read all previous code fragments from stdin (if any)
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate unique variable name for right records based on file name
+	// This allows multiple joins in the same pipeline
+	rightVarName := "rightRecords"
+	if len(fragments) > 0 {
+		// Count how many init fragments exist to create unique names
+		initCount := 0
+		for _, f := range fragments {
+			if f.Type == "init" {
+				initCount++
+			}
+		}
+		if initCount > 1 {
+			rightVarName = fmt.Sprintf("rightRecords_%d", initCount-1)
+		}
+	}
+
+	// Fragment 1: Init fragment to read right file
+	var rightVarInit string
+	var initImports []string
+	if strings.HasSuffix(rightFile, ".csv") {
+		rightVarInit = fmt.Sprintf(`%s, err := ssql.ReadCSV(%q)
+	if err != nil {
+		return fmt.Errorf("reading right CSV: %%w", err)
+	}`, rightVarName, rightFile)
+		initImports = append(initImports, "fmt")
+	} else {
+		rightVarInit = fmt.Sprintf(`rightFile_%s, err := os.Open(%q)
+	if err != nil {
+		return fmt.Errorf("opening right file: %%w", err)
+	}
+	defer rightFile_%s.Close()
+	%s := lib.ReadJSONL(rightFile_%s)`, rightVarName, rightFile, rightVarName, rightVarName, rightVarName)
+		initImports = append(initImports, "fmt", "os", "github.com/rosscartlidge/ssql/v2/cmd/ssql/lib")
+	}
+
+	// Write init fragment (note: empty command string since join command will be on stmt fragment)
+	initFrag := lib.NewInitFragment(rightVarName, rightVarInit, initImports, "")
+	if err := lib.WriteCodeFragment(initFrag); err != nil {
+		return fmt.Errorf("writing init fragment: %w", err)
+	}
+
+	// Fragment 2: Stmt fragment with the join operation
+	// Generate predicate code
+	var predicateCode string
+	var stmtImports []string
+	if len(onFields) > 0 {
+		// Simple OnFields predicate
+		quotedFields := make([]string, len(onFields))
+		for i, f := range onFields {
+			quotedFields[i] = fmt.Sprintf("%q", f)
+		}
+		predicateCode = fmt.Sprintf("ssql.OnFields(%s)", strings.Join(quotedFields, ", "))
+	} else {
+		// OnCondition with different field names
+		predicateCode = fmt.Sprintf(`ssql.OnCondition(func(left, right ssql.Record) bool {
+		leftVal, leftOk := ssql.Get[any](left, %q)
+		rightVal, rightOk := ssql.Get[any](right, %q)
+		if !leftOk || !rightOk {
+			return false
+		}
+		return fmt.Sprintf("%%v", leftVal) == fmt.Sprintf("%%v", rightVal)
+	})`, leftField, rightField)
+		stmtImports = append(stmtImports, "fmt")
+	}
+
+	// Generate join function call
+	var joinFunc string
+	switch joinType {
+	case "left":
+		joinFunc = "ssql.LeftJoin"
+	case "right":
+		joinFunc = "ssql.RightJoin"
+	case "full":
+		joinFunc = "ssql.FullJoin"
+	default:
+		joinFunc = "ssql.InnerJoin"
+	}
+
+	// Build stmt code (simple assignment that can be extracted for Chain())
+	outputVar := "joined"
+	stmtCode := fmt.Sprintf("%s := %s(%s, %s)(%s)", outputVar, joinFunc, rightVarName, predicateCode, inputVar)
+
+	// Write stmt fragment
+	stmtFrag := lib.NewStmtFragment(outputVar, inputVar, stmtCode, stmtImports, getCommandString())
+	return lib.WriteCodeFragment(stmtFrag)
+}

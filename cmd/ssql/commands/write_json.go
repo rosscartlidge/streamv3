@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 
 	cf "github.com/rosscartlidge/autocli/v3"
@@ -69,4 +70,80 @@ func RegisterWriteJSON(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		}).
 		Done()
 	return cmd
+}
+
+// generateWriteJSONCode generates Go code for the write-json command
+func generateWriteJSONCode(filename string, pretty bool) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	var code string
+	if filename == "" {
+		// Write to stdout
+		if pretty {
+			code = fmt.Sprintf(`	// Collect and pretty-print records to stdout
+	var recordMaps []map[string]interface{}
+	for record := range %s {
+		data := make(map[string]interface{})
+		for k, v := range record.All() {
+			data[k] = v
+		}
+		recordMaps = append(recordMaps, data)
+	}
+	jsonBytes, err := json.MarshalIndent(recordMaps, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %%v\n", err)
+		os.Exit(1)
+	}
+	if _, err := os.Stdout.Write(jsonBytes); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}
+	os.Stdout.Write([]byte("\n"))`, inputVar)
+		} else {
+			code = fmt.Sprintf(`	if err := ssql.WriteJSONToWriter(%s, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}`, inputVar)
+		}
+	} else {
+		// Write to file
+		if pretty {
+			code = fmt.Sprintf(`	if err := ssql.WriteJSONPretty(%s, %q); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}`, inputVar, filename)
+		} else {
+			code = fmt.Sprintf(`	if err := ssql.WriteJSON(%s, %q); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON: %%v\n", err)
+		os.Exit(1)
+	}`, inputVar, filename)
+		}
+	}
+
+	imports := []string{"fmt", "os"}
+	// Add encoding/json import if pretty printing to stdout
+	if filename == "" && pretty {
+		imports = append(imports, "encoding/json")
+	}
+	frag := lib.NewFinalFragment(inputVar, code, imports, getCommandString())
+	return lib.WriteCodeFragment(frag)
 }

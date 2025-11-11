@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	cf "github.com/rosscartlidge/autocli/v3"
 	"github.com/rosscartlidge/ssql/v2"
@@ -91,4 +92,57 @@ func RegisterInclude(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		}).
 		Done()
 	return cmd
+}
+
+// generateIncludeCode generates Go code for the include command
+func generateIncludeCode(fields []string) error {
+	// Read all previous code fragments from stdin
+	fragments, err := lib.ReadAllCodeFragments()
+	if err != nil {
+		return fmt.Errorf("reading code fragments: %w", err)
+	}
+
+	// Pass through all previous fragments
+	for _, frag := range fragments {
+		if err := lib.WriteCodeFragment(frag); err != nil {
+			return fmt.Errorf("writing previous fragment: %w", err)
+		}
+	}
+
+	// Get input variable from last fragment
+	var inputVar string
+	if len(fragments) > 0 {
+		inputVar = fragments[len(fragments)-1].Var
+	} else {
+		inputVar = "records"
+	}
+
+	// Generate field list
+	// Build included fields map
+	var includedMap strings.Builder
+	includedMap.WriteString("map[string]bool{")
+	for i, field := range fields {
+		if i > 0 {
+			includedMap.WriteString(", ")
+		}
+		includedMap.WriteString(fmt.Sprintf("%q: true", field))
+	}
+	includedMap.WriteString("}")
+
+	// Generate code
+	outputVar := "included"
+	code := fmt.Sprintf(`%s := ssql.Select(func(r ssql.Record) ssql.Record {
+		includedMap := %s
+		mut := r.ToMutable()
+		for k := range r.All() {
+			if !includedMap[k] {
+				mut = mut.Delete(k)
+			}
+		}
+		return mut.Freeze()
+	})(%s)`, outputVar, includedMap.String(), inputVar)
+
+	// Create stmt fragment
+	frag := lib.NewStmtFragment(outputVar, inputVar, code, nil, getCommandString())
+	return lib.WriteCodeFragment(frag)
 }

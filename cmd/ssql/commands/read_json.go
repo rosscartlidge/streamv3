@@ -64,3 +64,19 @@ func RegisterReadJSON(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 		Done()
 	return cmd
 }
+
+// generateReadJSONCode generates Go code for the read-json command
+func generateReadJSONCode(filename string) error {
+	// No previous fragments for init command
+	outputVar := "records"
+	imports := []string{"fmt", "os"}
+
+	code := fmt.Sprintf(`records, err := ssql.ReadJSONAuto(%q)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %%v\n", fmt.Errorf("reading JSON: %%w", err))
+		os.Exit(1)
+	}`, filename)
+
+	frag := lib.NewInitFragment(outputVar, code, imports, getCommandString())
+	return lib.WriteCodeFragment(frag)
+}
