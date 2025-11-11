@@ -1,0 +1,494 @@
+# Expression Evaluation Design for ssql Update Command
+
+**Status:** Design Proposal
+**Date:** 2025-11-12
+**Author:** Design discussion with Claude Code
+
+## Problem Statement
+
+Currently, the `update` command only supports literal values:
+
+```bash
+ssql update -set status active
+ssql update -set count 42
+```
+
+We want to support **computed expressions** for more powerful updates:
+
+```bash
+ssql update -set total 'price * quantity'
+ssql update -set discount 'price * 0.1'
+ssql update -set name 'upper(name)'
+ssql update -set tier 'sales > 10000 ? "gold" : "silver"'
+```
+
+## Design Goals
+
+1. **Powerful**: Support math, strings, conditionals, field references
+2. **Fast**: Execute in reasonable time for CLI usage (< 100ms for typical operations)
+3. **Safe**: No arbitrary code execution vulnerabilities
+4. **Maintainable**: Reasonable implementation complexity
+5. **Consistent**: Works with both CLI execution and code generation
+6. **Familiar**: Syntax should be intuitive for Go developers
+
+## Option 1: Expression Parser Library (expr-lang/expr)
+
+### Overview
+
+Use **github.com/expr-lang/expr** - a fast, production-ready expression language for Go.
+
+### Example Usage
+
+```bash
+# Math expressions
+ssql update -set total 'price * quantity'
+ssql update -set discount 'price * 0.1'
+
+# String operations
+ssql update -set name 'upper(trim(name))'
+ssql update -set slug 'lower(replace(title, " ", "-"))'
+
+# Conditionals (ternary operator)
+ssql update -set tier 'sales > 10000 ? "gold" : sales > 5000 ? "silver" : "bronze"'
+
+# Built-in functions
+ssql update -set rounded 'round(price, 2)'
+ssql update -set length 'len(items)'
+```
+
+### Implementation Sketch
+
+```go
+import "github.com/expr-lang/expr"
+
+func evaluateExpression(expression string, record ssql.Record) (any, error) {
+    // Build environment with all record fields
+    env := make(map[string]interface{})
+    for k, v := range record.All() {
+        env[k] = v
+    }
+
+    // Compile expression (cacheable)
+    program, err := expr.Compile(expression, expr.Env(env))
+    if err != nil {
+        return nil, fmt.Errorf("compile expression: %w", err)
+    }
+
+    // Execute
+    result, err := expr.Run(program, env)
+    if err != nil {
+        return nil, fmt.Errorf("execute expression: %w", err)
+    }
+
+    return result, nil
+}
+```
+
+### Code Generation
+
+Convert expr syntax to Go code:
+
+```bash
+# CLI command
+ssql update -set total 'price * quantity'
+
+# Generated Go code
+ssql.Update(func(mut MutableRecord) MutableRecord {
+    price := ssql.GetOr(r, "price", 0.0)
+    quantity := ssql.GetOr(r, "quantity", 0.0)
+    return mut.Float("total", price * quantity)
+})
+```
+
+### Pros
+
+- ✅ **Battle-tested**: 5k+ GitHub stars, used in production
+- ✅ **Fast**: Compiles to bytecode, ~100x faster than reflection
+- ✅ **Rich features**: Math, strings, ternary, functions, array/map access
+- ✅ **Type-safe**: Validation at compile time
+- ✅ **Small dependency**: Pure Go, ~10k LOC
+- ✅ **Familiar syntax**: Go-like but simpler
+- ✅ **Good error messages**: Points to exact problem in expression
+- ✅ **Extensible**: Can add custom functions
+
+### Cons
+
+- ❌ **External dependency**: Adds ~500KB to binary
+- ❌ **Different syntax**: Not exactly Go (e.g., ternary `?:` vs Go `if`)
+- ❌ **Learning curve**: Users need to learn expr syntax
+- ❌ **Limited to expressions**: Can't do complex control flow
+
+### Features Available
+
+```go
+// Operators
++ - * / % **              // Math (** is power)
+== != < > <= >=          // Comparison
+and or not               // Logical
++ (concat)               // String concatenation
+in, contains             // Collection operators
+
+// Built-in Functions
+len, upper, lower, trim, split, join
+round, floor, ceil, abs, max, min
+
+// Array/Map Access
+users[0].name
+config["timeout"]
+
+// Ternary
+condition ? trueValue : falseValue
+```
+
+### Performance
+
+From expr benchmarks:
+- Compilation: ~100µs (cacheable)
+- Execution: ~200ns per evaluation
+- **Total for 1000 records**: ~0.3ms
+
+## Option 2: Go Interpreter (yaegi)
+
+### Overview
+
+Use **github.com/traefik/yaegi** - Traefik's production Go interpreter.
+
+### Example Usage
+
+```bash
+# Simple expressions (auto-wrapped)
+ssql update -set total 'price * quantity'
+
+# Full Go functions
+ssql update -expr 'func(r ssql.Record) ssql.Record {
+    mut := r.ToMutable()
+
+    sales := ssql.GetOr(r, "sales", 0.0)
+    if sales > 10000 {
+        mut = mut.String("tier", "gold")
+    } else if sales > 5000 {
+        mut = mut.String("tier", "silver")
+    } else {
+        mut = mut.String("tier", "bronze")
+    }
+
+    return mut.Freeze()
+}'
+```
+
+### Implementation Sketch
+
+```go
+import (
+    "github.com/traefik/yaegi/interp"
+    "github.com/traefik/yaegi/stdlib"
+)
+
+func evaluateGoExpression(expr string, record ssql.Record) (any, error) {
+    i := interp.New(interp.Options{})
+
+    // Use standard library
+    i.Use(stdlib.Symbols)
+
+    // Inject ssql package
+    i.Use(interp.Exports{
+        "ssql/ssql": map[string]reflect.Value{
+            "GetOr":         reflect.ValueOf(ssql.GetOr),
+            "Get":           reflect.ValueOf(ssql.Get),
+            "Record":        reflect.ValueOf((*ssql.Record)(nil)),
+            "MutableRecord": reflect.ValueOf((*ssql.MutableRecord)(nil)),
+        },
+    })
+
+    // Inject current record
+    i.Eval(fmt.Sprintf(`var r = %#v`, record))
+
+    // Evaluate expression
+    result, err := i.Eval(expr)
+    if err != nil {
+        return nil, err
+    }
+
+    return result.Interface(), nil
+}
+```
+
+### Simple Expression Auto-Expansion
+
+For common cases, auto-expand field references:
+
+```go
+// Input: price * quantity
+// Expand to: ssql.GetOr(r, "price", 0.0) * ssql.GetOr(r, "quantity", 0.0)
+
+func expandSimpleExpression(expr string) string {
+    re := regexp.MustCompile(`\b([a-z_][a-z0-9_]*)\b`)
+    return re.ReplaceAllStringFunc(expr, func(field string) string {
+        if isGoKeyword(field) || isBuiltinFunc(field) {
+            return field
+        }
+        return fmt.Sprintf(`ssql.GetOr(r, %q, 0.0)`, field)
+    })
+}
+```
+
+### Code Generation
+
+Generated code is exactly what was written:
+
+```bash
+# CLI command
+ssql update -set total 'price * quantity'
+
+# Auto-expanded to
+ssql update -set total 'ssql.GetOr(r, "price", 0.0) * ssql.GetOr(r, "quantity", 0.0)'
+
+# Generated Go code (identical!)
+ssql.Update(func(mut MutableRecord) MutableRecord {
+    return mut.Float("total",
+        ssql.GetOr(r, "price", 0.0) * ssql.GetOr(r, "quantity", 0.0))
+})
+```
+
+### Pros
+
+- ✅ **Real Go syntax**: No new language to learn
+- ✅ **Full power**: All Go features (if/else, loops, functions)
+- ✅ **Production-ready**: Used by Traefik at massive scale
+- ✅ **Fast**: Interpreted, not compiled (~1ms per expression)
+- ✅ **Type-safe**: Go's type system enforced
+- ✅ **Clean code gen**: Generated code IS the input code
+- ✅ **No compilation wait**: Instant execution
+
+### Cons
+
+- ❌ **Larger dependency**: ~10MB added to binary
+- ❌ **Slower than expr**: ~5x slower (still fast enough at ~1ms)
+- ❌ **Complex API**: Requires setting up interpreter context
+- ❌ **Verbose for simple cases**: `GetOr(r, "price", 0.0)` vs `price`
+- ❌ **Security considerations**: Full language access (mitigated by sandbox)
+
+### Performance
+
+From yaegi benchmarks:
+- Startup: ~5ms (one-time)
+- Execution: ~1ms per expression
+- **Total for 1000 records**: ~1 second
+
+Slower than expr, but still acceptable for CLI usage.
+
+## Option 3: Compile Go on the Fly (go build)
+
+### Overview
+
+Write Go code to a temp file, compile it, execute it.
+
+### Example
+
+```bash
+ssql update -expr 'func(r ssql.Record) ssql.Record {
+    return r.ToMutable().Float("total",
+        ssql.GetOr(r, "price", 0.0) * ssql.GetOr(r, "qty", 0.0)).Freeze()
+}'
+```
+
+Implementation:
+1. Write expression to `/tmp/expr.go`
+2. Run `go build -o /tmp/expr /tmp/expr.go`
+3. Execute `/tmp/expr`
+4. Parse output
+
+### Pros
+
+- ✅ **Full Go power**: Complete language
+- ✅ **Fast execution**: Native compiled code
+- ✅ **Type-safe**: Compiler catches errors
+
+### Cons
+
+- ❌ **VERY SLOW**: 2-5 seconds per compile
+- ❌ **Terrible UX**: Unacceptable wait time for CLI
+- ❌ **Complex**: Temp files, process management, cleanup
+- ❌ **Requires Go toolchain**: Not portable
+- ❌ **Security risks**: Arbitrary code execution
+
+**Verdict**: ❌ Not viable for CLI usage
+
+## Option 4: Custom Expression Parser
+
+### Overview
+
+Build our own parser and evaluator from scratch.
+
+### Pros
+
+- ✅ **Full control**: Exactly the features we want
+- ✅ **No dependencies**: Pure ssql code
+
+### Cons
+
+- ❌ **Huge effort**: Months of development
+- ❌ **Bug-prone**: Parsers are hard to get right
+- ❌ **Limited**: Will never match expr or yaegi in features
+- ❌ **Maintenance burden**: Ongoing parser maintenance
+
+**Verdict**: ❌ Not worth the effort when excellent libraries exist
+
+## Option 5: Keep It Simple (Current Approach)
+
+### Overview
+
+Don't add expression evaluation. Keep literals only.
+
+```bash
+# CLI: Simple literals only
+ssql update -set status active
+
+# Generated code: Edit manually for complex logic
+ssql.Update(func(mut MutableRecord) MutableRecord {
+    return mut.Float("total",
+        ssql.GetOr(r, "price", 0.0) * ssql.GetOr(r, "qty", 0.0))
+})
+```
+
+### Pros
+
+- ✅ **Zero dependencies**: No external code
+- ✅ **Simple**: Current implementation works
+- ✅ **Fast**: No evaluation overhead
+- ✅ **Safe**: No code execution
+
+### Cons
+
+- ❌ **Limited**: Can't do computed updates interactively
+- ❌ **Two-step workflow**: Generate → edit → compile
+- ❌ **Less convenient**: Common operations require code gen
+
+**Verdict**: ✅ Acceptable baseline, but limiting
+
+## Comparison Matrix
+
+| Feature                | expr-lang | yaegi | go build | Custom | Current |
+|-----------------------|-----------|-------|----------|--------|---------|
+| **Performance**        | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐       | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
+| **Ease of Use**        | ⭐⭐⭐⭐    | ⭐⭐⭐    | ⭐        | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
+| **Power**              | ⭐⭐⭐     | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐   | ⭐⭐      | ⭐       |
+| **Binary Size**        | +500KB    | +10MB | 0        | 0      | 0       |
+| **Dependencies**       | 1         | 1     | 0        | 0      | 0       |
+| **Implementation**     | ⭐⭐⭐⭐⭐   | ⭐⭐⭐    | ⭐⭐       | ⭐       | ⭐⭐⭐⭐⭐   |
+| **Maintenance**        | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐       | ⭐⭐      | ⭐⭐⭐⭐⭐   |
+| **Type Safety**        | ⭐⭐⭐⭐    | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐   | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
+| **Learning Curve**     | Medium    | Low   | Low      | Medium | Low     |
+
+## Recommendation
+
+### Primary Recommendation: expr-lang/expr ⭐
+
+**Why:**
+- Best balance of power, performance, and simplicity
+- Proven in production (thousands of projects)
+- Small dependency (500KB)
+- Fast enough for CLI (< 1ms per record)
+- Great for 95% of use cases
+
+**Use cases it handles:**
+```bash
+# Math
+ssql update -set total 'price * quantity'
+ssql update -set tax 'total * 0.2'
+
+# Strings
+ssql update -set name 'upper(trim(name))'
+
+# Conditionals
+ssql update -set tier 'sales > 10000 ? "gold" : "silver"'
+
+# Complex expressions
+ssql update -set discount 'tier == "gold" ? price * 0.2 : price * 0.1'
+```
+
+### Alternative: yaegi (for power users)
+
+Add yaegi **alongside** expr for advanced cases:
+
+```bash
+# Most users: expr (simple, fast)
+ssql update -set total 'price * quantity'
+
+# Power users: yaegi (full Go)
+ssql update -go 'func(r ssql.Record) ssql.Record {
+    // Full Go code here
+    mut := r.ToMutable()
+    // ... complex logic
+    return mut.Freeze()
+}'
+```
+
+**Flags:**
+- `-set <field> <expr>` → Uses expr-lang
+- `-go <code>` → Uses yaegi interpreter
+
+## Open Questions
+
+1. **Syntax for field references**:
+   - Auto-expand `price` → `GetOr(r, "price", 0.0)`?
+   - Or require explicit: `field("price")`?
+   - Or just `price` works in environment?
+
+2. **Type inference**:
+   - How do we know if result is int64, float64, or string?
+   - Infer from expression? From field type? From value?
+
+3. **Error handling**:
+   - What if expression fails on some records?
+   - Skip record? Set to default? Abort?
+
+4. **Caching**:
+   - Cache compiled expressions across records?
+   - How to detect when expression changes?
+
+5. **Code generation**:
+   - Convert expr syntax to Go code? (Hard!)
+   - Or just emit expr.Eval call? (Simple but less efficient)
+   - Or use `-generate` only with `-go` flag?
+
+6. **Default values**:
+   - What if field doesn't exist?
+   - expr: Use `??` operator: `price ?? 0.0`
+   - yaegi: Use `GetOr(r, "price", 0.0)`
+
+## Implementation Plan (if we choose expr)
+
+### Phase 1: Basic Support
+1. Add expr dependency
+2. Detect expression vs literal in `-set` value
+3. Evaluate expressions with expr
+4. Simple field auto-expansion
+
+### Phase 2: Type Inference
+1. Infer result type from expression
+2. Call appropriate MutableRecord method (String/Int/Float/Bool)
+
+### Phase 3: Code Generation
+1. Convert expr expressions to Go code
+2. Emit clean Go in generated output
+
+### Phase 4: Advanced Features
+1. Custom functions (upper, lower, etc.)
+2. Better error messages
+3. Expression validation/testing
+
+## Next Steps
+
+1. **Decide on approach**: expr, yaegi, both, or neither
+2. **Prototype implementation**: Build POC to test performance
+3. **User testing**: Get feedback on syntax and UX
+4. **Documentation**: Write clear docs on expression syntax
+5. **Implementation**: Full feature implementation
+6. **Release**: New minor version (v2.1.0 - new feature)
+
+## References
+
+- **expr-lang/expr**: https://github.com/expr-lang/expr
+- **yaegi**: https://github.com/traefik/yaegi
+- **Comparison**: https://github.com/expr-lang/expr/blob/master/docs/Language-Definition.md
