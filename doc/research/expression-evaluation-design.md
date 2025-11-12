@@ -144,10 +144,163 @@ condition ? trueValue : falseValue
 
 From expr benchmarks:
 - Compilation: ~100µs (cacheable)
-- Execution: ~200ns per evaluation
+- Execution: ~172ns per evaluation
 - **Total for 1000 records**: ~0.3ms
 
-## Option 2: Go Interpreter (yaegi)
+## Option 2: CEL (Common Expression Language)
+
+### Overview
+
+Use **github.com/google/cel-go** - Google's Common Expression Language, used in Kubernetes, Firebase, Cloud IAM, Envoy.
+
+### Example Usage
+
+```bash
+# Math expressions
+ssql update -set total 'price * quantity'
+ssql update -set discount 'price * 0.1'
+
+# String operations
+ssql update -set name 'name.upperAscii()'
+ssql update -set email 'email.lowerAscii()'
+
+# Conditionals (ternary operator)
+ssql update -set tier 'sales > 10000 ? "gold" : sales > 5000 ? "silver" : "bronze"'
+
+# Built-in functions
+ssql update -set slug 'title.lowerAscii().replace(" ", "-")'
+ssql update -set is_valid 'email.contains("@") && email.endsWith(".com")'
+```
+
+### Implementation Sketch
+
+```go
+import (
+    "github.com/google/cel-go/cel"
+    "github.com/google/cel-go/common/types"
+)
+
+func evaluateExpression(expression string, record ssql.Record) (any, error) {
+    // Create CEL environment with record fields
+    env, err := cel.NewEnv(
+        cel.Variable("price", cel.DoubleType),
+        cel.Variable("quantity", cel.IntType),
+        // ... declare all known fields
+    )
+    if err != nil {
+        return nil, err
+    }
+
+    // Parse and type-check expression (cacheable)
+    ast, issues := env.Compile(expression)
+    if issues != nil && issues.Err() != nil {
+        return nil, issues.Err()
+    }
+
+    // Create program (cacheable, thread-safe)
+    prg, err := env.Program(ast)
+    if err != nil {
+        return nil, err
+    }
+
+    // Build activation map from record
+    activation := make(map[string]any)
+    for k, v := range record.All() {
+        activation[k] = v
+    }
+
+    // Evaluate
+    result, _, err := prg.Eval(activation)
+    if err != nil {
+        return nil, err
+    }
+
+    return result.Value(), nil
+}
+```
+
+### Code Generation
+
+Similar to expr - convert CEL syntax to Go code:
+
+```bash
+# CLI command
+ssql update -set total 'price * quantity'
+
+# Generated Go code
+ssql.Update(func(mut MutableRecord) MutableRecord {
+    price := ssql.GetOr(r, "price", 0.0)
+    quantity := ssql.GetOr(r, "quantity", 0.0)
+    return mut.Float("total", price * quantity)
+})
+```
+
+### Pros
+
+- ✅ **Battle-tested**: Used by Google (Kubernetes, Firebase, Cloud IAM, Envoy)
+- ✅ **Fast**: ~268ns per evaluation (slightly slower than expr)
+- ✅ **Industry standard**: Spec shared across languages (Go, Java, C++, Rust, Python)
+- ✅ **Type-safe**: Strong gradual typing with compile-time checks
+- ✅ **Small dependency**: Pure Go, similar size to expr (~500KB-1MB)
+- ✅ **Non-Turing complete**: Safe, can't infinite loop
+- ✅ **Great ecosystem**: Lots of tooling, documentation, examples
+- ✅ **Portable**: Same syntax across all languages
+- ✅ **Thread-safe**: Programs are stateless and cacheable
+
+### Cons
+
+- ❌ **C-like syntax**: Not as Go-native as expr (e.g., `name.upperAscii()` vs `upper(name)`)
+- ❌ **Slightly slower**: 268ns vs 172ns per evaluation (~56% slower)
+- ❌ **More verbose API**: Requires environment setup, type declarations
+- ❌ **Learning curve**: Different syntax from Go (more like JavaScript/JSON)
+- ❌ **Overkill for ssql**: Designed for distributed systems, we just need local evaluation
+
+### Features Available
+
+```go
+// Operators
++ - * / %                    // Math
+== != < > <= >=              // Comparison
+&& || !                      // Logical (not 'and', 'or', 'not' like expr)
++ (concat)                   // String concatenation
+in                           // Collection membership
+
+// Built-in Functions
+size, startsWith, endsWith, contains, matches (regex)
+upperAscii, lowerAscii
+int, uint, double, string, bytes, duration, timestamp
+
+// Method syntax (C-like)
+"hello".startsWith("h")
+[1, 2, 3].size()
+
+// Ternary
+condition ? trueValue : falseValue
+```
+
+### Performance
+
+From benchmarks:
+- Compilation: ~100µs (cacheable)
+- Execution: ~268ns per evaluation
+- **Total for 1000 records**: ~0.4ms
+
+### Comparison with expr-lang
+
+| Feature | expr-lang | CEL |
+|---------|-----------|-----|
+| Performance | 172 ns/op | 268 ns/op |
+| Syntax | Go-like | C-like/JavaScript-like |
+| Ecosystem | 5k+ stars | Google official, Kubernetes |
+| Type system | Go types | CEL types (gradual typing) |
+| Method calls | `upper(name)` | `name.upperAscii()` |
+| Logical ops | `and`, `or`, `not` | `&&`, `\|\|`, `!` |
+| Portability | Go only | Multi-language spec |
+| Learning curve | Low (Go devs) | Medium (new syntax) |
+
+**Summary:** CEL is more "industry standard" with broader ecosystem, but expr-lang is faster and more Go-native. For ssql users (already writing Go), expr-lang may be more intuitive.
+
+## Option 3: Go Interpreter (yaegi)
 
 ### Overview
 
@@ -379,18 +532,20 @@ ssql.Update(func(mut MutableRecord) MutableRecord {
 
 ## Comparison Matrix
 
-| Feature                | expr-lang | yaegi | go build | Custom | Current |
-|-----------------------|-----------|-------|----------|--------|---------|
-| **Performance**        | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐⭐    | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
-| **Ease of Use**        | ⭐⭐⭐⭐    | ⭐⭐⭐    | ⭐⭐⭐     | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
-| **Power**              | ⭐⭐⭐     | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐   | ⭐⭐      | ⭐       |
-| **Binary Size**        | +500KB    | +10MB | 0        | 0      | 0       |
-| **Dependencies**       | 1         | 1     | 0*       | 0      | 0       |
-| **Implementation**     | ⭐⭐⭐⭐⭐   | ⭐⭐⭐    | ⭐⭐⭐     | ⭐       | ⭐⭐⭐⭐⭐   |
-| **Maintenance**        | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐⭐    | ⭐⭐      | ⭐⭐⭐⭐⭐   |
-| **Type Safety**        | ⭐⭐⭐⭐    | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐   | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
-| **Learning Curve**     | Medium    | Low   | Low      | Medium | Low     |
-| **Compile Time**       | ~100µs    | ~5ms  | **70ms** | N/A    | N/A     |
+| Feature                | expr-lang | CEL | yaegi | go build | Custom | Current |
+|-----------------------|-----------|-----|-------|----------|--------|---------|
+| **Performance**        | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐⭐    | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
+| **Ease of Use**        | ⭐⭐⭐⭐    | ⭐⭐⭐  | ⭐⭐⭐    | ⭐⭐⭐     | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
+| **Power**              | ⭐⭐⭐     | ⭐⭐⭐  | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐   | ⭐⭐      | ⭐       |
+| **Binary Size**        | +500KB    | +1MB | +10MB | 0        | 0      | 0       |
+| **Dependencies**       | 1         | 1    | 1     | 0*       | 0      | 0       |
+| **Implementation**     | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐ | ⭐⭐⭐    | ⭐⭐⭐     | ⭐       | ⭐⭐⭐⭐⭐   |
+| **Maintenance**        | ⭐⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐| ⭐⭐⭐⭐   | ⭐⭐⭐⭐    | ⭐⭐      | ⭐⭐⭐⭐⭐   |
+| **Type Safety**        | ⭐⭐⭐⭐    | ⭐⭐⭐⭐⭐| ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐   | ⭐⭐⭐    | ⭐⭐⭐⭐⭐   |
+| **Learning Curve**     | Medium    | Medium| Low   | Low      | Medium | Low     |
+| **Compile Time**       | ~100µs    | ~100µs| ~5ms  | **70ms** | N/A    | N/A     |
+| **Ecosystem**          | 5k stars  | Google/K8s | Traefik | Go stdlib | N/A | N/A |
+| **Portability**        | Go only   | Multi-lang | Go only | Go only | N/A | N/A |
 
 *Requires Go toolchain (external dependency, but ssql users likely have it)
 
@@ -400,10 +555,34 @@ ssql.Update(func(mut MutableRecord) MutableRecord {
 
 **Why:**
 - Best balance of power, performance, and simplicity
-- Proven in production (thousands of projects)
+- **Fastest performance**: 172ns vs CEL's 268ns (~36% faster)
+- **Go-native syntax**: More intuitive for ssql users already writing Go
+- Proven in production (5k+ GitHub stars, thousands of projects)
 - Small dependency (500KB)
 - Fast enough for CLI (< 1ms per record)
 - Great for 95% of use cases
+
+### Strong Alternative: CEL (Common Expression Language) ⭐
+
+**Why consider CEL:**
+- **Industry standard**: Official Google project, used in Kubernetes, Firebase, Cloud IAM, Envoy
+- **Better ecosystem**: Multi-language spec (Go, Java, C++, Rust, Python)
+- **Excellent maintenance**: Backed by Google, enterprise-grade support
+- **Portability**: Same syntax across all implementations
+- **Strong type system**: Gradual typing with excellent compile-time checks
+
+**Trade-offs vs expr-lang:**
+- Slightly slower (268ns vs 172ns, but still sub-microsecond)
+- C-like syntax (`name.upperAscii()`) vs Go-like (`upper(name)`)
+- More setup required (environment, type declarations)
+- Designed for distributed systems (may be overkill for local CLI)
+
+**When to choose CEL over expr:**
+- You value industry-standard, Google-backed technology
+- You need multi-language portability (same expressions in Go/Python/Java/etc.)
+- You want the best possible type system and tooling
+- You're already using CEL elsewhere in your stack
+- You prefer method syntax (`x.startsWith("a")`) over function syntax (`startsWith(x, "a")`)
 
 **Use cases it handles:**
 ```bash
