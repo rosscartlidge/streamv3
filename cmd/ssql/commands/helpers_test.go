@@ -44,6 +44,124 @@ func TestIsExpression(t *testing.T) {
 	}
 }
 
+func TestEvaluateExpression_MissingFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		expression string
+		record     ssql.Record
+		want       any
+		wantErr    bool
+	}{
+		{
+			name:       "has() function - field exists",
+			expression: "has(\"name\")",
+			record: ssql.MakeMutableRecord().
+				String("name", "Alice").
+				Freeze(),
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name:       "has() function - field missing",
+			expression: "has(\"age\")",
+			record: ssql.MakeMutableRecord().
+				String("name", "Alice").
+				Freeze(),
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name:       "getOr() function - field exists",
+			expression: "getOr(\"price\", 0)",
+			record: ssql.MakeMutableRecord().
+				Float("price", 99.99).
+				Freeze(),
+			want:    99.99,
+			wantErr: false,
+		},
+		{
+			name:       "getOr() function - field missing, use default",
+			expression: "getOr(\"price\", 0)",
+			record:     ssql.MakeMutableRecord().Freeze(),
+			want:       0,
+			wantErr:    false,
+		},
+		{
+			name:       "null coalescing operator (??) - field exists",
+			expression: "price ?? 0",
+			record: ssql.MakeMutableRecord().
+				Float("price", 99.99).
+				Freeze(),
+			want:    99.99,
+			wantErr: false,
+		},
+		{
+			name:       "null coalescing operator (??) - field missing",
+			expression: "price ?? 0",
+			record:     ssql.MakeMutableRecord().Freeze(),
+			want:       0,
+			wantErr:    false,
+		},
+		{
+			name:       "conditional with has()",
+			expression: "has(\"discount\") ? discount : 0",
+			record: ssql.MakeMutableRecord().
+				Float("discount", 10.0).
+				Freeze(),
+			want:    10.0,
+			wantErr: false,
+		},
+		{
+			name:       "conditional with has() - missing field",
+			expression: "has(\"discount\") ? discount : 0",
+			record:     ssql.MakeMutableRecord().Freeze(),
+			want:       0,
+			wantErr:    false,
+		},
+		{
+			name:       "math with missing field using ??",
+			expression: "(price ?? 0) * (quantity ?? 1)",
+			record: ssql.MakeMutableRecord().
+				Float("price", 10.0).
+				Freeze(),
+			want:    10.0,
+			wantErr: false,
+		},
+		{
+			name:       "math with getOr()",
+			expression: "getOr(\"price\", 0) * getOr(\"quantity\", 1)",
+			record: ssql.MakeMutableRecord().
+				Float("price", 10.0).
+				Int("quantity", int64(5)).
+				Freeze(),
+			want:    50.0,
+			wantErr: false,
+		},
+		{
+			name:       "string with getOr()",
+			expression: "getOr(\"first\", \"Unknown\") + \" \" + getOr(\"last\", \"User\")",
+			record: ssql.MakeMutableRecord().
+				String("first", "John").
+				Freeze(),
+			want:    "John User",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := evaluateExpression(tt.expression, tt.record)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("evaluateExpression() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && got != tt.want {
+				t.Errorf("evaluateExpression() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEvaluateExpression_Math(t *testing.T) {
 	tests := []struct {
 		name       string

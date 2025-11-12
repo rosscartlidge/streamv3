@@ -361,6 +361,7 @@ func isExpression(value string) bool {
 
 // evaluateExpression evaluates an expr expression against a record
 // Returns the result value or an error if the expression is invalid
+// Missing fields are allowed and will be nil (can be checked with has() or ?? operator)
 func evaluateExpression(expression string, record ssql.Record) (any, error) {
 	// Build environment with all record fields
 	env := make(map[string]interface{})
@@ -368,8 +369,27 @@ func evaluateExpression(expression string, record ssql.Record) (any, error) {
 		env[k] = v
 	}
 
-	// Compile expression (TODO: cache compiled programs for performance)
-	program, err := expr.Compile(expression, expr.Env(env))
+	// Add helper function to check if field exists
+	env["has"] = func(field string) bool {
+		_, exists := ssql.Get[any](record, field)
+		return exists
+	}
+
+	// Add helper function to get field with default value
+	env["getOr"] = func(field string, defaultValue any) any {
+		if val, exists := ssql.Get[any](record, field); exists {
+			return val
+		}
+		return defaultValue
+	}
+
+	// Compile expression with options:
+	// - AllowUndefinedVariables: allows referencing fields that don't exist (they'll be nil)
+	// - Env: provide the record fields as variables
+	program, err := expr.Compile(expression,
+		expr.Env(env),
+		expr.AllowUndefinedVariables(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("compile expression: %w", err)
 	}
