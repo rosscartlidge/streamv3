@@ -359,6 +359,51 @@ func isExpression(value string) bool {
 	return false
 }
 
+// applyValueToRecord applies a value to a mutable record with automatic type inference
+// Handles type conversions (int→int64, float32→float64) and defaults unknown types to string
+func applyValueToRecord(mut ssql.MutableRecord, field string, value any) ssql.MutableRecord {
+	switch v := value.(type) {
+	case int64:
+		return mut.Int(field, v)
+	case float64:
+		return mut.Float(field, v)
+	case bool:
+		return mut.Bool(field, v)
+	case time.Time:
+		return ssql.Set(mut, field, v)
+	case string:
+		return mut.String(field, v)
+	case int:
+		// expr might return int instead of int64
+		return mut.Int(field, int64(v))
+	case int32:
+		return mut.Int(field, int64(v))
+	case int16:
+		return mut.Int(field, int64(v))
+	case int8:
+		return mut.Int(field, int64(v))
+	case uint:
+		return mut.Int(field, int64(v))
+	case uint64:
+		return mut.Int(field, int64(v))
+	case uint32:
+		return mut.Int(field, int64(v))
+	case uint16:
+		return mut.Int(field, int64(v))
+	case uint8:
+		return mut.Int(field, int64(v))
+	case float32:
+		// expr might return float32 instead of float64
+		return mut.Float(field, float64(v))
+	case nil:
+		// For nil values, set as empty string (or could skip)
+		return mut.String(field, "")
+	default:
+		// For unknown types, convert to string
+		return mut.String(field, fmt.Sprintf("%v", v))
+	}
+}
+
 // evaluateExpression evaluates an expr expression against a record
 // Returns the result value or an error if the expression is invalid
 // Missing fields are allowed and will be nil (can be checked with has() or ?? operator)

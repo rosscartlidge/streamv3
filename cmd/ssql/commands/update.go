@@ -184,28 +184,8 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 								parsedValue = parseValue(upd.value)
 							}
 
-							// Apply the value to the record
-							switch v := parsedValue.(type) {
-							case int64:
-								mut = mut.Int(upd.field, v)
-							case float64:
-								mut = mut.Float(upd.field, v)
-							case bool:
-								mut = mut.Bool(upd.field, v)
-							case time.Time:
-								mut = ssql.Set(mut, upd.field, v)
-							case string:
-								mut = mut.String(upd.field, v)
-							case int:
-								// expr might return int instead of int64
-								mut = mut.Int(upd.field, int64(v))
-							case float32:
-								// expr might return float32 instead of float64
-								mut = mut.Float(upd.field, float64(v))
-							default:
-								// For unknown types, convert to string
-								mut = mut.String(upd.field, fmt.Sprintf("%v", v))
-							}
+							// Apply the value to the record with automatic type inference
+							mut = applyValueToRecord(mut, upd.field, parsedValue)
 						}
 						break // First match wins
 					}

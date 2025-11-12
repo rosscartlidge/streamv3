@@ -6,6 +6,60 @@ import (
 	"github.com/rosscartlidge/ssql/v2"
 )
 
+func TestApplyValueToRecord(t *testing.T) {
+	tests := []struct {
+		name      string
+		field     string
+		value     any
+		wantType  string
+		wantValue any
+	}{
+		// Canonical types
+		{name: "int64", field: "age", value: int64(25), wantType: "int64", wantValue: int64(25)},
+		{name: "float64", field: "price", value: 99.99, wantType: "float64", wantValue: 99.99},
+		{name: "bool", field: "active", value: true, wantType: "bool", wantValue: true},
+		{name: "string", field: "name", value: "Alice", wantType: "string", wantValue: "Alice"},
+
+		// Integer conversions
+		{name: "int→int64", field: "count", value: int(42), wantType: "int64", wantValue: int64(42)},
+		{name: "int32→int64", field: "count", value: int32(42), wantType: "int64", wantValue: int64(42)},
+		{name: "int16→int64", field: "count", value: int16(42), wantType: "int64", wantValue: int64(42)},
+		{name: "int8→int64", field: "count", value: int8(42), wantType: "int64", wantValue: int64(42)},
+		{name: "uint→int64", field: "count", value: uint(42), wantType: "int64", wantValue: int64(42)},
+		{name: "uint64→int64", field: "count", value: uint64(42), wantType: "int64", wantValue: int64(42)},
+		{name: "uint32→int64", field: "count", value: uint32(42), wantType: "int64", wantValue: int64(42)},
+		{name: "uint16→int64", field: "count", value: uint16(42), wantType: "int64", wantValue: int64(42)},
+		{name: "uint8→int64", field: "count", value: uint8(42), wantType: "int64", wantValue: int64(42)},
+
+		// Float conversions
+		{name: "float32→float64", field: "price", value: float32(99.99), wantType: "float64", wantValue: float64(float32(99.99))},
+
+		// Special cases
+		{name: "nil→empty string", field: "optional", value: nil, wantType: "string", wantValue: ""},
+		{name: "complex type→string", field: "data", value: []int{1, 2, 3}, wantType: "string", wantValue: "[1 2 3]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mut := ssql.MakeMutableRecord()
+			mut = applyValueToRecord(mut, tt.field, tt.value)
+			frozen := mut.Freeze()
+
+			// Check the value exists
+			val, exists := ssql.Get[any](frozen, tt.field)
+			if !exists {
+				t.Errorf("field %q not set", tt.field)
+				return
+			}
+
+			// Check the value matches
+			if val != tt.wantValue {
+				t.Errorf("applyValueToRecord() value = %v (%T), want %v (%T)", val, val, tt.wantValue, tt.wantValue)
+			}
+		})
+	}
+}
+
 func TestIsExpression(t *testing.T) {
 	tests := []struct {
 		name  string
