@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/expr-lang/expr"
 	"github.com/rosscartlidge/ssql/v2"
 	"github.com/rosscartlidge/ssql/v2/cmd/ssql/lib"
 )
@@ -327,5 +328,29 @@ func parseValue(s string) any {
 
 	// Default to string
 	return s
+}
+
+// evaluateExpression evaluates an expr expression against a record
+// Returns the result value or an error if the expression is invalid
+func evaluateExpression(expression string, record ssql.Record) (any, error) {
+	// Build environment with all record fields
+	env := make(map[string]interface{})
+	for k, v := range record.All() {
+		env[k] = v
+	}
+
+	// Compile expression (TODO: cache compiled programs for performance)
+	program, err := expr.Compile(expression, expr.Env(env))
+	if err != nil {
+		return nil, fmt.Errorf("compile expression: %w", err)
+	}
+
+	// Execute expression
+	result, err := expr.Run(program, env)
+	if err != nil {
+		return nil, fmt.Errorf("execute expression: %w", err)
+	}
+
+	return result, nil
 }
 
