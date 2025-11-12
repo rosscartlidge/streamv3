@@ -6,6 +6,44 @@ import (
 	"github.com/rosscartlidge/ssql/v2"
 )
 
+func TestIsExpression(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		// Expressions (should return true)
+		{name: "math addition", value: "price + tax", want: true},
+		{name: "math multiplication", value: "price * quantity", want: true},
+		{name: "math division", value: "total / count", want: true},
+		{name: "comparison", value: "age > 18", want: true},
+		{name: "equality", value: "status == \"active\"", want: true},
+		{name: "ternary", value: "x > 10 ? \"high\" : \"low\"", want: true},
+		{name: "function call", value: "upper(name)", want: true},
+		{name: "logical and", value: "age >= 18 && active", want: true},
+		{name: "logical or", value: "premium || vip", want: true},
+
+		// Literals (should return false)
+		{name: "plain string", value: "active", want: false},
+		{name: "number string", value: "42", want: false},
+		{name: "float string", value: "3.14", want: false},
+		{name: "boolean string", value: "true", want: false},
+		{name: "string with dash", value: "foo-bar", want: false},
+		{name: "string with underscore", value: "foo_bar", want: false},
+		{name: "email", value: "user@example.com", want: false},  // @ is not an operator we check
+		{name: "url", value: "https://example.com", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isExpression(tt.value)
+			if got != tt.want {
+				t.Errorf("isExpression(%q) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEvaluateExpression_Math(t *testing.T) {
 	tests := []struct {
 		name       string

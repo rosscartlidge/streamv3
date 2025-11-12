@@ -166,7 +166,25 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 					// If clause matches (or has no conditions), apply updates and stop
 					if allMatch {
 						for _, upd := range clause.updates {
-							parsedValue := parseValue(upd.value)
+							var parsedValue any
+
+							// Check if value is an expression or a literal
+							if isExpression(upd.value) {
+								// Evaluate as expression
+								result, err := evaluateExpression(upd.value, frozen)
+								if err != nil {
+									// If expression evaluation fails, fall back to literal
+									// This allows backward compatibility
+									parsedValue = parseValue(upd.value)
+								} else {
+									parsedValue = result
+								}
+							} else {
+								// Parse as literal
+								parsedValue = parseValue(upd.value)
+							}
+
+							// Apply the value to the record
 							switch v := parsedValue.(type) {
 							case int64:
 								mut = mut.Int(upd.field, v)
@@ -178,6 +196,15 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 								mut = ssql.Set(mut, upd.field, v)
 							case string:
 								mut = mut.String(upd.field, v)
+							case int:
+								// expr might return int instead of int64
+								mut = mut.Int(upd.field, int64(v))
+							case float32:
+								// expr might return float32 instead of float64
+								mut = mut.Float(upd.field, float64(v))
+							default:
+								// For unknown types, convert to string
+								mut = mut.String(upd.field, fmt.Sprintf("%v", v))
 							}
 						}
 						break // First match wins

@@ -330,6 +330,35 @@ func parseValue(s string) any {
 	return s
 }
 
+// isExpression checks if a value string is an expression vs a literal
+// Returns true if the string contains operators or function calls
+func isExpression(value string) bool {
+	// Heuristics to detect expressions:
+	// - Contains arithmetic operators: +, -, *, /, %
+	// - Contains comparison operators: >, <, ==, !=, >=, <=
+	// - Contains logical operators: &&, ||, !
+	// - Contains ternary operator: ?
+	// - Contains function calls: (
+	// - Contains field references in context (tricky - just check for operators)
+
+	// Quick checks for common operators
+	operators := []string{
+		" + ", " - ", " * ", " / ", " % ",  // Math (with spaces to avoid false positives)
+		">", "<", "==", "!=", ">=", "<=",    // Comparison
+		"&&", "||",                          // Logical
+		"?",                                 // Ternary
+		"(",                                 // Function call
+	}
+
+	for _, op := range operators {
+		if strings.Contains(value, op) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // evaluateExpression evaluates an expr expression against a record
 // Returns the result value or an error if the expression is invalid
 func evaluateExpression(expression string, record ssql.Record) (any, error) {
