@@ -16,7 +16,7 @@ func RegisterWhere(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 	cmd.Subcommand("where").
 		Description("Filter records based on field conditions").
 		Example("ssql read-csv data.csv | ssql where -match age gt 18", "Filter records where age > 18").
-		Example("ssql read-csv sales.csv | ssql where -match status eq active -match amount gt 1000", "Active records with amount > 1000 (AND logic)").
+		Example("ssql read-csv sales.csv | ssql where -expr 'price * qty > 1000'", "Filter using expression (price * qty > 1000)").
 		Example("ssql read-csv users.csv | ssql where -match dept eq Sales + -match dept eq Marketing", "Sales OR Marketing departments").
 		Flag("-generate", "-g").
 			Bool().
@@ -30,6 +30,12 @@ func RegisterWhere(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 			Accumulate().
 			Local().
 			Help("Filter condition: -match <field> <operator> <value>").
+		Done().
+		Flag("-expr", "-x").
+			Arg("expression").Completer(cf.NoCompleter{Hint: "<boolean-expression>"}).Done().
+			Accumulate().
+			Local().
+			Help("Filter using boolean expression: -expr <expression>").
 		Done().
 		Flag("FILE").
 			String().
@@ -55,63 +61,123 @@ func RegisterWhere(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 				return generateWhereCode(ctx, inputFile)
 			}
 
-			// Build filter from clauses (OR between clauses, AND within)
+			// Pre-compile all expressions ONCE before processing records
+			type clauseData struct {
+				matches []struct {
+					field string
+					op    string
+					value string
+				}
+				exprEvals []func(ssql.Record) (any, error)
+			}
+
+			var clauses []clauseData
+
+			for _, clause := range ctx.Clauses {
+				// Skip empty clauses
+				hasMatch := clause.Flags["-match"] != nil
+				hasExpr := clause.Flags["-expr"] != nil
+				if !hasMatch && !hasExpr {
+					continue
+				}
+
+				cd := clauseData{}
+
+				// Parse -match conditions
+				if matchesRaw, ok := clause.Flags["-match"]; ok && matchesRaw != nil {
+					matches, ok := matchesRaw.([]any)
+					if ok {
+						for _, matchRaw := range matches {
+							matchMap, ok := matchRaw.(map[string]any)
+							if !ok {
+								continue
+							}
+							field, _ := matchMap["field"].(string)
+							op, _ := matchMap["operator"].(string)
+							value, _ := matchMap["value"].(string)
+							if field != "" && op != "" {
+								cd.matches = append(cd.matches, struct {
+									field string
+									op    string
+									value string
+								}{field, op, value})
+							}
+						}
+					}
+				}
+
+				// Parse and compile -expr conditions ONCE
+				if exprsRaw, ok := clause.Flags["-expr"]; ok && exprsRaw != nil {
+					exprs, ok := exprsRaw.([]any)
+					if ok {
+						for _, exprRaw := range exprs {
+							expression, ok := exprRaw.(string)
+							if !ok || expression == "" {
+								continue
+							}
+
+							// Compile the expression ONCE
+							eval, err := compileExpression(expression)
+							if err != nil {
+								return fmt.Errorf("compiling expression %q: %w", expression, err)
+							}
+							cd.exprEvals = append(cd.exprEvals, eval)
+						}
+					}
+				}
+
+				clauses = append(clauses, cd)
+			}
+
+			// Build filter that uses pre-compiled expressions
 			filter := func(r ssql.Record) bool {
-				if len(ctx.Clauses) == 0 {
+				if len(clauses) == 0 {
 					return true
 				}
 
 				// OR logic between clauses
-				for _, clause := range ctx.Clauses {
-					// Get all -match conditions from this clause
-					matchesRaw, ok := clause.Flags["-match"]
-					if !ok || matchesRaw == nil {
-						continue
-					}
-
-					matches, ok := matchesRaw.([]any)
-					if !ok || len(matches) == 0 {
-						continue
-					}
-
-					// AND logic within clause
+				for _, clause := range clauses {
 					clauseMatches := true
-					for _, matchRaw := range matches {
-						matchMap, ok := matchRaw.(map[string]any)
-						if !ok {
+
+					// Check -match conditions
+					for _, match := range clause.matches {
+						fieldValue, exists := ssql.Get[any](r, match.field)
+						if !exists || !applyOperator(fieldValue, match.op, match.value) {
 							clauseMatches = false
 							break
 						}
+					}
 
-						field, _ := matchMap["field"].(string)
-						op, _ := matchMap["operator"].(string)
-						value, _ := matchMap["value"].(string)
+					// Check -expr conditions (using pre-compiled expressions)
+					if clauseMatches {
+						for _, eval := range clause.exprEvals {
+							result, err := eval(r)
+							if err != nil {
+								fmt.Fprintf(os.Stderr, "Error evaluating expression: %v\n", err)
+								clauseMatches = false
+								break
+							}
 
-						if field == "" || op == "" {
-							clauseMatches = false
-							break
-						}
+							boolResult, ok := result.(bool)
+							if !ok {
+								fmt.Fprintf(os.Stderr, "Expression must return boolean, got %T\n", result)
+								clauseMatches = false
+								break
+							}
 
-						// Get field value from record
-						fieldValue, exists := ssql.Get[any](r, field)
-						if !exists {
-							clauseMatches = false
-							break
-						}
-
-						// Apply operator
-						if !applyOperator(fieldValue, op, value) {
-							clauseMatches = false
-							break
+							if !boolResult {
+								clauseMatches = false
+								break
+							}
 						}
 					}
 
 					if clauseMatches {
-						return true // This clause matched
+						return true
 					}
 				}
 
-				return false // No clause matched
+				return false
 			}
 
 			// Read JSONL from stdin or file
@@ -161,11 +227,17 @@ func generateWhereCode(ctx *cf.Context, inputFile string) error {
 	}
 
 	// Generate filter code from clauses
-	filterCode, imports := generateWhereCodeFromClauses(ctx.Clauses)
+	filterCode, imports, preCompileVars := generateWhereCodeFromClauses(ctx.Clauses)
 
-	// Build complete statement
+	// Build complete statement with pre-compiled expressions
+	var codeLines []string
+	for _, preVar := range preCompileVars {
+		codeLines = append(codeLines, preVar)
+	}
+
 	outputVar := "filtered"
-	code := fmt.Sprintf("%s := ssql.Where(%s)(%s)", outputVar, filterCode, inputVar)
+	codeLines = append(codeLines, fmt.Sprintf("%s := ssql.Where(%s)(%s)", outputVar, filterCode, inputVar))
+	code := strings.Join(codeLines, "\n")
 
 	// Create code fragment
 	frag := lib.NewStmtFragment(outputVar, inputVar, code, imports, getCommandString())
@@ -175,42 +247,63 @@ func generateWhereCode(ctx *cf.Context, inputFile string) error {
 }
 
 // generateWhereCodeFromClauses generates the filter function code
-func generateWhereCodeFromClauses(clauses []cf.Clause) (string, []string) {
+func generateWhereCodeFromClauses(clauses []cf.Clause) (string, []string, []string) {
 	var imports []string
 	var clauseConditions []string
+	var preCompileVars []string
+	exprCounter := 0
 
 	// Build conditions for each clause (OR logic between clauses)
 	for _, clause := range clauses {
-		matchesRaw, ok := clause.Flags["-match"]
-		if !ok || matchesRaw == nil {
-			continue
-		}
-
-		matches, ok := matchesRaw.([]any)
-		if !ok || len(matches) == 0 {
-			continue
-		}
-
-		// AND logic within clause: all matches must pass
 		var andConditions []string
-		for _, matchRaw := range matches {
-			matchMap, ok := matchRaw.(map[string]any)
-			if !ok {
-				continue
+
+		// Process -match conditions
+		if matchesRaw, ok := clause.Flags["-match"]; ok && matchesRaw != nil {
+			matches, ok := matchesRaw.([]any)
+			if ok && len(matches) > 0 {
+				for _, matchRaw := range matches {
+					matchMap, ok := matchRaw.(map[string]any)
+					if !ok {
+						continue
+					}
+
+					field, _ := matchMap["field"].(string)
+					op, _ := matchMap["operator"].(string)
+					value, _ := matchMap["value"].(string)
+
+					if field == "" || op == "" {
+						continue
+					}
+
+					// Generate condition code
+					cond, imp := generateCondition(field, op, value)
+					andConditions = append(andConditions, cond)
+					imports = append(imports, imp...)
+				}
 			}
+		}
 
-			field, _ := matchMap["field"].(string)
-			op, _ := matchMap["operator"].(string)
-			value, _ := matchMap["value"].(string)
+		// Process -expr conditions
+		if exprsRaw, ok := clause.Flags["-expr"]; ok && exprsRaw != nil {
+			exprs, ok := exprsRaw.([]any)
+			if ok && len(exprs) > 0 {
+				for _, exprRaw := range exprs {
+					// Expression is stored as a string (single arg flag)
+					expression, ok := exprRaw.(string)
+					if !ok || expression == "" {
+						continue
+					}
 
-			if field == "" || op == "" {
-				continue
+					// Generate pre-compiled expression variable
+					exprCounter++
+					varName := fmt.Sprintf("exprFilter%d", exprCounter)
+					preCompileVars = append(preCompileVars,
+						fmt.Sprintf("var %s = runtime.MustCompileExprFilter(%q)", varName, expression))
+
+					// Use the pre-compiled filter
+					andConditions = append(andConditions, fmt.Sprintf("%s(r)", varName))
+				}
 			}
-
-			// Generate condition code
-			cond, imp := generateCondition(field, op, value)
-			andConditions = append(andConditions, cond)
-			imports = append(imports, imp...)
 		}
 
 		// Combine AND conditions for this clause
@@ -221,6 +314,10 @@ func generateWhereCodeFromClauses(clauses []cf.Clause) (string, []string) {
 				clauseConditions = append(clauseConditions, "("+strings.Join(andConditions, " && ")+")")
 			}
 		}
+	}
+
+	if len(preCompileVars) > 0 {
+		imports = append(imports, "github.com/rosscartlidge/ssql/v2/cmd/ssql/lib/runtime")
 	}
 
 	// Combine clauses with OR
@@ -236,7 +333,7 @@ func generateWhereCodeFromClauses(clauses []cf.Clause) (string, []string) {
 	// Build function
 	code := fmt.Sprintf("func(r ssql.Record) bool {\n\t\t%s\n\t}", finalCondition)
 
-	return code, dedupeImports(imports)
+	return code, dedupeImports(imports), preCompileVars
 }
 
 // generateCondition generates code for a single where condition
@@ -305,3 +402,4 @@ func dedupeImports(imports []string) []string {
 	}
 	return result
 }
+

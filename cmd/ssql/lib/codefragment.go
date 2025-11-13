@@ -251,6 +251,15 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 		code += ")\n\n"
 	}
 
+	// Extract and add package-level pre-compile vars (from expr filters)
+	preCompileVars := extractPreCompileVars(fragments)
+	if len(preCompileVars) > 0 {
+		for _, varDecl := range preCompileVars {
+			code += varDecl + "\n"
+		}
+		code += "\n"
+	}
+
 	// Add main function
 	code += "func main() {\n"
 
@@ -316,9 +325,47 @@ func AssembleCodeFragments(input io.Reader) (string, error) {
 	return code, nil
 }
 
+// extractPreCompileVars extracts package-level variable declarations from code fragments
+// These are variables like "var exprFilter1 = runtime.MustCompileExprFilter(...)"
+// that need to be moved outside main() to package level
+func extractPreCompileVars(fragments []*CodeFragment) []string {
+	var vars []string
+	seen := make(map[string]bool)
+
+	for _, frag := range fragments {
+		lines := splitLines(frag.Code)
+		for _, line := range lines {
+			trimmed := trimSpace(line)
+			// Look for var declarations with runtime.MustCompile*
+			if startsWith(trimmed, "var ") && (findString(trimmed, "runtime.MustCompile") != -1) {
+				if !seen[trimmed] {
+					vars = append(vars, trimmed)
+					seen[trimmed] = true
+				}
+			}
+		}
+	}
+
+	return vars
+}
+
 // extractFilter extracts the filter function from a statement like "var := filter(input)"
 // Returns just "filter" for use in Chain()
+// Skips pre-compile var declarations (moved to package level)
 func extractFilter(code string) string {
+	// Remove pre-compile var lines first
+	var filteredLines []string
+	lines := splitLines(code)
+	for _, line := range lines {
+		trimmed := trimSpace(line)
+		// Skip var declarations with runtime.MustCompile*
+		if startsWith(trimmed, "var ") && findString(trimmed, "runtime.MustCompile") != -1 {
+			continue
+		}
+		filteredLines = append(filteredLines, line)
+	}
+	code = joinLines(filteredLines)
+
 	// Pattern: "outputVar := filterCall(inputVar)" or "outputVar := filterCall(...)(inputVar)"
 	// We need to extract everything between ":=" and the final "(inputVar)"
 
@@ -462,4 +509,60 @@ func containsChar(s string, c byte) bool {
 		}
 	}
 	return false
+}
+
+// splitLines splits a string into lines
+func splitLines(s string) []string {
+	var lines []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			lines = append(lines, s[start:i+1])
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		lines = append(lines, s[start:])
+	}
+	return lines
+}
+
+// joinLines joins lines back into a string
+func joinLines(lines []string) string {
+	result := ""
+	for _, line := range lines {
+		result += line
+	}
+	return result
+}
+
+// trimSpace removes leading and trailing whitespace
+func trimSpace(s string) string {
+	start := 0
+	end := len(s)
+
+	// Trim left
+	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
+		start++
+	}
+
+	// Trim right
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
+		end--
+	}
+
+	return s[start:end]
+}
+
+// startsWith checks if string starts with prefix
+func startsWith(s, prefix string) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	for i := 0; i < len(prefix); i++ {
+		if s[i] != prefix[i] {
+			return false
+		}
+	}
+	return true
 }

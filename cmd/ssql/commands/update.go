@@ -16,7 +16,7 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 	cmd.Subcommand("update").
 		Description("Conditionally update record fields with new values").
 		Example("ssql read-csv users.csv | ssql update -match status eq pending -set status approved", "Update status from pending to approved").
-		Example("ssql read-csv sales.csv | ssql update -match region eq US -set tax_rate 0.08 -set currency USD", "Set multiple fields for US region").
+		Example("ssql read-csv sales.csv | ssql update -set-expr total 'price * qty'", "Calculate total using expression").
 		Example("ssql read-csv data.csv | ssql update -match age lt 18 -set category minor + -match age ge 18 -set category adult", "Categorize by age using if-else logic").
 		ClauseDescription("Clauses are evaluated in order using if-then-else logic.\nSeparators: +, -\nThe FIRST matching clause applies its updates, then processing stops (first-match-wins).\nThis is different from 'where' which uses OR logic - all clauses are evaluated.").
 		Flag("-generate", "-g").
@@ -37,7 +37,14 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 			Arg("value").Completer(cf.NoCompleter{Hint: "<value>"}).Done().
 			Accumulate().
 			Local().
-			Help("Set field to value: -set <field> <value>").
+			Help("Set field to literal value: -set <field> <value>").
+		Done().
+		Flag("-set-expr", "-e").
+			Arg("field").Completer(cf.NoCompleter{Hint: "<field-name>"}).Done().
+			Arg("expression").Completer(cf.NoCompleter{Hint: "<expression>"}).Done().
+			Accumulate().
+			Local().
+			Help("Set field to expression result: -set-expr <field> <expression>").
 		Done().
 		Flag("FILE").
 			String().
@@ -63,7 +70,7 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 				return generateUpdateCode(ctx, inputFile)
 			}
 
-			// Parse clauses - each clause has optional -match conditions and required -set operations
+			// Parse clauses - each clause has optional -match conditions and required -set/-set-expr operations
 			type updateClause struct {
 				conditions []struct {
 					field string
@@ -71,8 +78,10 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 					value string
 				}
 				updates []struct {
-					field string
-					value string
+					field     string
+					literal   string                              // For -set
+					exprEval  func(ssql.Record) (any, error)      // For -set-expr (pre-compiled)
+					isExpr    bool
 				}
 			}
 
@@ -106,7 +115,7 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 					}
 				}
 
-				// Parse -set operations (required)
+				// Parse -set operations (literal values)
 				if setOpsRaw, ok := clause.Flags["-set"]; ok && setOpsRaw != nil {
 					setList, ok := setOpsRaw.([]any)
 					if ok {
@@ -121,9 +130,41 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 
 							if field != "" {
 								uc.updates = append(uc.updates, struct {
-									field string
-									value string
-								}{field, value})
+									field     string
+									literal   string
+									exprEval  func(ssql.Record) (any, error)
+									isExpr    bool
+								}{field: field, literal: value, isExpr: false})
+							}
+						}
+					}
+				}
+
+				// Parse -set-expr operations and compile expressions ONCE
+				if setExprRaw, ok := clause.Flags["-set-expr"]; ok && setExprRaw != nil {
+					setList, ok := setExprRaw.([]any)
+					if ok {
+						for _, setRaw := range setList {
+							setMap, ok := setRaw.(map[string]any)
+							if !ok {
+								continue
+							}
+
+							field, _ := setMap["field"].(string)
+							expression, _ := setMap["expression"].(string)
+
+							if field != "" && expression != "" {
+								// Compile the expression ONCE
+								eval, err := compileExpression(expression)
+								if err != nil {
+									return fmt.Errorf("compiling expression %q: %w", expression, err)
+								}
+								uc.updates = append(uc.updates, struct {
+									field     string
+									literal   string
+									exprEval  func(ssql.Record) (any, error)
+									isExpr    bool
+								}{field: field, exprEval: eval, isExpr: true})
 							}
 						}
 					}
@@ -135,7 +176,7 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 			}
 
 			if len(clauses) == 0 {
-				return fmt.Errorf("no -set operations specified")
+				return fmt.Errorf("no -set or -set-expr operations specified")
 			}
 
 			// Read JSONL from stdin or file
@@ -147,7 +188,7 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 
 			records := lib.ReadJSONL(input)
 
-			// Build update filter with first-match-wins clause evaluation
+			// Build update filter with first-match-wins clause evaluation (using pre-compiled expressions)
 			updateFilter := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 				frozen := mut.Freeze()
 
@@ -168,20 +209,20 @@ func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 						for _, upd := range clause.updates {
 							var parsedValue any
 
-							// Check if value is an expression or a literal
-							if isExpression(upd.value) {
-								// Evaluate as expression
-								result, err := evaluateExpression(upd.value, frozen)
+							// Check if this is an expression or a literal
+							if upd.isExpr {
+								// Evaluate using pre-compiled expression
+								result, err := upd.exprEval(frozen)
 								if err != nil {
-									// If expression evaluation fails, fall back to literal
-									// This allows backward compatibility
-									parsedValue = parseValue(upd.value)
+									// Log error and set field to empty string
+									fmt.Fprintf(os.Stderr, "Error evaluating expression: %v\n", err)
+									parsedValue = ""
 								} else {
 									parsedValue = result
 								}
 							} else {
 								// Parse as literal
-								parsedValue = parseValue(upd.value)
+								parsedValue = parseValue(upd.literal)
 							}
 
 							// Apply the value to the record with automatic type inference
@@ -231,7 +272,7 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 		inputVar = "records"
 	}
 
-	// Parse clauses - each clause has optional -match conditions and required -set operations
+	// Parse clauses - each clause has optional -match conditions and required -set/-set-expr operations
 	type updateClause struct {
 		conditions []struct {
 			field string
@@ -239,8 +280,9 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 			value string
 		}
 		updates []struct {
-			field string
-			value string
+			field  string
+			value  string
+			isExpr bool
 		}
 	}
 
@@ -274,7 +316,7 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 			}
 		}
 
-		// Parse -set operations (required)
+		// Parse -set operations (literal values)
 		if setOpsRaw, ok := clause.Flags["-set"]; ok && setOpsRaw != nil {
 			setList, ok := setOpsRaw.([]any)
 			if ok {
@@ -289,9 +331,34 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 
 					if field != "" {
 						uc.updates = append(uc.updates, struct {
-							field string
-							value string
-						}{field, value})
+							field  string
+							value  string
+							isExpr bool
+						}{field, value, false})
+					}
+				}
+			}
+		}
+
+		// Parse -set-expr operations (expressions)
+		if setExprRaw, ok := clause.Flags["-set-expr"]; ok && setExprRaw != nil {
+			setList, ok := setExprRaw.([]any)
+			if ok {
+				for _, setRaw := range setList {
+					setMap, ok := setRaw.(map[string]any)
+					if !ok {
+						continue
+					}
+
+					field, _ := setMap["field"].(string)
+					expr, _ := setMap["expression"].(string)
+
+					if field != "" {
+						uc.updates = append(uc.updates, struct {
+							field  string
+							value  string
+							isExpr bool
+						}{field, expr, true})
 					}
 				}
 			}
@@ -303,25 +370,39 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	}
 
 	if len(clauses) == 0 {
-		return fmt.Errorf("no -set operations specified")
+		return fmt.Errorf("no -set or -set-expr operations specified")
 	}
 
 	// Generate Update code with conditional clauses
 	var codeBody strings.Builder
+	var preCompileVars []string
+	exprCounter := 0
 	needsTime := false
 	needsStrings := false
 	needsRegexp := false
+	needsRuntime := false
 
-	// Check if we need frozen (for reading in conditions)
-	hasConditions := false
+	// Check if we need frozen (for reading in conditions or evaluating expressions)
+	needsFrozen := false
 	for _, clause := range clauses {
+		// Need frozen if there are conditions
 		if len(clause.conditions) > 0 {
-			hasConditions = true
+			needsFrozen = true
+			break
+		}
+		// Need frozen if there are expressions
+		for _, upd := range clause.updates {
+			if upd.isExpr {
+				needsFrozen = true
+				break
+			}
+		}
+		if needsFrozen {
 			break
 		}
 	}
 
-	if hasConditions {
+	if needsFrozen {
 		codeBody.WriteString("\t\tfrozen := mut.Freeze()\n\n")
 	}
 
@@ -362,25 +443,64 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 
 		// Generate update statements
 		for _, upd := range clause.updates {
-			parsedValue := parseValue(upd.value)
-
 			var stmt string
-			switch v := parsedValue.(type) {
-			case int64:
-				stmt = fmt.Sprintf("%smut = mut.Int(%q, int64(%d))", indent, upd.field, v)
-			case float64:
-				stmt = fmt.Sprintf("%smut = mut.Float(%q, %f)", indent, upd.field, v)
-			case bool:
-				stmt = fmt.Sprintf("%smut = mut.Bool(%q, %t)", indent, upd.field, v)
-			case time.Time:
-				timeExpr := fmt.Sprintf("time.Date(%d, %d, %d, %d, %d, %d, %d, time.UTC)",
-					v.Year(), v.Month(), v.Day(), v.Hour(), v.Minute(), v.Second(), v.Nanosecond())
-				stmt = fmt.Sprintf("%smut = ssql.Set(mut, %q, %s)", indent, upd.field, timeExpr)
-				needsTime = true
-			case string:
-				stmt = fmt.Sprintf("%smut = mut.String(%q, %q)", indent, upd.field, v)
-			default:
-				stmt = fmt.Sprintf("%smut = mut.String(%q, %q)", indent, upd.field, upd.value)
+
+			// Check if this is an expression
+			if upd.isExpr {
+				// Pre-compile expression and use runtime function
+				needsRuntime = true
+				exprCounter++
+				varName := fmt.Sprintf("exprEval%d", exprCounter)
+				preCompileVars = append(preCompileVars,
+					fmt.Sprintf("var %s = runtime.MustCompileExpr(%q)", varName, upd.value))
+
+				// Generate code to use pre-compiled expression
+				var stmtBuilder strings.Builder
+				stmtBuilder.WriteString(indent + "{\n")
+				stmtBuilder.WriteString(indent + "\tresult, err := " + varName + "(frozen)\n")
+				stmtBuilder.WriteString(indent + "\tif err != nil {\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\tmut = mut.String(%q, \"\")\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t} else {\n")
+				stmtBuilder.WriteString(indent + "\t\tswitch v := result.(type) {\n")
+				stmtBuilder.WriteString(indent + "\t\tcase int64:\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\t\tmut = mut.Int(%q, v)\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t\tcase float64:\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\t\tmut = mut.Float(%q, v)\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t\tcase bool:\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\t\tmut = mut.Bool(%q, v)\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t\tcase string:\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\t\tmut = mut.String(%q, v)\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t\tcase int:\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\t\tmut = mut.Int(%q, int64(v))\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t\tcase float32:\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\t\tmut = mut.Float(%q, float64(v))\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t\tdefault:\n")
+				stmtBuilder.WriteString(fmt.Sprintf("%s\t\t\tmut = mut.String(%q, fmt.Sprintf(\"%%v\", v))\n", indent, upd.field))
+				stmtBuilder.WriteString(indent + "\t\t}\n")
+				stmtBuilder.WriteString(indent + "\t}\n")
+				stmtBuilder.WriteString(indent + "}")
+				stmt = stmtBuilder.String()
+			} else {
+				// Generate literal value code
+				parsedValue := parseValue(upd.value)
+
+				switch v := parsedValue.(type) {
+				case int64:
+					stmt = fmt.Sprintf("%smut = mut.Int(%q, int64(%d))", indent, upd.field, v)
+				case float64:
+					stmt = fmt.Sprintf("%smut = mut.Float(%q, %f)", indent, upd.field, v)
+				case bool:
+					stmt = fmt.Sprintf("%smut = mut.Bool(%q, %t)", indent, upd.field, v)
+				case time.Time:
+					timeExpr := fmt.Sprintf("time.Date(%d, %d, %d, %d, %d, %d, %d, time.UTC)",
+						v.Year(), v.Month(), v.Day(), v.Hour(), v.Minute(), v.Second(), v.Nanosecond())
+					stmt = fmt.Sprintf("%smut = ssql.Set(mut, %q, %s)", indent, upd.field, timeExpr)
+					needsTime = true
+				case string:
+					stmt = fmt.Sprintf("%smut = mut.String(%q, %q)", indent, upd.field, v)
+				default:
+					stmt = fmt.Sprintf("%smut = mut.String(%q, %q)", indent, upd.field, upd.value)
+				}
 			}
 
 			codeBody.WriteString(stmt + "\n")
@@ -392,11 +512,19 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 		codeBody.WriteString("\t\t}")
 	}
 
+	// Build complete code with pre-compile vars
+	var codeLines []string
+	for _, preVar := range preCompileVars {
+		codeLines = append(codeLines, preVar)
+	}
+
 	outputVar := "updated"
-	code := fmt.Sprintf(`%s := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
+	updateCode := fmt.Sprintf(`%s := ssql.Update(func(mut ssql.MutableRecord) ssql.MutableRecord {
 %s
 		return mut
 	})(%s)`, outputVar, codeBody.String(), inputVar)
+	codeLines = append(codeLines, updateCode)
+	code := strings.Join(codeLines, "\n")
 
 	// Determine imports needed
 	imports := []string{}
@@ -408,6 +536,9 @@ func generateUpdateCode(ctx *cf.Context, inputFile string) error {
 	}
 	if needsRegexp {
 		imports = append(imports, "regexp")
+	}
+	if needsRuntime {
+		imports = append(imports, "github.com/rosscartlidge/ssql/v2/cmd/ssql/lib/runtime")
 	}
 
 	// Create and write fragment
@@ -499,3 +630,4 @@ func getComparisonValue(value string) string {
 		return fmt.Sprintf("%q", value)
 	}
 }
+

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/expr-lang/expr"
 	"github.com/rosscartlidge/ssql/v2"
 	"github.com/rosscartlidge/ssql/v2/cmd/ssql/lib"
+	"github.com/rosscartlidge/ssql/v2/cmd/ssql/lib/runtime"
 )
 
 // Helper functions for command handlers
@@ -404,47 +404,21 @@ func applyValueToRecord(mut ssql.MutableRecord, field string, value any) ssql.Mu
 	}
 }
 
-// evaluateExpression evaluates an expr expression against a record
-// Returns the result value or an error if the expression is invalid
-// Missing fields are allowed and will be nil (can be checked with has() or ?? operator)
+// compileExpression compiles an expression once and returns a function that can evaluate it on different records.
+// This is much more efficient than compiling on every record.
+// This is a wrapper around runtime.CompileExpr for use within CLI commands.
+func compileExpression(expression string) (func(ssql.Record) (any, error), error) {
+	return runtime.CompileExpr(expression)
+}
+
+// evaluateExpression evaluates an expression on a single record (convenience wrapper).
+// For better performance when evaluating on multiple records, use compileExpression once
+// and call the returned function for each record.
 func evaluateExpression(expression string, record ssql.Record) (any, error) {
-	// Build environment with all record fields
-	env := make(map[string]interface{})
-	for k, v := range record.All() {
-		env[k] = v
-	}
-
-	// Add helper function to check if field exists
-	env["has"] = func(field string) bool {
-		_, exists := ssql.Get[any](record, field)
-		return exists
-	}
-
-	// Add helper function to get field with default value
-	env["getOr"] = func(field string, defaultValue any) any {
-		if val, exists := ssql.Get[any](record, field); exists {
-			return val
-		}
-		return defaultValue
-	}
-
-	// Compile expression with options:
-	// - AllowUndefinedVariables: allows referencing fields that don't exist (they'll be nil)
-	// - Env: provide the record fields as variables
-	program, err := expr.Compile(expression,
-		expr.Env(env),
-		expr.AllowUndefinedVariables(),
-	)
+	eval, err := compileExpression(expression)
 	if err != nil {
-		return nil, fmt.Errorf("compile expression: %w", err)
+		return nil, err
 	}
-
-	// Execute expression
-	result, err := expr.Run(program, env)
-	if err != nil {
-		return nil, fmt.Errorf("execute expression: %w", err)
-	}
-
-	return result, nil
+	return eval(record)
 }
 
