@@ -15,9 +15,13 @@ import (
 func RegisterWhere(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 	cmd.Subcommand("where").
 		Description("Filter records based on field conditions").
+
 		Example("ssql read-csv data.csv | ssql where -match age gt 18", "Filter records where age > 18").
 		Example("ssql read-csv sales.csv | ssql where -expr 'price * qty > 1000'", "Filter using expression (price * qty > 1000)").
 		Example("ssql read-csv users.csv | ssql where -match dept eq Sales + -match dept eq Marketing", "Sales OR Marketing departments").
+		Example("ssql read-csv users.csv | ssql where -expr 'age >= 18 and status == \"active\"'", "Multiple conditions with AND logic").
+		Example("ssql read-csv data.csv | ssql where -expr 'has(\"email\") and contains(email, \"@\")'", "Validate email field exists and format").
+		Example("ssql read-csv sales.csv | ssql where -expr '(age >= 18 and verified) or role == \"admin\"'", "Complex boolean logic").
 		Flag("-generate", "-g").
 			Bool().
 			Global().

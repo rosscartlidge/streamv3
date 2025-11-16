@@ -23,6 +23,7 @@ func buildRootCommand() *cf.Command {
 
 	// Register all subcommands
 	cmd = commands.RegisterVersion(cmd)
+	cmd = commands.RegisterFunctions(cmd)
 	cmd = commands.RegisterLimit(cmd)
 	cmd = commands.RegisterOffset(cmd)
 	cmd = commands.RegisterSort(cmd)

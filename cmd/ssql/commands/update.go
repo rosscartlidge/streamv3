@@ -15,9 +15,13 @@ import (
 func RegisterUpdate(cmd *cf.CommandBuilder) *cf.CommandBuilder {
 	cmd.Subcommand("update").
 		Description("Conditionally update record fields with new values").
+
 		Example("ssql read-csv users.csv | ssql update -match status eq pending -set status approved", "Update status from pending to approved").
 		Example("ssql read-csv sales.csv | ssql update -set-expr total 'price * qty'", "Calculate total using expression").
 		Example("ssql read-csv data.csv | ssql update -match age lt 18 -set category minor + -match age ge 18 -set category adult", "Categorize by age using if-else logic").
+		Example("ssql read-csv sales.csv | ssql update -set-expr discount 'total > 1000 ? total * 0.1 : 0'", "Apply conditional discount (ternary operator)").
+		Example("ssql read-csv users.csv | ssql update -set-expr email 'lower(trim(email))'", "Normalize email addresses").
+		Example("ssql read-csv data.csv | ssql update -set-expr tier 'revenue > 10000 ? \"gold\" : (revenue > 5000 ? \"silver\" : \"bronze\")'", "Multi-tier categorization").
 		ClauseDescription("Clauses are evaluated in order using if-then-else logic.\nSeparators: +, -\nThe FIRST matching clause applies its updates, then processing stops (first-match-wins).\nThis is different from 'where' which uses OR logic - all clauses are evaluated.").
 		Flag("-generate", "-g").
 			Bool().
