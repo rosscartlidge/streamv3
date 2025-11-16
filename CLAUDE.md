@@ -154,6 +154,12 @@ func setValidated(field string, value any) {
 - Main test files: `example_test.go`, `chart_demo_test.go`, `benchmark_test.go`
 - No custom test runners or frameworks - use standard `go test`
 
+**Git Operations:**
+- `git remote -v` - Show remote repository configuration
+- `git fetch --dry-run` - Test GitHub connection without fetching
+- `git push` - Push commits to GitHub
+- `git push --tags` - Push tags to GitHub
+
 ## Release Process
 
 **⚠️ CRITICAL: Version is manually maintained in version.txt**
